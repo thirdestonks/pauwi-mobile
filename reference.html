@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>PAUWI — Wide Hex Crawl · Design Mock v3</title>
+<style>
+  :root{
+    --night:#0e1214; --panel:#161c1f; --panel2:#1d2529; --panel3:#232b2f;
+    --sodium:#f0a63c; --sari-red:#d94b3b; --sari-blue:#2e86ab; --sari-yel:#f2c94c;
+    --green:#5aa17a; --bone:#ece4d5; --muted:#828b90; --danger:#d94b3b; --line:#2a343a;
+    --dread:#8a4fa0; --dread-bright:#b876cf;
+    --display:'Arial Narrow','Roboto Condensed',system-ui,sans-serif;
+    --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono','Consolas','Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:#050708;font-family:var(--body);color:var(--bone);
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #app{position:relative;width:min(100vw,440px);height:min(100vh,900px);
+    background:var(--night);overflow:hidden;box-shadow:0 0 0 1px #000,0 30px 90px rgba(0,0,0,.6);
+    display:flex;flex-direction:column}
+  #app::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:60;
+    background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.5) 100%)}
+  .grain{position:absolute;inset:0;z-index:59;pointer-events:none;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  .screen{flex:1;overflow-y:auto;overflow-x:hidden;display:none;padding-bottom:14px}
+  .screen.active{display:flex;flex-direction:column}
+  .screen::-webkit-scrollbar{width:0}
+
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;background:linear-gradient(180deg,var(--night),rgba(14,18,20,.85));
+    border-bottom:1px solid var(--line);backdrop-filter:blur(4px)}
+  .day{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:1px}
+  .day span{color:var(--sodium)}
+  .brownout{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--sari-yel)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--sari-yel);box-shadow:0 0 8px var(--sari-yel);animation:flick 2.4s infinite}
+  @keyframes flick{0%,92%,100%{opacity:1}94%{opacity:.2}96%{opacity:1}}
+
+  /* ---------- SHELTER ---------- */
+  .signboard{margin:16px;padding:16px 14px;border-radius:3px;transform:rotate(-.6deg);
+    background:linear-gradient(180deg,#c23a2c,#a82e22);border:3px solid #7c2018;
+    box-shadow:0 6px 0 rgba(0,0,0,.4),inset 0 0 0 2px rgba(242,201,76,.4);position:relative}
+  .signboard .strip{position:absolute;top:0;left:0;right:0;height:6px;background:repeating-linear-gradient(90deg,var(--sari-yel) 0 14px,#7c2018 14px 28px)}
+  .signboard h1{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:28px;line-height:.95;
+    letter-spacing:1px;color:#fff5e0;text-align:center;text-shadow:2px 2px 0 rgba(0,0,0,.35);margin-top:4px}
+  .signboard .sub{text-align:center;font-family:var(--mono);font-size:10px;color:#ffe9c4;letter-spacing:3px;margin-top:6px}
+  .premise{margin:0 16px 14px;padding:12px 14px;background:var(--panel);border-left:3px solid var(--sodium);
+    border-radius:2px;font-size:13px;line-height:1.5;color:#cdc6b8}
+  .premise b{color:var(--bone);font-weight:600}
+  .section-h{display:flex;align-items:baseline;justify-content:space-between;margin:18px 16px 10px}
+  .section-h .t{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-size:14px}
+  .section-h .n{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .meters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px}
+  .meter{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:10px 11px}
+  .meter .lbl{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .meter .lbl b{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:12px}
+  .meter .lbl i{font-family:var(--mono);font-size:11px;color:var(--muted);font-style:normal}
+  .track{height:8px;background:#0c1113;border-radius:4px;overflow:hidden}
+  .track > b{display:block;height:100%;border-radius:4px;transition:width .4s}
+  .f-hp{background:linear-gradient(90deg,#d94b3b,#e88a4a)}
+  .f-en{background:linear-gradient(90deg,#2e86ab,#57b0d0)}
+  .f-fd{background:linear-gradient(90deg,#7a8c3a,#b6d24a)}
+  .f-hp2{background:linear-gradient(90deg,#8a6a2f,#f0a63c)}
+  .f-dr{background:linear-gradient(90deg,#5c2f6b,var(--dread-bright))}
+  .stash{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:0 16px}
+  .cell{aspect-ratio:1;background:var(--panel);border:1px solid var(--line);border-radius:4px;
+    display:flex;align-items:center;justify-content:center;position:relative}
+  .cell .ic{font-size:22px;line-height:1}
+  .cell .q{position:absolute;right:3px;bottom:2px;font-family:var(--mono);font-size:10px;color:var(--sodium)}
+  .cell.empty{opacity:.35}
+  .escape{margin:16px;padding:14px;border-radius:5px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#12232b,#0f1a1f);border:1px solid #234049}
+  .escape .glow{position:absolute;right:-30px;top:-30px;width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle,rgba(46,134,171,.35),transparent 70%)}
+  .escape .t{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:15px}
+  .escape .d{font-size:12px;color:var(--muted);margin:4px 0 12px}
+  .escape .steps{display:flex;gap:6px;margin-bottom:10px}
+  .escape .steps i{flex:1;height:6px;border-radius:3px;background:#0c1113}
+  .escape .steps i.on{background:var(--sari-blue);box-shadow:0 0 8px rgba(46,134,171,.6)}
+  .escape .pct{font-family:var(--mono);font-size:11px;color:var(--sari-blue)}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px}
+  .act{padding:14px;border:1px solid var(--line);border-radius:5px;background:var(--panel2);
+    display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:transform .06s,border-color .15s}
+  .act:active{transform:translateY(2px)} .act:hover{border-color:var(--sodium)}
+  .act .big{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:16px}
+  .act .sm{font-size:11px;color:var(--muted)}
+  .act.go{grid-column:1/3;background:var(--sodium);border-color:var(--sodium)}
+  .act.go .big{color:#0e1214;font-size:19px}
+  .act.go .sm{color:#5a3d12}
+
+  /* ---------- MAP: wide open hex field ---------- */
+  .mapnote{margin:12px 16px 0;font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.6}
+  .mapnote b{color:var(--sodium)}
+  .hexwrap{position:relative;margin:12px 16px 0;border-radius:6px;overflow:hidden;border:1px solid var(--line);
+    background:linear-gradient(160deg,#12181b,#0b0f11);padding:10px}
+  .hexwrap svg{display:block;width:100%;height:auto}
+  .hex{transition:filter .15s}
+  .hex.clickable{cursor:pointer}
+  .hex.clickable:hover polygon{filter:brightness(1.3)}
+  .hex.resolved{cursor:default}
+  .maplegend{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin:12px 16px 0;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .maplegend span{display:flex;align-items:center;gap:6px}
+  .maplegend .sw{width:12px;height:12px;border-radius:3px;flex:none}
+
+  .landmark{display:flex;gap:11px;margin:0 16px;padding:12px;background:var(--panel);border:1px solid var(--sodium);
+    border-radius:5px;align-items:flex-start}
+  .landmark .lic{font-size:22px}
+  .landmark .lt{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:13px;color:var(--sodium)}
+  .landmark .ld{font-size:12px;color:#a9b0b4;margin-top:3px;line-height:1.4}
+
+  /* ---------- RETURN / CYCLE SUMMARY ---------- */
+  .retWrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+  .retEb{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--sodium);margin-bottom:16px}
+  .retWrap h1{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:34px;letter-spacing:1px;color:var(--bone);line-height:1.05}
+  .retFlavor{font-size:14px;line-height:1.6;color:#cdc6b8;max-width:280px;margin-top:18px}
+  .retStats{display:flex;gap:26px;margin-top:22px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px}
+  .retStats b{color:var(--sodium);font-size:20px;display:block;font-family:var(--display);margin-bottom:3px}
+  .retStats .clear b{color:var(--green)}
+  .retBtn{margin-top:26px;padding:14px 30px;background:var(--sodium);color:#0e1214;border:none;border-radius:5px;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:2px;font-size:14px;cursor:pointer}
+  .farnote{margin:12px 16px 0;font-size:12px;color:var(--muted);line-height:1.5}
+  .farnote b{color:var(--sari-blue)}
+
+  /* ---------- TILE CARD ---------- */
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:70;transform:translateY(110%);
+    transition:transform .25s cubic-bezier(.2,.7,.3,1);background:var(--panel2);border-top:2px solid var(--sodium);
+    border-radius:14px 14px 0 0;box-shadow:0 -20px 40px rgba(0,0,0,.5);max-height:90%;overflow-y:auto}
+  .sheet.up{transform:translateY(0)}
+  .sheet .grab{width:40px;height:4px;background:#3a464b;border-radius:2px;margin:10px auto 4px}
+  .tilecard{padding:0 18px 22px}
+  .tile-thumb{position:relative;height:100px;border-radius:8px;overflow:hidden;margin:10px 0 14px;border:1px solid var(--line)}
+  .tile-thumb svg{width:100%;height:100%;display:block}
+  .tile-thumb .tt-label{position:absolute;left:10px;bottom:8px;font-family:var(--mono);font-size:9px;letter-spacing:2px;
+    color:var(--bone);background:rgba(8,11,12,.6);padding:2px 8px;border-radius:3px;text-transform:uppercase}
+  .tilecard h3{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:21px}
+  .tilecard .flavor{font-size:13px;line-height:1.6;color:#cdc6b8;margin:10px 0 14px}
+  .costs{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .costchip{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted);
+    background:var(--panel3);border:1px solid var(--line);padding:4px 9px;border-radius:4px}
+  .costchip b{color:var(--bone);font-weight:400}
+  .choices{display:flex;flex-direction:column;gap:8px}
+  .choice{padding:13px 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel3);
+    cursor:pointer;text-align:left;font-family:var(--body);color:var(--bone);font-size:13px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;transition:border-color .15s,transform .06s}
+  .choice:active{transform:translateY(1px)}
+  .choice:hover{border-color:var(--sodium)}
+  .choice .arrow{color:var(--muted);font-family:var(--mono);font-size:12px;flex:none}
+  .choice.primary{background:var(--sodium);border-color:var(--sodium);color:#0e1214;font-weight:600}
+  .choice.primary .arrow{color:#5a3d12}
+  .choice.risky{border-color:rgba(217,75,59,.45)}
+  .choice.risky .arrow{color:var(--sari-red)}
+  .scrim{position:absolute;inset:0;z-index:65;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+  .scrim.on{opacity:1;pointer-events:auto}
+
+  /* ---------- COMBAT ---------- */
+  .combathead{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .combathead .l{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:15px}
+  .combathead .l span{color:var(--sari-red)}
+  .combathead .r{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .turnqueue{display:flex;align-items:center;gap:6px;padding:10px 16px;overflow-x:auto;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(240,166,60,.04),transparent)}
+  .tq-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:1px;flex:none;margin-right:2px}
+  .tq{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:15px;border:2px solid var(--line);background:var(--panel);position:relative}
+  .tq.you{border-color:var(--sodium);background:rgba(240,166,60,.12)}
+  .tq.now{box-shadow:0 0 0 3px rgba(240,166,60,.25)}
+  .tq.z{border-color:#3a4a34;background:rgba(90,161,122,.08)}
+  .tq-arrow{color:var(--line);font-size:11px;flex:none}
+  .battlefield{padding:18px 16px 6px;background:linear-gradient(180deg,#0c0f10,#141a1c 80%,#0c0f10)}
+  .enemyrow{display:flex;justify-content:center;gap:10px;margin-bottom:18px}
+  .ecard{width:100px;padding:10px 8px;border-radius:7px;background:var(--panel);border:1px solid var(--line);
+    text-align:center;position:relative;transition:border-color .15s,transform .1s}
+  .ecard.front{border-color:var(--sari-red);box-shadow:0 0 0 1px rgba(217,75,59,.25),0 0 18px rgba(217,75,59,.15)}
+  .ecard.front::before{content:"TARGET";position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:7px;letter-spacing:1px;background:var(--sari-red);color:#1a0a08;padding:2px 6px;border-radius:3px}
+  .ecard .glyph{font-size:26px;margin-bottom:6px;filter:grayscale(.2)}
+  .ecard .nm{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.5px;margin-bottom:6px}
+  .ecard .hpt{height:6px;background:#0c1113;border-radius:3px;overflow:hidden}
+  .ecard .hpt > b{display:block;height:100%;background:linear-gradient(90deg,#7a2e26,#d94b3b)}
+  .ecard .pos{margin-top:5px;font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:1px}
+  .herorow{display:flex;justify-content:center;margin-bottom:6px}
+  .hcard{width:150px;padding:12px;border-radius:8px;background:var(--panel2);border:1px solid var(--sodium);text-align:center}
+  .hcard .glyph{font-size:30px;margin-bottom:4px}
+  .hcard .nm{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:.5px;margin-bottom:8px}
+  .hcard .barlbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--muted);margin:5px 0 3px}
+  .hcard .hpt{height:6px;background:#0c1113;border-radius:3px;overflow:hidden}
+  .combatlog{margin:12px 16px;padding:10px 12px;background:var(--panel);border-left:3px solid var(--sari-red);
+    border-radius:2px;font-family:var(--mono);font-size:11px;color:#cdc6b8;line-height:1.6;min-height:44px}
+  .combatlog b{color:var(--sodium)}
+  .weap2{margin:0 16px 12px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .weap2 b{color:var(--bone);font-weight:400}
+  .actbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 16px 6px}
+  .abtn{padding:12px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .06s,border-color .15s}
+  .abtn:active{transform:translateY(2px)}
+  .abtn .ic{font-size:18px}
+  .abtn .lb{font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:11px}
+  .abtn .ex{font-family:var(--mono);font-size:8px;color:var(--muted);text-align:center;line-height:1.3}
+  .abtn.attack{border-color:var(--sari-red)}
+  .abtn.retreat{border-color:var(--muted)}
+  .dreadflag{margin:0 16px 14px;display:none;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;
+    color:var(--dread-bright);letter-spacing:1px}
+  .dreadflag.show{display:flex}
+  .dreadflag .dt{width:6px;height:6px;border-radius:50%;background:var(--dread-bright);box-shadow:0 0 6px var(--dread-bright)}
+
+  .tabbar{display:flex;border-top:1px solid var(--line);background:var(--panel);z-index:50}
+  .tab{flex:1;padding:10px 4px 9px;background:none;border:none;cursor:pointer;color:var(--muted);
+    display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;transition:color .15s}
+  .tab .gl{font-size:18px;line-height:1;filter:grayscale(1) opacity(.6)}
+  .tab.active{color:var(--sodium);box-shadow:inset 0 2px 0 var(--sodium)}
+  .tab.active .gl{filter:none}
+
+  /* ---------- PROLOGUE / INTRO ---------- */
+  .intro{position:absolute;inset:0;z-index:90;background:radial-gradient(120% 90% at 50% 20%,#1a120a,#070a0b);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+  .intro.gone{display:none}
+  .introSplash{display:flex;flex-direction:column;align-items:center}
+  .introSplash.hide{display:none}
+  .intro .eb{font-family:var(--mono);font-size:10px;letter-spacing:4px;color:var(--sodium);margin-bottom:20px}
+  .intro h1{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:54px;letter-spacing:3px;line-height:.9;color:var(--bone);text-shadow:0 0 30px rgba(240,166,60,.2)}
+  .intro .tag2{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--muted);margin-top:10px}
+  .intro p{font-size:14px;line-height:1.6;color:#cdc6b8;max-width:310px;margin-top:22px}
+  .introBeat{display:none;flex-direction:column;align-items:center;max-width:310px}
+  .introBeat.show{display:flex}
+  .introBeat .eb2{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--sari-blue);margin-bottom:16px}
+  .introBeat p{font-size:16px;line-height:1.75;color:var(--bone)}
+  .introDots{display:flex;gap:6px;margin-top:24px}
+  .introDots i{width:6px;height:6px;border-radius:50%;background:#2a343a}
+  .introDots i.on{background:var(--sodium)}
+  .intro button{margin-top:24px;padding:14px 30px;background:var(--sodium);color:#0e1214;border:none;border-radius:5px;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:2px;font-size:15px;cursor:pointer}
+  .intro small{margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="grain"></div>
+
+  <!-- PROLOGUE -->
+  <div class="intro" id="intro">
+    <div class="introSplash" id="introSplash">
+      <div class="eb">TONDO, MANILA</div>
+      <h1>PAUWI</h1>
+      <div class="tag2">/ the long way home /</div>
+      <p>Before the fog. Before the fourteen days. This is where it started.</p>
+    </div>
+    <div class="introBeat" id="introBeat">
+      <div class="eb2" id="beatEb"></div>
+      <p id="beatBody"></p>
+    </div>
+    <button id="introBtn">CONTINUE</button>
+    <div class="introDots" id="introDots"></div>
+    <small id="introSmall">DESIGN MOCKUP · v0.3 (wide hex + prologue)</small>
+  </div>
+
+  <!-- SHELTER -->
+  <section class="screen active" id="s-shelter">
+    <div class="topbar">
+      <div class="day">NIGHT <span>01</span></div>
+      <div class="brownout"><span class="dot"></span> FOG · NO SIGNAL</div>
+    </div>
+    <div class="signboard">
+      <div class="strip"></div>
+      <h1>NIDA'S<br>SARI-SARI STORE</h1>
+      <div class="sub">· OPEN 24 HRS · NO CREDIT ·</div>
+    </div>
+    <div class="premise">
+      <b>Juan.</b> Two years in Manila, off the boat from the province. The room behind Nida's counter is the one you've rented since you got here — now it's the only shelter you've got. <b>You can't relocate.</b> Fourteen days since NAIA. Tonight, the plan starts.
+    </div>
+    <div class="section-h"><div class="t">Condition</div><div class="n">NIGHT 01</div></div>
+    <div class="meters">
+      <div class="meter"><div class="lbl"><b>Health</b><i>72%</i></div><div class="track"><b class="f-hp" style="width:72%"></b></div></div>
+      <div class="meter"><div class="lbl"><b>Energy</b><i>40%</i></div><div class="track"><b class="f-en" style="width:40%"></b></div></div>
+      <div class="meter"><div class="lbl"><b>Food</b><i>55%</i></div><div class="track"><b class="f-fd" style="width:55%"></b></div></div>
+      <div class="meter"><div class="lbl"><b>Hope</b><i>34%</i></div><div class="track"><b class="f-hp2" style="width:34%"></b></div></div>
+    </div>
+    <div class="section-h"><div class="t">Stash</div><div class="n">inventory</div></div>
+    <div class="stash">
+      <div class="cell"><span class="ic">🥫</span><span class="q">×3</span></div>
+      <div class="cell"><span class="ic">🧴</span><span class="q">×2</span></div>
+      <div class="cell"><span class="ic">🍜</span><span class="q">×4</span></div>
+      <div class="cell"><span class="ic">💊</span><span class="q">×1</span></div>
+      <div class="cell"><span class="ic">🔋</span><span class="q">×2</span></div>
+      <div class="cell empty"><span class="ic">·</span></div>
+      <div class="cell empty"><span class="ic">·</span></div>
+      <div class="cell empty"><span class="ic">·</span></div>
+      <div class="cell empty"><span class="ic">·</span></div>
+      <div class="cell empty"><span class="ic">·</span></div>
+    </div>
+    <div class="escape">
+      <div class="glow"></div>
+      <div class="t">The Way Out</div>
+      <div class="d">Fare, papers, and a clear route to North Harbor — still days out from here.</div>
+      <div class="steps"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="pct">0 / 5 steps · ₱0 saved</div>
+    </div>
+    <div class="actions">
+      <div class="act"><span class="big">Eat</span><span class="sm">−1 food · restore</span></div>
+      <div class="act"><span class="big">Sleep</span><span class="sm">end the night · +energy</span></div>
+      <div class="act go" id="a-out"><span class="big">Head out →</span><span class="sm">into the fog</span></div>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section class="screen" id="s-map">
+    <div class="topbar">
+      <div class="day">TONDO <span>IN FOG</span></div>
+      <div class="brownout" id="movesBadge" style="color:var(--sodium)"><span class="dot" style="background:var(--sodium);box-shadow:0 0 8px var(--sodium)"></span><span id="movesText">5/5 MOVES</span></div>
+    </div>
+    <div class="mapnote">You never see a map — just what's around you. <b>2–3 tiles ahead, then pure fog.</b> Close enough to tell what kind of trouble it is — not what's actually waiting there. Distant landmarks still show through, with how far they are. Fresh ground costs a move — retracing cleared ground never does.</div>
+
+    <div class="hexwrap">
+      <svg viewBox="0 0 320 250" id="hexsvg"></svg>
+    </div>
+
+    <div class="maplegend">
+      <span><span class="sw" style="background:#f0a63c;border:1px solid #0e1214"></span>Juan (you)</span>
+      <span><span class="sw" style="background:#1d2529;border:1px solid #2a343a"></span>Visible — tap to act</span>
+      <span><span class="sw" style="background:#8a939a;border:1px solid #6b747a"></span>Edge of sight</span>
+      <span><span class="sw" style="background:#241a0c;border:1px solid #f0a63c"></span>Landmark beacon</span>
+    </div>
+
+    <div class="section-h" style="margin-top:18px"><div class="t">Landmarks in view</div><div class="n">bearing · distance</div></div>
+    <div class="landmark">
+      <div class="lic">🏬</div>
+      <div>
+        <div class="lt">Tutuban Mall <span style="color:var(--sodium);font-family:var(--mono);font-size:10px;font-weight:400">· 53 tiles left</span></div>
+        <div class="ld">Your old stockroom job. You'd know that skyline anywhere, even through this.</div>
+      </div>
+    </div>
+    <div class="landmark">
+      <div class="lic">🛒</div>
+      <div>
+        <div class="lt">168 Mall <span style="color:var(--sari-blue);font-family:var(--mono);font-size:10px;font-weight:400">· 160 tiles left</span></div>
+        <div class="ld">Divisoria, further out to the east — a much longer walk from here.</div>
+      </div>
+    </div>
+
+    <div class="act go" id="a-back" style="margin:16px"><span class="big">Head back to shelter →</span><span class="sm" id="backSub">retrace cleared ground, always free</span></div>
+  </section>
+
+  <!-- RETURN / CYCLE SUMMARY -->
+  <section class="screen" id="s-return">
+    <div class="topbar"><div class="day">CYCLE <span>END</span></div></div>
+    <div class="retWrap">
+      <div class="retEb" id="retCycle">NIGHT 01</div>
+      <h1>JUAN IS<br>HOME</h1>
+      <div class="retFlavor" id="retFlavor">The door locks behind him. Whatever's out there stays out there — for now.</div>
+      <div class="retStats">
+        <div><b id="retMoves">0/5</b>MOVES USED</div>
+        <div class="clear"><b id="retTiles">0</b>TILES CLEARED</div>
+      </div>
+      <button class="retBtn" id="retContinue">CONTINUE</button>
+    </div>
+  </section>
+
+  <!-- COMBAT -->
+  <section class="screen" id="s-combat">
+    <div class="combathead">
+      <div class="l">AMBUSH: <span>Fogged Alley</span></div>
+      <div class="r">ROUND 2</div>
+    </div>
+    <div class="turnqueue">
+      <span class="tq-lbl">ORDER</span>
+      <div class="tq you now">🧍</div><span class="tq-arrow">→</span>
+      <div class="tq z">🧟</div><span class="tq-arrow">→</span>
+      <div class="tq z">🧟</div><span class="tq-arrow">→</span>
+      <div class="tq you">🧍</div>
+    </div>
+    <div class="battlefield">
+      <div class="enemyrow">
+        <div class="ecard front" id="e-front">
+          <div class="glyph">🧟</div><div class="nm">Shambler</div>
+          <div class="hpt"><b id="e-front-hp" style="width:64%"></b></div>
+          <div class="pos">FRONT · in range</div>
+        </div>
+        <div class="ecard">
+          <div class="glyph">🧟</div><div class="nm">Shambler</div>
+          <div class="hpt"><b style="width:100%"></b></div>
+          <div class="pos">REAR · blocked</div>
+        </div>
+      </div>
+      <div class="herorow">
+        <div class="hcard">
+          <div class="glyph">🧍</div><div class="nm">Juan</div>
+          <div class="barlbl"><span>HEALTH</span><span id="h-hp-lbl">72%</span></div>
+          <div class="hpt"><b class="f-hp" id="h-hp" style="width:72%"></b></div>
+          <div class="barlbl"><span>DREAD</span><span id="h-dr-lbl">45%</span></div>
+          <div class="hpt"><b class="f-dr" id="h-dr" style="width:45%"></b></div>
+        </div>
+      </div>
+    </div>
+    <div class="combatlog" id="clog">You feel for the wall in the fog and find bars instead — two Shamblers already between you and the street.</div>
+    <div class="weap2">Weapon: <b>🔧 Pipe Wrench</b> · durability ▮▮▮ · Attacks the FRONT enemy only</div>
+    <div class="dreadflag" id="dflag"><span class="dt"></span> SHAKEN — next Attack has reduced accuracy</div>
+    <div class="actbar">
+      <div class="abtn attack" id="c-attack"><span class="ic">⚔️</span><span class="lb">Attack</span><span class="ex">Hit the front Shambler</span></div>
+      <div class="abtn" id="c-guard"><span class="ic">🛡️</span><span class="lb">Guard</span><span class="ex">Halve next hit taken</span></div>
+      <div class="abtn" id="c-item"><span class="ic">🩹</span><span class="lb">Use Item</span><span class="ex">Bandage · +20% Health</span></div>
+      <div class="abtn retreat" id="c-retreat"><span class="ic">🏃</span><span class="lb">Retreat</span><span class="ex">Flee — risks a free hit</span></div>
+    </div>
+  </section>
+
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet">
+    <div class="grab"></div>
+    <div class="tilecard">
+      <div class="tile-thumb"><svg viewBox="0 0 300 100" id="thumbsvg"></svg><div class="tt-label" id="ttLabel">UNKNOWN</div></div>
+      <h3 id="tcTitle">—</h3>
+      <div class="flavor" id="tcFlavor">—</div>
+      <div class="costs" id="tcCosts"></div>
+      <div class="choices" id="tcChoices"></div>
+    </div>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tab active" data-scr="s-shelter"><span class="gl">🏠</span>Shelter</button>
+    <button class="tab" data-scr="s-map"><span class="gl">🗺️</span>Map</button>
+    <button class="tab" data-scr="s-combat"><span class="gl">⚔️</span>Combat</button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  // ================= PROLOGUE =================
+  const PROLOGUE = [
+    {eb:"DAY 0 · TUTUBAN STOCKROOM", body:"Another closing shift. Juan racks the last pallet, punches out, and heads for the jeepney stop — same as every night for two years."},
+    {eb:"DAY 0 · ON THE WAY HOME", body:"Sirens past Dagupan Street. Then more. An ambulance convoy runs the red at C-3 with no siren left to spare. Juan doesn't stop to look."},
+    {eb:"DAY 0 · NIDA'S BACK ROOM", body:"The news cuts out before it can name the country the flight came from. Point of entry: NAIA Terminal 3. It's already past the tarmac."},
+    {eb:"DAYS 1–13 · QUARANTINE", body:"All of Luzon goes under lockdown within days. Relief trucks roll through Tondo every few nights — rice, canned goods, bottled water. Juan waits it out, like everyone else."},
+    {eb:"DAY 14 · THE LINE BREAKS", body:"The checkpoints stop answering. Metro Manila can't hold anymore. And this morning, for the first time in two years — fog. Juan makes the only plan that still makes sense: stop waiting, get home."},
+  ];
+  let beat = -1; // -1 = splash
+  const splash = document.getElementById('introSplash');
+  const beatEl = document.getElementById('introBeat');
+  const beatEb = document.getElementById('beatEb');
+  const beatBody = document.getElementById('beatBody');
+  const introBtn = document.getElementById('introBtn');
+  const introSmall = document.getElementById('introSmall');
+  const dotsWrap = document.getElementById('introDots');
+  const totalSteps = PROLOGUE.length + 1; // splash + beats
+  for(let i=0;i<totalSteps;i++){ const d=document.createElement('i'); dotsWrap.appendChild(d); }
+  function renderIntro(){
+    const dots = dotsWrap.children;
+    for(let i=0;i<dots.length;i++){ dots[i].classList.toggle('on', i===beat+1); }
+    if(beat===-1){
+      splash.classList.remove('hide'); beatEl.classList.remove('show');
+      introBtn.textContent='CONTINUE'; introSmall.style.display='block';
+    } else {
+      splash.classList.add('hide'); beatEl.classList.add('show');
+      introSmall.style.display='none';
+      const b = PROLOGUE[beat];
+      beatEb.textContent=b.eb; beatBody.textContent=b.body;
+      introBtn.textContent = (beat===PROLOGUE.length-1) ? 'BEGIN' : 'CONTINUE';
+    }
+  }
+  introBtn.addEventListener('click', ()=>{
+    if(beat < PROLOGUE.length-1){ beat++; renderIntro(); }
+    else { document.getElementById('intro').classList.add('gone'); }
+  });
+  renderIntro();
+
+  // ================= HEX HELPERS =================
+  function hexPoints(cx, cy, r){
+    const pts = [];
+    for(let i=0;i<6;i++){
+      const a = Math.PI/180 * (60*i - 30);
+      pts.push([cx + r*Math.cos(a), cy + r*Math.sin(a)].join(','));
+    }
+    return pts.join(' ');
+  }
+  function svgHex(cx, cy, r, fill, stroke, opts){
+    opts = opts||{};
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','hex');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    poly.setAttribute('points', hexPoints(cx,cy,r));
+    poly.setAttribute('fill', fill);
+    poly.setAttribute('stroke', stroke);
+    poly.setAttribute('stroke-width', opts.sw||2);
+    g.appendChild(poly);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',cx); t.setAttribute('y',cy+4);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('font-size', opts.iconSize||11);
+    t.textContent = opts.icon||'';
+    g.appendChild(t);
+    return {g, poly, text:t};
+  }
+  function svgLabel(x,y,text,color,size){
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x); t.setAttribute('y',y); t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-family','ui-monospace,Consolas,monospace');
+    t.setAttribute('font-size',size||7); t.setAttribute('fill',color||'#828b90');
+    t.textContent=text; return t;
+  }
+
+  // ================= JUAN-CENTERED FAN + HORIZON =================
+  const svg = document.getElementById('hexsvg');
+  const VBW = 320;
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0d0e"/>
+      <stop offset="55%" stop-color="#141a1c"/>
+      <stop offset="88%" stop-color="#2a1c0f"/>
+      <stop offset="100%" stop-color="#1d1410"/>
+    </linearGradient>
+    <linearGradient id="fogWash" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#aab4b8" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#9aa8ae" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#c4ccce" stop-opacity="0.88"/>
+    </linearGradient>`;
+  svg.appendChild(defs);
+
+  const sky = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  sky.setAttribute('x',0); sky.setAttribute('y',0); sky.setAttribute('width',VBW); sky.setAttribute('height',110);
+  sky.setAttribute('fill','url(#skyGrad)');
+  svg.appendChild(sky);
+
+  const skyline = document.createElementNS('http://www.w3.org/2000/svg','path');
+  skyline.setAttribute('d','M0,95 L18,86 L34,90 L52,78 L68,84 L92,72 L112,80 L136,66 L158,76 L182,64 L204,74 L228,62 L250,72 L272,60 L296,70 L320,64 L320,100 L0,100 Z');
+  skyline.setAttribute('fill','#141a1c'); skyline.setAttribute('opacity','0.8');
+  svg.appendChild(skyline);
+
+  function beacon(x,y,icon,label,dist,color){
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const glow = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    glow.setAttribute('cx',x); glow.setAttribute('cy',y); glow.setAttribute('r',10);
+    glow.setAttribute('fill',color); glow.setAttribute('opacity','0.18');
+    g.appendChild(glow);
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','text');
+    dot.setAttribute('x',x); dot.setAttribute('y',y+4); dot.setAttribute('text-anchor','middle'); dot.setAttribute('font-size','13');
+    dot.textContent = icon;
+    g.appendChild(dot);
+    g.appendChild(svgLabel(x, y+16, label, color, 7.5));
+    g.appendChild(svgLabel(x, y+25, dist, '#828b90', 6.5));
+    svg.appendChild(g);
+  }
+  beacon(75, 62, '🏬', 'TUTUBAN', '53 TILES LEFT', '#f0a63c');
+  beacon(250, 55, '🛒', '168 MALL', '160 TILES LEFT', '#2e86ab');
+
+  // edge-of-sight ring: faint, non-interactive, about to fade into fog
+  const ring2 = [
+    {x:55, y:118, r:14}, {x:105,y:105, r:14}, {x:160,y:98, r:14},
+    {x:215,y:105, r:14}, {x:265,y:118, r:14},
+  ];
+  ring2.forEach(p=>{
+    const {g} = svgHex(p.x,p.y,p.r, '#232b2f', '#3a444a', {icon:'', sw:1.2});
+    g.style.opacity = '0.55';
+    svg.appendChild(g);
+  });
+
+  // fog wash sits over the edge-of-sight ring, thinning out toward Juan
+  const wash = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  wash.setAttribute('x',0); wash.setAttribute('y',60); wash.setAttribute('width',VBW); wash.setAttribute('height',140);
+  wash.setAttribute('fill','url(#fogWash)');
+  svg.appendChild(wash);
+
+  // immediate ring: the 2-3 tiles Juan can actually act on right now
+  const RESOLVED_STYLE = {
+    nothing:  {fill:'#16241b', stroke:'#3a4a34', icon:''},
+    location: {fill:'#201c14', stroke:'#f0a63c', icon:'🎒'},
+    zombie:   {fill:'#241214', stroke:'#d94b3b', icon:'💀'},
+    event:    {fill:'#181430', stroke:'#8a4fa0', icon:'📜'},
+  };
+  const TILE_ORDER = ['location','zombie','event'];
+  const CATEGORY_ICON = {location:'🎒', zombie:'💀', event:'📡'};
+  const ring1 = [
+    {x:95,  y:180, r:23},
+    {x:160, y:163, r:25},
+    {x:225, y:180, r:23},
+  ];
+  const hexRefs = [];
+  ring1.forEach((p,i)=>{
+    const demoType = TILE_ORDER[i % TILE_ORDER.length];
+    const {g, poly, text} = svgHex(p.x,p.y,p.r, '#1d2529', '#2a343a', {icon:CATEGORY_ICON[demoType], iconSize:16, sw:2});
+    g.classList.add('clickable');
+    const idx = hexRefs.length;
+    const meta = {resolved:false};
+    g.addEventListener('click', ()=>{ if(!meta.resolved) openTileCard(demoType, idx); });
+    svg.appendChild(g);
+    hexRefs.push({poly, text, meta});
+  });
+
+  // Juan: fixed center-bottom, always the anchor, camera follows him not the other way around
+  const juanG = svgHex(160, 224, 27, '#241a0c', '#f0a63c', {icon:'🧍', iconSize:16, sw:3});
+  svg.appendChild(juanG.g);
+  svg.appendChild(svgLabel(160, 224+27+12, 'YOU', '#f0a63c', 8));
+
+  // ================= MOVES / CYCLE STATE =================
+  let movesLeft = 5, tilesClearedThisCycle = 0, nightNum = 1;
+  const movesTextEl = document.getElementById('movesText');
+  const backSubEl = document.getElementById('backSub');
+  function useMove(){
+    if(movesLeft>0) movesLeft--;
+    tilesClearedThisCycle++;
+    movesTextEl.textContent = movesLeft+'/5 MOVES';
+    if(movesLeft<=0){
+      movesTextEl.parentElement.style.color = 'var(--sari-red)';
+      backSubEl.textContent = 'out of moves — time to head back';
+    }
+  }
+
+  function resolveTile(idx, type){
+    const ref = hexRefs[idx];
+    if(!ref || ref.meta.resolved) return;
+    ref.meta.resolved = true;
+    useMove();
+    const st = RESOLVED_STYLE[type];
+    ref.poly.setAttribute('fill', st.fill);
+    ref.poly.setAttribute('stroke', st.stroke);
+    ref.text.textContent = st.icon;
+  }
+
+  // ================= TILE CARD CONTENT =================
+  const TILE_CARDS = {
+    nothing: {
+      thumbLabel:'NOTHING HERE', title:'Quiet Block',
+      flavor:"Shutters down, no lights, no movement — for once, nothing. You clear the block without incident.",
+      costs:[{ic:'⏱',val:'3 min'},{ic:'🎒',val:'No supply used'}],
+      choices:[{label:'Move on', cls:'primary', action:'resolve'}]
+    },
+    location: {
+      thumbLabel:'SUPPLY CACHE', title:'Shuttered Bakery',
+      flavor:"Flour dust and an overturned display case. Someone already broke the lock — but they left in a hurry.",
+      costs:[{ic:'⏱',val:'5 min'},{ic:'🎒',val:'−1 supply'},{ic:'☣️',val:'Low risk'}],
+      choices:[{label:'Search the back counter', cls:'primary', action:'resolve'},{label:'Not worth it — move on', cls:'', action:'resolve'}]
+    },
+    zombie: {
+      thumbLabel:'MOVEMENT', title:"Something's Moving",
+      flavor:"A shape shifts behind a fogged-out window across the street. Could be nothing. Could be exactly what you think.",
+      costs:[{ic:'⏱',val:'—'},{ic:'☣️',val:'High risk'}],
+      choices:[{label:'Investigate', cls:'primary risky', action:'combat'},{label:'Back away quietly', cls:'', action:'resolve'}]
+    },
+    event: {
+      thumbLabel:'SIGNAL', title:'A Voice on the Radio',
+      flavor:"Static, then a voice — faint, human, asking if anyone's still out there. It cuts out before you can answer.",
+      costs:[{ic:'⏱',val:'2 min'},{ic:'💭',val:'Hope ±'}],
+      choices:[{label:'Call back into the static', cls:'primary', action:'resolve'},{label:'Let it go', cls:'', action:'resolve'}]
+    }
+  };
+
+  const sheet=document.getElementById('sheet'), scrim=document.getElementById('scrim');
+  function drawThumb(){
+    const s=document.getElementById('thumbsvg'); s.innerHTML='';
+    const cols=7, rows=3, r=10;
+    for(let row=0; row<rows; row++){
+      for(let col=0; col<cols; col++){
+        const x = 18 + col*17 + (row%2? 8.5:0);
+        const y = 18 + row*16;
+        const isCenter = row===1 && col===3;
+        const fill = isCenter ? '#d94b3b' : '#1d2529';
+        const stroke = isCenter? '#0e1214':'#2a343a';
+        const {g} = svgHex(x,y,r-1,fill,stroke,isCenter?{icon:'📍',iconSize:8}:{});
+        s.appendChild(g);
+      }
+    }
+  }
+  function openTileCard(type, idx){
+    const def = TILE_CARDS[type];
+    document.getElementById('ttLabel').textContent = def.thumbLabel;
+    document.getElementById('tcTitle').textContent = def.title;
+    document.getElementById('tcFlavor').textContent = def.flavor;
+    document.getElementById('tcCosts').innerHTML = def.costs.map(c=>`<div class="costchip">${c.ic} <b>${c.val}</b></div>`).join('');
+    const chEl = document.getElementById('tcChoices');
+    chEl.innerHTML = '';
+    def.choices.forEach(c=>{
+      const d=document.createElement('div');
+      d.className = 'choice ' + (c.cls||'');
+      d.innerHTML = `<span>${c.label}</span><span class="arrow">${c.action==='combat'?'⚔':'→'}</span>`;
+      d.addEventListener('click', ()=>{
+        closeSheet();
+        resolveTile(idx, type);
+        if(c.action==='combat'){ showScreen('s-combat'); }
+      });
+      chEl.appendChild(d);
+    });
+    drawThumb();
+    sheet.classList.add('up'); scrim.classList.add('on');
+  }
+  function closeSheet(){ sheet.classList.remove('up'); scrim.classList.remove('on'); }
+  scrim.addEventListener('click', closeSheet);
+
+  // ================= NAV =================
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.id===id));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.scr===id));
+    const scr=document.getElementById(id); if(scr) scr.scrollTop=0;
+  }
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>showScreen(t.dataset.scr)));
+  document.getElementById('a-out').addEventListener('click', ()=>showScreen('s-map'));
+
+  document.getElementById('a-back').addEventListener('click', ()=>{
+    const movesUsed = 5 - movesLeft;
+    document.getElementById('retCycle').textContent = 'NIGHT ' + String(nightNum).padStart(2,'0');
+    document.getElementById('retMoves').textContent = movesUsed + '/5';
+    document.getElementById('retTiles').textContent = tilesClearedThisCycle;
+    document.getElementById('retFlavor').textContent = tilesClearedThisCycle>0
+      ? 'The door locks behind him. Whatever\'s out there stays out there — for now.'
+      : 'He barely made it past the doorway before turning back. Tomorrow, maybe.';
+    showScreen('s-return');
+  });
+  document.getElementById('retContinue').addEventListener('click', ()=>{
+    nightNum++;
+    movesLeft = 5; tilesClearedThisCycle = 0;
+    movesTextEl.textContent = '5/5 MOVES';
+    movesTextEl.parentElement.style.color = 'var(--sodium)';
+    backSubEl.textContent = 'retrace cleared ground, always free';
+    const shelterNight = document.querySelector('#s-shelter .day span');
+    if(shelterNight) shelterNight.textContent = String(nightNum).padStart(2,'0');
+    showScreen('s-shelter');
+  });
+
+  // ================= COMBAT DEMO =================
+  let eHp=64, hHp=72, dread=45;
+  const log = document.getElementById('clog');
+  const setW=(id,v)=>{const e=document.getElementById(id); if(e) e.style.width=Math.max(0,v)+'%';};
+  document.getElementById('c-attack').addEventListener('click', ()=>{
+    eHp = Math.max(0, eHp-30); setW('e-front-hp', eHp);
+    dread = Math.min(100, dread+8); setW('h-dr', dread);
+    document.getElementById('h-dr-lbl').textContent = dread+'%';
+    if(dread>=60) document.getElementById('dflag').classList.add('show');
+    log.innerHTML = eHp<=0
+      ? 'The <b>front Shambler</b> drops. One left, and it\'s already turning toward you.'
+      : 'You swing the pipe wrench into the <b>front Shambler</b> — it staggers, snarling.';
+  });
+  document.getElementById('c-guard').addEventListener('click', ()=>{
+    log.innerHTML = 'You brace against the wall, weapon up — the next hit will land soft.';
+  });
+  document.getElementById('c-item').addEventListener('click', ()=>{
+    hHp = Math.min(100, hHp+20); setW('h-hp', hHp); document.getElementById('h-hp-lbl').textContent=hHp+'%';
+    log.innerHTML = 'You tear open the bandage one-handed — <b>+20% Health</b>, but you\'re still cornered.';
+  });
+  document.getElementById('c-retreat').addEventListener('click', ()=>{
+    hHp = Math.max(0, hHp-12); setW('h-hp', hHp); document.getElementById('h-hp-lbl').textContent=hHp+'%';
+    log.innerHTML = 'You break for the mouth of the alley — it clips you on the way out. <b>−12% Health</b>, but you\'re clear.';
+  });
+})();
+</script>
+</body>
+</html>
