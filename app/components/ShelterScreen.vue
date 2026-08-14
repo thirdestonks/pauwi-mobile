@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const ui = useUiStore()
+const inventory = useInventoryStore()
 
-// Placeholder data — real meters/stash/escape state arrives with Phase 2's shelter loop.
+// Placeholder data — real meters/escape state arrives with Phase 2's shelter loop.
 const meters = [
   { label: 'Health', value: 72, color: 'linear-gradient(90deg,#d94b3b,#e88a4a)' },
   { label: 'Energy', value: 40, color: 'linear-gradient(90deg,#2e86ab,#57b0d0)' },
@@ -9,13 +10,6 @@ const meters = [
   { label: 'Hope', value: 34, color: 'linear-gradient(90deg,#8a6a2f,#f0a63c)' },
 ]
 
-const stash = [
-  { icon: '🥫', qty: 3 },
-  { icon: '🧴', qty: 2 },
-  { icon: '🍜', qty: 4 },
-  { icon: '💊', qty: 1 },
-  { icon: '🔋', qty: 2 },
-]
 const stashSlots = 10
 </script>
 
@@ -35,16 +29,25 @@ const stashSlots = 10
       <div class="text-center mt-1.5" style="font-family: var(--font-mono); font-size: 10px; color: #ffe9c4; letter-spacing: 3px">· OPEN 24 HRS · NO CREDIT ·</div>
     </div>
 
-    <div class="mx-4 mb-3.5 p-3 text-[13px] leading-relaxed rounded-sm" style="background: var(--panel); border-left: 3px solid var(--sodium); color: #cdc6b8">
+    <div class="mx-4 mb-3.5 p-3 pt-4 text-[13px] leading-relaxed rounded-sm relative" style="background: var(--panel); border: 1px solid var(--line); color: #cdc6b8">
+      <i class="absolute -top-1.5 left-4 w-8 h-3 rounded-[1px]" style="background: rgba(240,166,60,.35); transform: rotate(-3deg); box-shadow: 0 1px 2px rgba(0,0,0,.4)" />
       <b style="color: var(--bone)">Juan.</b> Two years in Manila, off the boat from the province. The room behind Nida's counter is the one you've rented since you got here — now it's the only shelter you've got. <b style="color: var(--bone)">You can't relocate.</b> Fourteen days since NAIA. Tonight, the plan starts.
     </div>
 
-    <div class="flex items-baseline justify-between mx-4 mt-4 mb-2.5">
-      <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Condition</div>
+    <div class="flex items-center justify-between mx-4 mt-5 mb-3">
+      <div class="flex items-center gap-2">
+        <i class="w-4 h-2.5 rounded-[1px]" style="background: repeating-linear-gradient(45deg, var(--sari-red) 0 3px, #7c2018 3px 6px); transform: rotate(-8deg); box-shadow: 0 1px 2px rgba(0,0,0,.5)" />
+        <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Condition</div>
+      </div>
       <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">NIGHT 01</div>
     </div>
-    <div class="grid grid-cols-2 gap-2.5 mx-4">
-      <div v-for="m in meters" :key="m.label" class="p-2.5 rounded" style="background: var(--panel); border: 1px solid var(--line)">
+    <div class="grid grid-cols-2 gap-3 mx-4">
+      <div
+        v-for="(m, idx) in meters"
+        :key="m.label"
+        class="p-2.5 rounded-sm"
+        :style="{ background: 'var(--panel)', border: '1px solid var(--line)', transform: `rotate(${idx % 2 === 0 ? -0.5 : 0.5}deg)`, boxShadow: '0 3px 0 rgba(0,0,0,.3)' }"
+      >
         <div class="flex justify-between items-center mb-1.5">
           <b class="uppercase text-xs" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">{{ m.label }}</b>
           <i class="text-[11px] not-italic" style="font-family: var(--font-mono); color: var(--muted)">{{ m.value }}%</i>
@@ -55,22 +58,36 @@ const stashSlots = 10
       </div>
     </div>
 
-    <div class="flex items-baseline justify-between mx-4 mt-4 mb-2.5">
-      <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Stash</div>
+    <div class="flex items-center justify-between mx-4 mt-5 mb-3">
+      <div class="flex items-center gap-2">
+        <i class="w-4 h-2.5 rounded-[1px]" style="background: repeating-linear-gradient(45deg, var(--sodium) 0 3px, #8a6a2f 3px 6px); transform: rotate(6deg); box-shadow: 0 1px 2px rgba(0,0,0,.5)" />
+        <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Stash</div>
+      </div>
       <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">inventory</div>
     </div>
-    <div class="grid grid-cols-5 gap-2 mx-4">
-      <div v-for="i in stashSlots" :key="i" class="aspect-square rounded flex items-center justify-center relative" style="background: var(--panel); border: 1px solid var(--line)" :class="i > stash.length ? 'opacity-35' : ''">
-        <template v-if="i <= stash.length">
-          <span class="text-[22px] leading-none">{{ stash[i - 1].icon }}</span>
-          <span class="absolute right-0.5 bottom-0.5 text-[10px]" style="font-family: var(--font-mono); color: var(--sodium)">×{{ stash[i - 1].qty }}</span>
+    <div class="grid grid-cols-5 gap-2.5 mx-4">
+      <div
+        v-for="i in stashSlots"
+        :key="i"
+        class="aspect-square rounded-sm flex items-center justify-center relative"
+        :style="{
+          background: 'var(--panel)',
+          border: `1px dashed ${i <= inventory.stash.length ? 'var(--line)' : 'rgba(42,52,58,.5)'}`,
+          transform: `rotate(${((i % 3) - 1) * 0.8}deg)`,
+        }"
+        :class="i > inventory.stash.length ? 'opacity-35' : ''"
+      >
+        <template v-if="i <= inventory.stash.length">
+          <span class="text-[22px] leading-none">{{ inventory.stash[i - 1].icon }}</span>
+          <span class="absolute right-0.5 bottom-0.5 text-[10px]" style="font-family: var(--font-mono); color: var(--sodium)">×{{ inventory.stash[i - 1].qty }}</span>
         </template>
         <span v-else class="text-[22px] leading-none">·</span>
       </div>
     </div>
 
-    <div class="m-4 p-3.5 rounded relative overflow-hidden" style="background: linear-gradient(135deg,#12232b,#0f1a1f); border: 1px solid #234049">
-      <div class="uppercase text-[15px]" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">The Way Out</div>
+    <div class="m-4 mt-5 p-3.5 pt-3 rounded-sm relative overflow-hidden" style="background: linear-gradient(135deg,#12232b,#0f1a1f); border: 2px solid #234049; box-shadow: 0 4px 0 rgba(0,0,0,.3)">
+      <div class="absolute top-0 left-0 right-0 h-1" style="background: repeating-linear-gradient(90deg, var(--sari-blue) 0 10px, #12232b 10px 20px)" />
+      <div class="uppercase text-[15px] mt-1.5" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">The Way Out</div>
       <div class="text-xs my-1 mb-3" style="color: var(--muted)">Fare, papers, and a clear route to North Harbor — still days out from here.</div>
       <div class="flex gap-1.5 mb-2.5">
         <i v-for="i in 5" :key="i" class="flex-1 h-1.5 rounded" style="background: #0c1113" />
@@ -78,18 +95,22 @@ const stashSlots = 10
       <div class="text-[11px]" style="font-family: var(--font-mono); color: var(--sari-blue)">0 / 5 steps · ₱0 saved</div>
     </div>
 
-    <div class="grid grid-cols-2 gap-2.5 m-4">
-      <div class="p-3.5 rounded flex flex-col gap-0.5" style="background: var(--panel2); border: 1px solid var(--line)">
+    <div class="grid grid-cols-2 gap-2.5 m-4 mt-5">
+      <div class="p-3.5 rounded-sm flex flex-col gap-0.5" style="background: var(--panel2); border: 1px dashed var(--line)">
         <span class="uppercase text-base" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">Eat</span>
         <span class="text-[11px]" style="color: var(--muted)">−1 food · restore</span>
       </div>
-      <div class="p-3.5 rounded flex flex-col gap-0.5" style="background: var(--panel2); border: 1px solid var(--line)">
+      <div class="p-3.5 rounded-sm flex flex-col gap-0.5" style="background: var(--panel2); border: 1px dashed var(--line)">
         <span class="uppercase text-base" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">Sleep</span>
         <span class="text-[11px]" style="color: var(--muted)">end the night · +energy</span>
       </div>
-      <div class="col-span-2 p-3.5 rounded flex flex-col gap-0.5" style="background: var(--sodium); border-color: var(--sodium)" @click="ui.setTab('map')">
+      <div
+        class="col-span-2 p-3.5 rounded-sm flex flex-col gap-0.5"
+        style="background: var(--sodium); border: 2px solid #c9821f; transform: rotate(-.4deg); box-shadow: 0 4px 0 rgba(0,0,0,.35), inset 0 0 0 2px rgba(14,18,20,.15)"
+        @click="ui.setTab('pack')"
+      >
         <span class="uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; color: #0e1214; font-size: 19px">Head out →</span>
-        <span class="text-[11px]" style="color: #5a3d12">into the fog</span>
+        <span class="text-[11px]" style="color: #5a3d12">pack your bag first</span>
       </div>
     </div>
   </div>

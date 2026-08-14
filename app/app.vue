@@ -18,9 +18,11 @@ const ui = useUiStore()
       <ShelterScreen v-if="ui.activeTab === 'shelter'" />
       <MapScreen v-else-if="ui.activeTab === 'map'" />
       <CombatScreen v-else-if="ui.activeTab === 'combat'" />
+      <PackScreen v-else-if="ui.activeTab === 'pack'" />
 
-      <TabBar />
+      <TabBar v-if="ui.activeTab !== 'pack'" />
 
+      <ShelterTransitionScreen v-if="ui.shelterTransition" />
       <PrologueScreen v-if="!ui.prologueDone" />
     </div>
   </div>

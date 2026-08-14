@@ -33,7 +33,7 @@ const content = computed(() => {
 
 function choose(choice: Choice) {
   board.dismissCard()
-  if (choice.action === 'combat') ui.setTab('combat')
+  if (choice.action === 'combat') ui.startCombat()
 }
 </script>
 

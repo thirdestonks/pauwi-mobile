@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const board = useBoardStore()
+const ui = useUiStore()
 </script>
 
 <template>
@@ -33,7 +34,7 @@ const board = useBoardStore()
     <div
       class="mx-4 mb-4 p-3.5 rounded flex flex-col gap-0.5"
       style="background: var(--sodium); border-color: var(--sodium)"
-      @click="board.retreatToShelter()"
+      @click="ui.requestShelterReturn(board.moveBudget <= 0 ? 'moves' : 'voluntary')"
     >
       <span class="uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; color: #0e1214; font-size: 19px">Head back to shelter →</span>
       <span class="text-[11px]" style="color: #5a3d12">{{ board.moveBudget <= 0 ? 'out of moves — time to head back' : 'retrace cleared ground, always free' }}</span>

@@ -12,8 +12,16 @@ export interface Tile {
 
 const SHELTER_POS: AxialCoord = { q: 0, r: 0 }
 const ICON_RING_RADIUS = 2
-const FOG_RING_RADIUS = 3
+const FOG_RING_RADIUS = 6
 const MAX_MOVE_BUDGET = 5
+
+export interface Landmark {
+  name: string
+  pos: AxialCoord
+}
+
+// Fixed world landmarks, visible as a faint directional hint even from far outside fog range.
+const LANDMARKS: Landmark[] = [{ name: 'Tutuban', pos: { q: 53, r: 0 } }]
 
 const TYPE_WEIGHTS: [TileType, number][] = [
   ['nothing', 0.45],
@@ -47,7 +55,8 @@ export const useBoardStore = defineStore('board', () => {
     const key = hexKey(coord.q, coord.r)
     let tile = tiles.get(key)
     if (!tile) {
-      tile = { q: coord.q, r: coord.r, type: rollTileType(), cleared: false }
+      const isShelter = coord.q === SHELTER_POS.q && coord.r === SHELTER_POS.r
+      tile = { q: coord.q, r: coord.r, type: isShelter ? 'nothing' : rollTileType(), cleared: isShelter }
       tiles.set(key, tile)
     }
     return tile
@@ -97,10 +106,13 @@ export const useBoardStore = defineStore('board', () => {
 
   // MVP shortcut: shelter return is always free and instant, per design ("never
   // design a state where the player can get stranded"). No path-walk simulation yet.
+  // Ends the current day/night cycle: budget resets, cycle count advances.
   function retreatToShelter() {
     playerPos.q = SHELTER_POS.q
     playerPos.r = SHELTER_POS.r
     syncFogAroundPlayer()
+    moveBudget.value = MAX_MOVE_BUDGET
+    cycleCount.value++
   }
 
   syncFogAroundPlayer()
@@ -114,6 +126,7 @@ export const useBoardStore = defineStore('board', () => {
     shelterPos: SHELTER_POS,
     iconRingRadius: ICON_RING_RADIUS,
     fogRingRadius: FOG_RING_RADIUS,
+    landmarks: LANDMARKS,
     getTile,
     moveTo,
     dismissCard,

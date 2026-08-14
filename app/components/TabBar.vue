@@ -3,17 +3,20 @@ import type { ScreenTab } from '~/stores/ui'
 
 const ui = useUiStore()
 
-const TABS: { id: ScreenTab; icon: string; label: string }[] = [
+const ALL_TABS: { id: ScreenTab; icon: string; label: string }[] = [
   { id: 'shelter', icon: '🏠', label: 'Shelter' },
   { id: 'map', icon: '🗺️', label: 'Map' },
   { id: 'combat', icon: '⚔️', label: 'Combat' },
 ]
+
+// Combat only appears in the bar once an encounter is actually underway — it's never a place you navigate to on a whim.
+const tabs = computed(() => ALL_TABS.filter((t) => t.id !== 'combat' || ui.combatActive))
 </script>
 
 <template>
   <nav class="flex border-t z-50" style="border-color: var(--line); background: var(--panel)">
     <button
-      v-for="tab in TABS"
+      v-for="tab in tabs"
       :key="tab.id"
       class="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 uppercase"
       :style="{

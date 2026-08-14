@@ -41,6 +41,17 @@
   96% { opacity: 1; }
 }
 
+@keyframes hitFlash {
+  0%, 100% { filter: brightness(1); }
+  25% { filter: brightness(3) saturate(0); }
+  50% { filter: brightness(1); }
+  75% { filter: brightness(2.5) saturate(0); }
+}
+
+.hit-flash {
+  animation: hitFlash 0.4s steps(1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
 }
