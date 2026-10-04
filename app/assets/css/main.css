@@ -52,6 +52,18 @@
   animation: hitFlash 0.4s steps(1);
 }
 
+/* Combat damage/heal numbers. Stepped, not smooth — it sits on pixel art. Includes the
+   -50% x-offset because the animation's transform replaces Tailwind's translate utility. */
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+.float-up {
+  animation: floatUp 0.7s steps(6) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
 }

@@ -2,6 +2,7 @@
 const ui = useUiStore()
 
 const isOutOfMoves = computed(() => ui.shelterTransition === 'moves')
+const isDusk = computed(() => useBoardStore().phase === 'day')
 </script>
 
 <template>
@@ -12,12 +13,16 @@ const isOutOfMoves = computed(() => ui.shelterTransition === 'moves')
       {{ isOutOfMoves ? 'Out of Moves' : 'Returning to Shelter' }}
     </h1>
 
-    <div class="text-[11px] mt-2.5 tracking-[3px]" style="font-family: var(--font-mono); color: var(--muted)">/ night is falling /</div>
+    <div class="text-[11px] mt-2.5 tracking-[3px]" style="font-family: var(--font-mono); color: var(--muted)">/ {{ isDusk ? 'dusk is falling' : 'dawn is breaking' }} /</div>
 
     <p class="text-sm leading-relaxed mt-5 max-w-[310px]" style="color: #cdc6b8">
       {{ isOutOfMoves
-        ? "Five moves, spent. The fog won't wait for you to find another way — time to get back before dark really falls."
-        : "Better to walk back on your own terms than get caught out here after dark." }}
+        ? (isDusk
+          ? "Five moves, spent. Dusk is coming down on the fog — get back before the light goes, or go out and gamble the dark."
+          : "Five moves, spent. Night's run is done — the streets stay dark until dawn, and the dawn is a new day.")
+        : (isDusk
+          ? "Better to walk back on your own terms than get caught out here after dark. Night comes, and the fog keeps what it catches."
+          : "The night ends, and Day's moves are yours again. Two outings a day — that's the shape of survival now.") }}
     </p>
 
     <button

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PAUWI — Combat Rework</title>
+<style>
+  :root {
+    --night: #0e1214;
+    --panel: #161c1f;
+    --panel2: #1d2529;
+    --panel3: #232b2f;
+    --sodium: #f0a63c;
+    --sari-red: #d94b3b;
+    --sari-blue: #2e86ab;
+    --sari-yel: #f2c94c;
+    --green: #5aa17a;
+    --bone: #ece4d5;
+    --muted: #828b90;
+    --line: #2a343a;
+    --dread: #8a4fa0;
+    --dread-bright: #b876cf;
+    --display: 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Consolas, 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #050708; color: var(--bone);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-size: 15px; line-height: 1.6; padding: 0 0 80px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 22px; }
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9; opacity: .05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* ---- signage ---- */
+  .board {
+    margin: 34px 0 6px; padding: 20px 18px 16px; position: relative;
+    transform: rotate(-.4deg);
+    background: linear-gradient(180deg, #c23a2c, #a82e22);
+    border: 3px solid #7c2018;
+    box-shadow: 0 6px 0 rgba(0,0,0,.4), inset 0 0 0 2px rgba(242,201,76,.4);
+  }
+  .board::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: repeating-linear-gradient(90deg, var(--sari-yel) 0 14px, #7c2018 14px 28px);
+  }
+  .board h1 {
+    font-family: var(--display); font-weight: 700; text-transform: uppercase;
+    font-size: 32px; line-height: .95; letter-spacing: 1px; color: #fff5e0;
+    text-shadow: 2px 2px 0 rgba(0,0,0,.35); text-align: center; margin-top: 4px;
+  }
+  .board .sub {
+    text-align: center; font-family: var(--mono); font-size: 10px;
+    color: #ffe9c4; letter-spacing: 3px; margin-top: 8px;
+  }
+  .kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--sodium); margin: 44px 0 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .kicker::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  h2 {
+    font-family: var(--display); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; font-size: 15px; margin: 0 0 1px;
+  }
+  .lbl {
+    font-family: var(--display); font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; font-size: 13px; margin: 26px 0 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .lbl i {
+    width: 15px; height: 10px; flex: none;
+    background: repeating-linear-gradient(45deg, var(--sari-red) 0 3px, #7c2018 3px 6px);
+    transform: rotate(-8deg); box-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .lbl.amber i { background: repeating-linear-gradient(45deg, var(--sodium) 0 3px, #8a6a2f 3px 6px); }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); padding: 14px 16px;
+    position: relative; margin: 14px 0;
+  }
+  .card.tape::before {
+    content: ''; position: absolute; top: -6px; left: 16px; width: 34px; height: 12px;
+    background: rgba(240,166,60,.35); transform: rotate(-3deg);
+    box-shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+  p { color: #cdc6b8; margin: 8px 0; }
+  p b, li b { color: var(--bone); }
+  .mono { font-family: var(--mono); }
+  code {
+    font-family: var(--mono); font-size: 12.5px; background: #0c1113;
+    border: 1px solid var(--line); padding: 1px 5px; color: var(--bone);
+  }
+  ul { margin: 8px 0 8px 18px; } li { color: #cdc6b8; margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th {
+    text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted); font-weight: 400;
+    border-bottom: 1px solid var(--line); padding: 6px 8px;
+  }
+  td { border-bottom: 1px solid #1d2529; padding: 7px 8px; color: #cdc6b8; }
+  td.n { font-family: var(--mono); color: var(--bone); }
+  .was { color: var(--sari-red); font-family: var(--mono); font-size: 12.5px; }
+  .now { color: var(--green); font-family: var(--mono); font-size: 12.5px; }
+  /* ---- 16-bit combat register ---- */
+  .pixel {
+    background: #0a0d0e; border: 7px solid;
+    border-image: repeating-linear-gradient(100deg, #4d5256 0 4px, #34383b 4px 8px) 7;
+    box-shadow: 0 4px 0 rgba(0,0,0,.5); padding: 0; margin: 16px 0; position: relative;
+  }
+  .pixel .inner { padding: 16px 18px; }
+  .pixel h3 {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--sodium);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid; grid-template-columns: 74px 1fr; gap: 12px;
+    padding: 9px 0; border-bottom: 1px dashed #232b2f;
+  }
+  .step:last-child { border-bottom: none; }
+  .step .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    color: var(--sodium); padding-top: 3px;
+  }
+  .step .tag.red { color: var(--sari-red); }
+  .step .tag.dread { color: var(--dread-bright); }
+  .step .tag.green { color: var(--green); }
+  .step p { margin: 0; font-size: 13.5px; }
+  .steps-bar { display: flex; gap: 5px; margin: 10px 0 2px; }
+  .steps-bar i { flex: 1; height: 7px; background: #0c1113; }
+  .steps-bar i.on { background: var(--sari-blue); }
+  .note {
+    border-left: 3px solid var(--sodium); background: var(--panel2);
+    padding: 10px 14px; margin: 14px 0; font-size: 13.5px; color: #cdc6b8;
+  }
+  .note.danger { border-left-color: var(--sari-red); }
+  .note.open { border-left-color: var(--sari-blue); }
+  .pill {
+    display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    padding: 2px 7px; text-transform: uppercase; border: 1px solid var(--line);
+    background: var(--panel3); color: var(--muted);
+  }
+  .pill.g { color: var(--green); border-color: #33513f; }
+  .pill.r { color: var(--sari-red); border-color: #5a2b26; }
+  .pill.a { color: var(--sodium); border-color: #6b4d1c; }
+  footer {
+    margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+
+  <div class="board">
+    <h1>Combat<br>Rework</h1>
+    <div class="sub">· PAUWI · PHASE 3 · REAL TURN-BASED MECHANICS ·</div>
+  </div>
+  <p class="mono" style="text-align:center;font-size:11px;color:var(--muted)">
+    Review artifact — disposable by request. Nothing here is committed.
+  </p>
+
+  <div class="kicker">01 — Why</div>
+  <p>
+    <b>Combat is still the vanilla-JS demo ported from <code>reference.html</code></b> — the file says so in its own
+    header comment. Every value is a local <code>ref</code> that dies on unmount, so a fight has no memory, no stakes,
+    and no way to lose. This pass makes the fight a real system with a real fail state.
+  </p>
+
+  <div class="lbl"><i></i>Before / after</div>
+  <table>
+    <tr><th>Behaviour</th><th>Before</th><th>After</th></tr>
+    <tr>
+      <td>Juan's Health</td>
+      <td class="was">hHp = 72, local to the screen</td>
+      <td class="now">player store — survives the fight, feeds the shelter meter</td>
+    </tr>
+    <tr>
+      <td>Enemy turns</td>
+      <td class="was">never happen</td>
+      <td class="now">real initiative, real attacks, real damage</td>
+    </tr>
+    <tr>
+      <td>Turn order queue</td>
+      <td class="was">static decorative icons</td>
+      <td class="now">computed from actor speed; current actor marked, dead dropped</td>
+    </tr>
+    <tr>
+      <td>Shaken</td>
+      <td class="was">a label that says "reduced accuracy"</td>
+      <td class="now">−25% accuracy, actually applied to the roll</td>
+    </tr>
+    <tr>
+      <td>Guard</td>
+      <td class="was">writes a log line</td>
+      <td class="now">halves all damage until Juan's next turn, shaves Dread</td>
+    </tr>
+    <tr>
+      <td>Use Item</td>
+      <td class="was">heals +20 out of nowhere</td>
+      <td class="now">spends a real slot from the field bag</td>
+    </tr>
+    <tr>
+      <td>Durability</td>
+      <td class="was">a hardcoded <code>▮▮▮</code> string</td>
+      <td class="now">8 real swings; the plank splits mid-fight</td>
+    </tr>
+    <tr>
+      <td>Defeat</td>
+      <td class="was">plays the die sprite and stops</td>
+      <td class="now">death screen, run restarts</td>
+    </tr>
+    <tr>
+      <td>Enemy rank</td>
+      <td class="was">only ever draws 2 sprites</td>
+      <td class="now">up to 3, staged with depth</td>
+    </tr>
+    <tr>
+      <td>Retreat</td>
+      <td class="was">returns to map, tile already cleared</td>
+      <td class="now">tile stays unresolved — the fight is still there if you come back</td>
+    </tr>
+    <tr>
+      <td>Leaving a fight</td>
+      <td class="was">tap 🏠 Shelter in the tab bar, free</td>
+      <td class="now">tab bar hidden during combat — victory, retreat, or death only</td>
+    </tr>
+    <tr>
+      <td>Encounter size</td>
+      <td class="was">always 2, HP 64 / 100</td>
+      <td class="now">1–3, rolled when the tile is generated and stored on it</td>
+    </tr>
+  </table>
+
+  <div class="kicker">02 — Data model</div>
+  <div class="pixel"><div class="inner">
+    <h3>Where the state lives</h3>
+    <div class="flow">
+      <div class="step">
+        <div class="tag">player</div>
+        <p><code>health · energy · food · hope · dread · weaponId · weaponDurability · dead</code><br>
+        <span style="color:var(--muted);font-size:12.5px">The run's truth. Health is why death can exist at all —
+        today it is a hardcoded <code>72</code> inside the shelter screen.</span></p>
+      </div>
+      <div class="step">
+        <div class="tag">combat</div>
+        <p><code>allies[] · enemies[] · queue · round · phase · busy · log[]</code><br>
+        <span style="color:var(--muted);font-size:12.5px">Fight-scoped. Owns the timers so a queued beat can never
+        fire after the screen is gone.</span></p>
+      </div>
+      <div class="step">
+        <div class="tag">board</div>
+        <p><code>Tile.encounter · Tile.resolved</code><br>
+        <span style="color:var(--muted);font-size:12.5px">The world owns the encounter. <code>cleared</code> still means
+        "free to re-enter"; <code>resolved</code> is a separate axis.</span></p>
+      </div>
+      <div class="step">
+        <div class="tag">inventory</div>
+        <p><code>bag[5] · consumeBagSlot() · addToBag()</code><br>
+        <span style="color:var(--muted);font-size:12.5px">The bag is the only inventory that exists in the field.</span></p>
+      </div>
+      <div class="step">
+        <div class="tag">data/combat</div>
+        <p>Every tuning number, in one file. Enemies, weapon, Dread, retreat odds, loot.</p>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="note">
+    <b>Allies is an array, sized 1.</b> CLAUDE.md requires combat built for 1–4 player-side actors from the start,
+    so there is no scalar <code>juanHp</code> anywhere in the fight — companions slot in without a rebuild.
+    Juan's HP is the one field that deliberately <em>doesn't</em> live on his actor entry: it lives in the player
+    store, because damage and death have to outlive the encounter.
+  </div>
+
+  <div class="kicker">03 — The fight, beat by beat</div>
+  <div class="pixel"><div class="inner">
+    <h3>Turn loop</h3>
+    <div class="flow">
+      <div class="step"><div class="tag">ROUND N</div><p>Queue is rebuilt from actor speeds. Juan acts first (speed 5 vs 3); ties go to the player. Queue order is visible in the header.</p></div>
+      <div class="step"><div class="tag green">JUAN</div><p>One action: Attack · Guard · Use Item · Retreat. Guard expires the moment his next turn starts.</p></div>
+      <div class="step"><div class="tag red">SHAMBLER</div><p>Each living enemy takes its turn in order — lunge, Juan's hurt frame, damage, Dread rises, log appends.</p></div>
+      <div class="step"><div class="tag">END</div><p>Round increments, queue rebuilds, repeat.</p></div>
+    </div>
+  </div></div>
+
+  <div class="pixel"><div class="inner">
+    <h3>Resolving an attack</h3>
+    <div class="flow">
+      <div class="step"><div class="tag">HIT ROLL</div><p>weapon accuracy − Shaken penalty, clamped. Miss is a real outcome with its own line.</p></div>
+      <div class="step"><div class="tag">t+180ms</div><p>Wind-up frame → swoosh frame, hit flash, damage floater. HP bar drops on <em>impact</em>, not on tap.</p></div>
+      <div class="step"><div class="tag">DURABILITY</div><p>−1 swing. At 0 the plank splits along the grain: damage falls to bare hands, and Retreat starts looking wise.</p></div>
+      <div class="step"><div class="tag dread">DREAD</div><p>+6 per swing, +10 per hit taken. ≥ 60 is Shaken.</p></div>
+      <div class="step"><div class="tag red">KILL</div><p>Die frame holds for a beat, then the rank restages — the next Shambler steps up into the targetable slot.</p></div>
+    </div>
+  </div></div>
+
+  <div class="note danger">
+    <b>Retreat is a real trade now.</b> Base 25%, +15% per Shambler already put down, −10% when Shaken.
+    Success returns you to the map with the tile <em>still holding its zombie</em> — walk back and you fight the
+    same encounter again. Today, walking away costs literally nothing, which makes every fight optional.
+  </div>
+
+  <div class="kicker">04 — Tuning and the math it produces</div>
+  <table>
+    <tr><th>Value</th><th>Number</th><th>Why</th></tr>
+    <tr><td>Juan Health</td><td class="n">100 max, starts 72</td><td>72 keeps continuity with the shelter meter</td></tr>
+    <tr><td>Nailed Plank</td><td class="n">26 dmg ±20% · 78% acc · 8 swings</td><td>3–4 hits per Shambler</td></tr>
+    <tr><td>Bare Hands</td><td class="n">9 dmg ±25% · 70% acc · unbreakable</td><td>the floor, not a strategy</td></tr>
+    <tr><td>Shambler</td><td class="n">32 HP · 1–5 dmg (70/11/8/6/5) · 70% acc · speed 3</td><td>30% of hits do 3+, so 2–4 enemies stay winnable</td></tr>
+    <tr><td>Encounter size</td><td class="n">1 @30% · 2 @45% · 3 @25%</td><td>most fights are routine</td></tr>
+    <tr><td>Dread</td><td class="n">+2 swing · +3 hit · Shaken at 60</td><td>deliberately slow — builds across a night, not a fight</td></tr>
+    <tr><td>Dread → Hope</td><td class="n">hope −= floor(dread / 4)</td><td>the bleed CLAUDE.md specifies</td></tr>
+    <tr><td>Retreat</td><td class="n">25% base · +15%/kill · −10% Shaken</td><td>a failed attempt costs the turn and a hit at +3 damage</td></tr>
+  </table>
+  <div class="card tape">
+    <b>What that produces.</b>
+    <p>
+      One Shambler: ~2 swings, about 3 health lost. Barely a fight.
+      Two: ~4 rounds, roughly 9 health. Three: ~5 rounds and about 17 health.
+      <b>Four: ~7 rounds and roughly 30 health</b> — a real cost, not a coin flip. The curve is deliberately gentle;
+      if fights should bite harder, the knobs are accuracy (0.7 → 0.8), the 3+ tail weights, or enemy HP — all in
+      <code>data/combat.ts</code>, per enemy type.
+    </p>
+  </div>
+
+  <div class="kicker">05 — Death</div>
+  <p>
+    Health reaching 0 anywhere ends the run — combat or not. A death screen reports how far you got
+    (nights survived, tiles cleared, Shamblers put down) and restarts at Nida's with the meters and bag reset.
+    The prologue does not replay: you've died, you know the story.
+  </p>
+  <div class="note">
+    The <b>never-stranded rule</b> is untouched — it governs the movement economy (a cleared path home is always free),
+    and was never a promise of immortality. It's the same line every survival game draws: you can always walk home,
+    you just might not survive the walk.
+  </div>
+
+  <div class="kicker">06 — Assumptions I made, and what's still open</div>
+  <div class="note open">
+    <b>Assumed</b> (say the word and any of these move):
+    <ul>
+      <li>Using an item costs your turn — it's one of the four actions.</li>
+      <li>Sleep's fuller role (energy, dread decay) belongs to the shelter-loop pass; for now, arriving at the
+          shelter settles Dread into Hope and clears it. That is the hook the design doc actually asks for.</li>
+      <li>Retreating and re-approaching restarts the encounter at full enemy HP — the specs are rolled once and
+          stored on the tile, but damage isn't remembered between attempts.</li>
+      <li>Battery-torch is the "steady your nerves" item: relieves Dread, small Hope kick.</li>
+      <li>Victory loot drops into the field bag, not the shelter stash — you're out in the field.</li>
+      <li>Searching a location tile always yields one item, rolled from a weighted table: staples common, medicine
+          rare. One search per place — the card resolves on acknowledgement, and a searched building stays searched.</li>
+      <li>Enemy damage is per-archetype, so a future type brings its own curve, accuracy and HP.</li>
+    </ul>
+  </div>
+  <div class="note open">
+    <b>Deliberately not in this pass:</b> actual companions (only their slots), weapon switching UI, status effects
+    beyond Shaken, and mid-fight <code>localStorage</code> persistence — backgrounding the app mid-fight still loses
+    the fight, which matches the rest of the app until Phase 2 lands.
+  </div>
+
+  <div class="steps-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+  <footer>
+    PAUWI · combat rework artifact · generated for review · delete when done · not tracked by git
+  </footer>
+</div>
+</body>
+</html>

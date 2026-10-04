@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"DEFAULT MODE IS GODSPEED. For any refactor, feature, fix, or code change: use the godspeed skill, tier the task out loud on your first line, and close with the structured report ending in the one-sentence summary. Then run the aurora close-out pass for Medium tier and above. The standing instructions for this repo live in AGENTS.md - read it. Never invoke a superpowers skill unless the user names it explicitly. Never commit, push, or open a PR unless the user asks. Does not apply to answering questions.\"}}'",
+            "shell": "bash"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,25 @@
 <script setup lang="ts">
+import { hydrateRun, loadRawSave } from '~/utils/save'
+
 const ui = useUiStore()
+
+// A saved run turns the title screen into a fork: continue where Juan left off, or start
+// the prologue over. Continuing skips straight to the saved screen — the prologue has
+// already been lived once.
+const savedRun = ref(false)
+onMounted(() => {
+  savedRun.value = loadRawSave() !== null
+})
+
+function continueRun() {
+  const blob = loadRawSave()
+  if (!blob) {
+    savedRun.value = false
+    return
+  }
+  hydrateRun(blob)
+  ui.finishPrologue()
+}
 
 const PROLOGUE = [
   { eb: 'DAY 0 · ON THE WAY HOME', body: "Another closing shift at Tutuban. Juan punches out and walks home same as every night — until the sirens start, and don't stop.", img: '/images/prologue-1.png' },
@@ -41,6 +61,15 @@ function advance() {
           <p class="text-base leading-loose" style="color: var(--bone)">{{ PROLOGUE[beat].body }}</p>
         </div>
       </template>
+
+      <button
+        v-if="savedRun && beat === -1"
+        class="mt-2.5 px-8 py-3 rounded-md uppercase"
+        style="background: transparent; border: 1px solid var(--sodium); color: var(--sodium); font-family: var(--font-display); font-weight: 700; letter-spacing: 2px; font-size: 13px"
+        @click="continueRun"
+      >
+        Continue run →
+      </button>
 
       <button
         class="mt-6 px-8 py-3.5 rounded-md uppercase"

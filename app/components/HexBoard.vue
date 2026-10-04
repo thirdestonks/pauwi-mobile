@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { axialDistance, axialToPixel, hexCorners } from '~/utils/hex'
+import { axialDistance, axialToPixel, hexCorners, type AxialCoord } from '~/utils/hex'
 import type { Tile, TileType } from '~/stores/board'
 
 const board = useBoardStore()
@@ -12,6 +12,8 @@ const RESOLVED_STYLE: Record<TileType, { fill: string; stroke: string }> = {
   location: { fill: '#201C14', stroke: '#F0A63C' },
   zombie: { fill: '#241214', stroke: '#D94B3B' },
   event: { fill: '#181430', stroke: '#8A4FA0' },
+  shelter: { fill: '#241A0C', stroke: '#F0A63C' },
+  landmark: { fill: '#1A2027', stroke: '#2E86AB' },
 }
 
 const TILE_ICON: Record<TileType, string> = {
@@ -19,6 +21,8 @@ const TILE_ICON: Record<TileType, string> = {
   location: '🎒',
   zombie: '💀',
   event: '📡',
+  shelter: '🏠',
+  landmark: '📍',
 }
 
 const FOG_FILL = '#232B2F'
@@ -56,40 +60,53 @@ const viewBox = computed(
   () => `${playerPixel.value.x - viewHalf} ${playerPixel.value.y - viewHalf} ${viewHalf * 2} ${viewHalf * 2}`,
 )
 
-interface LandmarkPointer {
-  name: string
+interface RoutePointer {
+  label: string
   distance: number
   x: number
   y: number
-  angleDeg: number
+  color: string
 }
 
-// Landmarks are always far outside render range — this points toward them from the
-// edge of the visible board instead of rendering the actual (distant) tile.
-const landmarkPointers = computed<LandmarkPointer[]>(() =>
-  board.landmarks.map((lm) => {
-    const targetPixel = axialToPixel(lm.pos, HEX_SIZE)
+/**
+ * The route lives at the edge of the board: a blue marker for the next shelter hop,
+ * gold for Tutuban. Both are always far outside render range — these point toward
+ * them from the edge of the visible map instead of rendering the actual tiles.
+ */
+const routePointers = computed<RoutePointer[]>(() => {
+  const pointers: RoutePointer[] = []
+  const targets: { label: string; pos: AxialCoord; color: string }[] = []
+  if (board.nextShelterWaypoint) {
+    targets.push({ label: 'SHELTER', pos: board.nextShelterWaypoint.pos, color: '#2E86AB' })
+  }
+  if (board.tutuban) {
+    targets.push({ label: 'TUTUBAN', pos: board.tutuban.pos, color: '#F0A63C' })
+  }
+
+  for (const target of targets) {
+    const targetPixel = axialToPixel(target.pos, HEX_SIZE)
     const dx = targetPixel.x - playerPixel.value.x
     const dy = targetPixel.y - playerPixel.value.y
     const len = Math.hypot(dx, dy) || 1
     const edgeR = viewHalf * 0.94
-    return {
-      name: lm.name,
-      distance: axialDistance(board.playerPos, lm.pos),
+    pointers.push({
+      label: target.label,
+      distance: axialDistance(board.playerPos, target.pos),
       x: playerPixel.value.x + (dx / len) * edgeR,
       y: playerPixel.value.y + (dy / len) * edgeR,
-      angleDeg: (Math.atan2(dy, dx) * 180) / Math.PI,
-    }
-  }),
-)
+      color: target.color,
+    })
+  }
+  return pointers
+})
 
 function handleClick(rt: RenderTile) {
   if (!rt.clickable) return
   board.moveTo({ q: rt.tile.q, r: rt.tile.r })
 }
 
-function isShelter(rt: RenderTile) {
-  return rt.tile.q === board.shelterPos.q && rt.tile.r === board.shelterPos.r
+function isHome(rt: RenderTile) {
+  return rt.tile.type === 'shelter'
 }
 
 function fogClipId(rt: RenderTile) {
@@ -98,13 +115,14 @@ function fogClipId(rt: RenderTile) {
 
 // Fully opaque once past the icon ring, fully faded once revealed — CSS transition
 // on opacity animates this smoothly as distance crosses the boundary during movement.
+// Home is never fogged, wherever it is.
 function fogOpacity(rt: RenderTile) {
-  if (isShelter(rt)) return 0
+  if (isHome(rt)) return 0
   return rt.distance > board.iconRingRadius ? 1 : 0
 }
 
 function showGround(rt: RenderTile) {
-  return !isShelter(rt) && rt.distance <= board.iconRingRadius
+  return !isHome(rt) && rt.distance <= board.iconRingRadius
 }
 
 // Cleared tiles always show the green "safe ground" tile. Unresolved tiles get a
@@ -113,6 +131,23 @@ function groundImage(rt: RenderTile) {
   if (rt.tile.cleared) return '/images/green-tile.png'
   const idx = Math.abs(rt.tile.q * 31 + rt.tile.r * 17) % GROUND_VARIANTS.length
   return GROUND_VARIANTS[idx]
+}
+
+function tileStroke(rt: RenderTile) {
+  if (isHome(rt)) return RESOLVED_STYLE.shelter.stroke
+  if (rt.distance > board.iconRingRadius) return FOG_STROKE
+  if (rt.tile.cleared && rt.tile.type !== 'nothing') return RESOLVED_STYLE[rt.tile.type].stroke
+  return 'transparent'
+}
+
+function tileIcon(rt: RenderTile) {
+  if (isHome(rt)) return '🏠'
+  if (rt.tile.type === 'landmark') {
+    return board.atTutuban || (board.tutuban && rt.tile.q === board.tutuban.pos.q && rt.tile.r === board.tutuban.pos.r)
+      ? '🚉'
+      : '📍'
+  }
+  return TILE_ICON[rt.tile.type]
 }
 </script>
 
@@ -133,10 +168,10 @@ function groundImage(rt: RenderTile) {
       >
         <polygon
           :points="hexCorners(rt.center, HEX_SIZE - 1)"
-          :fill="isShelter(rt) ? '#241A0C' : (rt.distance > board.iconRingRadius ? FOG_FILL : 'transparent')"
-          :fill-opacity="isShelter(rt) ? 1 : (rt.distance > board.iconRingRadius ? 0.55 : 1)"
-          :stroke="isShelter(rt) ? '#F0A63C' : (rt.distance > board.iconRingRadius ? FOG_STROKE : (rt.tile.cleared && rt.tile.type !== 'nothing' ? RESOLVED_STYLE[rt.tile.type].stroke : 'transparent'))"
-          :stroke-width="isShelter(rt) ? 3 : 2"
+          :fill="isHome(rt) ? RESOLVED_STYLE.shelter.fill : (rt.distance > board.iconRingRadius ? FOG_FILL : 'transparent')"
+          :fill-opacity="isHome(rt) ? 1 : (rt.distance > board.iconRingRadius ? 0.55 : 1)"
+          :stroke="tileStroke(rt)"
+          :stroke-width="isHome(rt) ? 3 : 2"
         />
         <image
           v-if="showGround(rt)"
@@ -161,17 +196,17 @@ function groundImage(rt: RenderTile) {
           style="transition: opacity .5s ease; pointer-events: none"
         />
         <text
-          v-if="isShelter(rt) || (rt.distance <= board.iconRingRadius && TILE_ICON[rt.tile.type])"
+          v-if="isHome(rt) || (rt.distance <= board.iconRingRadius && tileIcon(rt))"
           :x="rt.center.x"
           :y="rt.center.y"
           text-anchor="middle"
           dominant-baseline="central"
           :font-size="HEX_SIZE * 0.7"
         >
-          {{ isShelter(rt) ? '🏠' : TILE_ICON[rt.tile.type] }}
+          {{ tileIcon(rt) }}
         </text>
         <text
-          v-if="isShelter(rt)"
+          v-if="isHome(rt)"
           :x="rt.center.x"
           :y="rt.center.y + HEX_SIZE * 0.85"
           text-anchor="middle"
@@ -190,17 +225,17 @@ function groundImage(rt: RenderTile) {
           preserveAspectRatio="xMidYMid meet"
         />
       </g>
-      <g v-for="lm in landmarkPointers" :key="lm.name" style="pointer-events: none" opacity="0.35">
-        <circle :cx="lm.x" :cy="lm.y" r="5" fill="#F0A63C" />
+      <g v-for="pointer in routePointers" :key="pointer.label" style="pointer-events: none" opacity="0.35">
+        <circle :cx="pointer.x" :cy="pointer.y" r="5" :fill="pointer.color" />
         <text
-          :x="lm.x"
-          :y="lm.y + 14"
+          :x="pointer.x"
+          :y="pointer.y + 14"
           text-anchor="middle"
           font-family="var(--font-mono)"
           font-size="7"
           letter-spacing="1"
-          fill="#F0A63C"
-        >{{ lm.name.toUpperCase() }} · {{ lm.distance }}</text>
+          :fill="pointer.color"
+        >{{ pointer.label }} · {{ pointer.distance }}</text>
       </g>
     </svg>
   </div>

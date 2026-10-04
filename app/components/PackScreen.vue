@@ -1,35 +1,74 @@
 <script setup lang="ts">
+import { EQUIPMENT, itemInfo } from '~/data/equipment'
+
 const ui = useUiStore()
 const inventory = useInventoryStore()
 
 function confirmHeadOut() {
   if (!inventory.canHeadOut) return
+  ui.headOut()
   ui.setTab('map')
 }
+
+/** Bag display entries for consumables AND gear, with the right caption for each. */
+const bagEntries = computed(() =>
+  inventory.bag.flatMap((id, slot) => {
+    if (!id) return []
+    const info = itemInfo(id)
+    const spec = EQUIPMENT[id]
+    return [{
+      slot,
+      icon: info?.icon ?? '❔',
+      name: info?.name ?? id,
+      caption: spec?.weapon
+        ? `${spec.weapon.damage} dmg`
+        : spec?.armor
+          ? `${spec.armor} armor`
+          : 'consumable',
+      isGear: !!spec,
+    }]
+  }),
+)
+
+const bagGearCount = computed(() => bagEntries.value.filter((entry) => entry.isGear).length)
 </script>
 
 <template>
   <div class="flex-1 flex flex-col overflow-y-auto">
     <div class="px-4 py-3" style="background: linear-gradient(180deg, var(--night), rgba(14,18,20,.85)); border-bottom: 1px solid var(--line)">
       <div class="text-xl uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">PACK YOUR BAG</div>
-      <div class="text-[11px] mt-1" style="color: var(--muted)">Whatever's in the bag is all you'll have out there — on the map, and in a fight.</div>
+      <div class="text-[11px] mt-1" style="color: var(--muted)">Whatever's in the bag is all Juan will carry out there. Armor and weapons go on at the Gear screen.</div>
     </div>
 
     <div class="flex items-baseline justify-between mx-4 mt-4 mb-2.5">
       <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Bag</div>
-      <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">{{ inventory.bagCount }} / {{ inventory.bag.length }} slots</div>
+      <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">{{ inventory.bagCount }} / {{ inventory.bag.length }} slots · tap to unpack</div>
     </div>
     <div class="grid grid-cols-5 gap-2 mx-4">
       <div
-        v-for="(slotId, i) in inventory.bag"
-        :key="i"
-        class="aspect-square rounded flex items-center justify-center"
-        :style="slotId ? { background: 'var(--panel3)', border: '1px solid var(--sodium)' } : { background: 'var(--panel)', border: '1px dashed var(--line)' }"
-        @click="slotId && inventory.unpackSlot(i)"
+        v-for="entry in bagEntries"
+        :key="entry.slot"
+        class="aspect-square rounded flex items-center justify-center relative"
+        :style="entry.isGear
+          ? { background: 'var(--panel3)', border: '1px solid var(--sari-blue)' }
+          : { background: 'var(--panel3)', border: '1px solid var(--sodium)' }"
+        @click="inventory.unpackSlot(entry.slot)"
       >
-        <span v-if="slotId" class="text-[22px] leading-none">{{ inventory.stash.find((s) => s.id === slotId)?.icon }}</span>
-        <span v-else class="text-[22px] leading-none" style="color: var(--line)">·</span>
+        <span class="text-[22px] leading-none">{{ entry.icon }}</span>
+        <span class="absolute right-0.5 bottom-0.5 text-[7px]" style="font-family: var(--font-mono); color: var(--muted)">{{ entry.caption }}</span>
       </div>
+      <div
+        v-for="i in (inventory.bag.length - bagEntries.length)"
+        :key="`empty-${i}`"
+        class="aspect-square rounded flex items-center justify-center"
+        style="background: var(--panel); border: 1px dashed var(--line)"
+      >
+        <span class="text-[22px] leading-none" style="color: var(--line)">·</span>
+      </div>
+    </div>
+
+    <div v-if="bagGearCount" class="mx-4 mt-2 text-[9px]" style="font-family: var(--font-mono); color: var(--sari-blue)">
+      {{ bagGearCount }} piece{{ bagGearCount === 1 ? '' : 's' }} of gear riding along — wear it from the Gear screen before heading out.
     </div>
 
     <div class="flex items-baseline justify-between mx-4 mt-5 mb-2.5">
