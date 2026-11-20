@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · The Weight</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--dread:#b78be6;--s:3;
+  --panel:#161c1f;--panel2:#1d2529;--panel3:#232b2f;--line:#2f3a3f;
+  --mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif;--body:system-ui,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:var(--body)}
+body{padding:16px}
+header{max-width:1120px;margin:0 auto 10px}
+h1{margin:0;font:400 32px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 0;color:#b9c3c8;font:13px/1.55 var(--mono);max-width:900px}
+.state{position:sticky;top:0;z-index:50;max-width:1120px;margin:10px auto 14px;padding:8px 10px;background:#0c1113ee;border:1px solid #26313a;display:flex;flex-wrap:wrap;gap:14px;align-items:center;font:700 12px var(--mono);letter-spacing:.04em}
+.state b{color:var(--sodium)}.state .ld{padding:2px 8px;border:2px solid}
+.state button{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:4px 9px;font:700 11px var(--mono);cursor:pointer}
+.state label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.grid{display:flex;flex-wrap:wrap;gap:26px 22px;justify-content:center;max-width:1120px;margin:0 auto}
+.col{width:calc(110px*var(--s));flex:none}
+.col h2{margin:0;font:400 21px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.col .sub{margin:3px 0 8px;color:var(--muted);font:11.5px/1.4 var(--mono);min-height:2.8em}
+.col ul{margin:10px 0 0;padding-left:16px;font:11.5px/1.5 var(--mono);color:#b9c3c8}.col li b{color:var(--bone)}
+.scr{position:relative;width:calc(110px*var(--s));height:calc(225px*var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none}
+.scr>canvas.bg{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.scr iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.abs{position:absolute}.px{image-rendering:pixelated}
+[hidden]{display:none!important}
+.toast{left:6%;right:6%;top:22px;text-align:center;font:11px/1.35 var(--mono);padding:5px 6px;background:#0e1214ee;border:1px solid #3a4851;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
+.toast.on{opacity:1}
+
+/* ---- map ---- */
+.subline{left:30px;right:30px;bottom:118px;text-align:center;font:700 10.5px/1.35 var(--mono);letter-spacing:.04em;text-shadow:1px 1px 0 #000,0 0 6px #000;pointer-events:none}
+.kg{left:4px;bottom:100px;padding:2px 5px;font:700 11px var(--mono);background:#0e1214dd;border:2px solid;box-shadow:2px 2px 0 #000}
+.bagimg{left:0;bottom:0;width:84px;image-rendering:pixelated;filter:drop-shadow(2px 2px 0 #000)}
+.bagimg.strain{animation:strain 1.6s steps(2) infinite}
+@keyframes strain{50%{transform:translateY(2px)}}
+
+/* ---- bag (pixel panels, square, hard shadows) ---- */
+.pk{inset:0;background:#14110e;padding:12px 10px;font-family:var(--mono)}
+.pk h3{margin:0 0 6px;text-align:center;font:400 24px/1 var(--disp);letter-spacing:.08em;color:var(--sodium)}
+.wbar{position:relative;height:16px;background:#0b0d0e;border:2px solid #3b3f41;box-shadow:2px 2px 0 #000}
+.wbar i{position:absolute;left:0;top:0;bottom:0;transition:width .25s steps(5)}
+.wbar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:#ece4d5aa}
+.wlab{display:flex;justify-content:space-between;font:700 10px var(--mono);margin:4px 0 2px;color:#cfd6d9}
+.weff{font:10.5px/1.45 var(--mono);color:#b9c3c8;margin:6px 0 8px;min-height:44px}
+.weff b{color:var(--bone)}
+.body{font:10px var(--mono);color:var(--muted);margin-bottom:6px}
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.slot{position:relative;aspect-ratio:1;background:#1d1a15;border:2px solid #3d352a;box-shadow:2px 2px 0 #000;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.slot img{max-width:76%;max-height:76%;image-rendering:pixelated}
+.slot .q{position:absolute;right:2px;top:1px;font:700 9px var(--mono);color:var(--bone)}
+.slot .w{position:absolute;left:2px;bottom:1px;font:700 8.5px var(--mono);color:var(--sodium);text-shadow:1px 1px 0 #000}
+.slot.heavy{border-color:#8a4a2e}
+.slot.empty{cursor:default;opacity:.45}
+.hintp{margin-top:8px;font:10px/1.4 var(--mono);color:var(--muted);text-align:center}
+
+/* ---- combat ---- */
+.logbox{position:absolute;left:6px;right:6px;top:36px;display:flex;align-items:center;gap:6px;min-height:72px;padding:9px 12px;border:15px solid transparent;
+  border-image:url('../../public/game/kit/out/dialog-frame.png') 5 fill / 15px stretch;image-rendering:pixelated;pointer-events:none;z-index:4}
+.logbox .face{flex:none;width:48px;height:51px;image-rendering:pixelated;margin:-9px 0}
+.logbox p{flex:1;margin:0;font:700 10px/1.45 var(--mono);letter-spacing:.03em;color:#f2ecdc;text-shadow:1px 1px 0 #000}
+.logbox .hurt{color:#ff7b66}.logbox .heal{color:#7ee0a0}
+.hands{left:0;bottom:0;width:100%;image-rendering:pixelated;z-index:3;transition:transform .25s steps(4)}
+.hands.dip{transform:translateY(16px)}
+.shm{image-rendering:pixelated;z-index:2;transition:all .35s steps(5)}
+.cbtns{left:6px;right:6px;bottom:6px;display:flex;gap:5px;z-index:5}
+.cbtns button{flex:1;padding:7px 4px;background:#0e1214e6;border:2px solid #526169;color:var(--bone);font:700 10.5px/1.2 var(--mono);text-transform:uppercase;cursor:pointer;box-shadow:2px 2px 0 #000}
+.cbtns button.go{border-color:var(--sodium);color:var(--sodium)}
+.cbtns button small{display:block;font-size:9px;color:var(--muted);text-transform:none;margin-top:2px}
+.hp{left:8px;right:8px;top:6px;z-index:5;display:flex;gap:8px;font:700 10px var(--mono);align-items:center;text-shadow:1px 1px 0 #000}
+.hp i{flex:1;height:6px;background:#0b0d0e;border:1px solid #3b3f41;display:block}.hp i b{display:block;height:100%;background:var(--red);transition:width .3s steps(4)}
+
+/* ---- the tile card (flat sari-sari signage, like the app's) ---- */
+.tcard{left:0;right:0;bottom:0;max-height:62%;overflow-y:auto;background:var(--panel2);border-top:2px solid var(--sodium);border-radius:14px 14px 0 0;box-shadow:0 -20px 40px rgba(0,0,0,.5);padding:0 14px 14px;z-index:6}
+.tcard .grab{width:40px;height:4px;border-radius:9px;background:#3a464b;margin:9px auto 7px}
+.tcard .hd{display:flex;align-items:center;gap:7px}
+.tcard .tag{padding:1px 6px;border-radius:3px;font:9px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#0e1214}
+.tcard h3{margin:0;font:700 19px/1.1 'Arial Narrow',var(--disp);letter-spacing:1px;text-transform:uppercase;color:var(--bone)}
+.tcard p.fl{font-size:12.5px;line-height:1.55;color:#cdc6b8;margin:8px 0}
+.who{display:flex;gap:10px;align-items:flex-start;margin:8px 0}
+.who .face{width:60px;height:80px;flex:none;image-rendering:pixelated;object-fit:cover;object-position:top;border:2px solid #0e1214;background:#1a2024}
+.who .ask{flex:1;font-size:12px;line-height:1.5;color:#cdc6b8}.who .ask b{color:var(--bone)}
+.ch{display:flex;flex-direction:column;gap:6px}
+.ch button{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-radius:6px;font:13px var(--body);text-align:left;cursor:pointer;background:var(--panel3);border:1px solid var(--line);color:var(--bone)}
+.ch button.primary{background:var(--sodium);border-color:var(--sodium);color:#0e1214;font-weight:600}
+.ch button em{font:11px var(--mono);font-style:normal;opacity:.75;white-space:nowrap}
+.ch button:disabled{opacity:.45;cursor:not-allowed}
+.out{padding:10px;border-radius:6px;background:var(--panel3);border:1px solid var(--line);font-size:12.5px;line-height:1.55;color:var(--bone)}
+.out .later{display:block;margin-top:7px;font:11px/1.5 var(--mono);color:#a99fd6}
+.mono{font-family:var(--mono)}
+.sec{font:10px var(--mono);letter-spacing:2px;color:var(--muted);margin:10px 0 5px}
+.wrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;background:var(--panel3);border:1px solid var(--line);cursor:pointer;margin-bottom:5px;width:100%;color:var(--bone);text-align:left;font:12.5px var(--body)}
+.wrow.on{border-color:var(--sodium)}
+.wrow img{width:28px;height:28px;image-rendering:pixelated;object-fit:contain}
+.wrow .sw{flex:1}.wrow .sw small{display:block;font:10px var(--mono);color:var(--muted)}
+.pips{display:flex;gap:1px;margin-top:3px}.pips i{width:4px;height:5px;background:#3a4448}.pips i.f{background:var(--green)}.pips i.e{background:var(--sodium)}
+.badge{font:700 9px var(--mono);padding:1px 4px;border:1px solid var(--sodium);color:var(--sodium)}
+
+/* ---- shelter ---- */
+.meter{left:6px;right:6px;bottom:6px;display:flex;gap:6px;font:700 9.5px var(--mono);text-shadow:1px 1px 0 #000;z-index:5}
+.meter div{flex:1}.meter i{display:block;height:5px;background:#0b0d0e;border:1px solid #3b3f41;margin-top:2px}.meter i b{display:block;height:100%;transition:width .4s steps(5)}
+.eatmenu{left:8px;right:8px;top:30px;background:#0e1214ee;border:2px solid #526169;box-shadow:3px 3px 0 #000;padding:8px;font:11px var(--mono);z-index:6}
+.eatmenu button{display:flex;width:100%;align-items:center;gap:8px;margin-top:5px;padding:6px 8px;background:#16212a;border:2px solid #3a4851;color:var(--bone);font:700 11px var(--mono);cursor:pointer}
+.eatmenu button img{width:22px;height:22px;image-rendering:pixelated;object-fit:contain}
+.eatmenu button em{margin-left:auto;font-style:normal;color:var(--muted);font-weight:400}
+
+/* ---- roster ---- */
+.roster{max-width:1120px;margin:30px auto 0}
+.roster h2{font:400 26px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium);margin:0 0 4px}
+.roster>p{font:12.5px/1.5 var(--mono);color:#b9c3c8;margin:0 0 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.pc{display:flex;gap:10px;padding:10px;background:#101618;border:1px solid #26313a}
+.pc .ph{width:72px;height:96px;flex:none;image-rendering:pixelated;object-fit:cover;object-position:top;background:#1a2024;border:2px solid #0e1214;display:flex;align-items:center;justify-content:center;text-align:center;font:9px/1.3 var(--mono);color:#e6b15e;padding:4px}
+.pc h4{margin:0;font:400 17px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase}
+.pc .w{font:10.5px/1.35 var(--mono);color:var(--muted);margin:2px 0 5px}
+.pc .t{font:11px/1.45 var(--body);color:#cdc6b8}.pc .t b{color:var(--bone)}
+.pc .t .y{color:#7ee0a0}.pc .t .n{color:#ff9a8a}
+</style>
+</head>
+<body>
+<header>
+  <h1>The Weight</h1>
+  <p>One Juan, one bag, six screens. Everything here shares the same state: drop something on the Bag screen and the map's load, the step cost and the odds of running from a fight all change. Give the antibiotics to Lorna and they're gone from the bag. Eat the rice and you're 2 kg lighter. All of it is drawn with the new paintings.</p>
+</header>
+
+<div class="state" id="state"></div>
+
+<div class="grid">
+  <!-- 1 · the map -->
+  <div class="col">
+    <h2>1 · The map</h2>
+    <div class="sub">The bag on the map fills up with what he carries. The subtitle says what this load costs.</div>
+    <div class="scr" id="mapScr">
+      <canvas class="bg" id="mapCv" width="110" height="225"></canvas>
+      <div class="abs subline" id="mapLine"></div>
+      <div class="abs kg" id="mapKg"></div>
+      <img class="abs bagimg" id="mapBag" src="out/bag-loaded.png" alt="Juan's bag">
+    </div>
+    <ul>
+      <li><b>Light ≤ 6 kg:</b> a fresh step costs 2 Energy, run +10%.</li>
+      <li><b>Carrying ≤ 12:</b> 3 Energy a fresh step, as today.</li>
+      <li><b>Loaded ≤ 16:</b> 5 Energy fresh, 1 on cleared ground, dash 2 hexes, run −15%, louder in houses.</li>
+      <li><b>Overloaded ≤ 20:</b> 8 Energy fresh, 2 cleared, no dash, run −30%, twice as loud. Past 20 nothing goes in.</li>
+    </ul>
+  </div>
+
+  <!-- 2 · the bag -->
+  <div class="col">
+    <h2>2 · The bag</h2>
+    <div class="sub">Kilos under every item. Tap one to drop it and watch the other screens.</div>
+    <div class="scr"><div class="abs pk" id="bagScr"></div></div>
+    <ul>
+      <li>Ten slots stay (the grid). <b>Weight is the real limit.</b></li>
+      <li>What he wears and holds counts: it's all on his body.</li>
+      <li>Water is heavy, medicine is light. That's why everyone wants medicine.</li>
+    </ul>
+  </div>
+
+  <!-- 3 · combat -->
+  <div class="col">
+    <h2>3 · Using it in a fight</h2>
+    <div class="sub">Gauze takes two turns, on his own hands. Bitten mid-wrap and it's ruined.</div>
+    <div class="scr" id="cbScr">
+      <iframe src="../../public/game/combat-bg-night/index.html?embed" title="Combat background" tabindex="-1"></iframe>
+      <div class="abs hp"><span>JUAN</span><i><b id="cbHp"></b></i><span id="cbHpN"></span></div>
+      <img class="abs shm" id="cbShm" src="../../public/game/enemies/shambler/shambler-h38-idle.png" alt="A Shambler">
+      <div class="logbox"><img class="face" src="../../public/game/kit/out/portrait-juan.png" alt=""><p id="cbLog"></p></div>
+      <img class="abs hands" id="cbHands" src="out/use-bandage.png" alt="Juan's hands wrapping gauze" hidden>
+      <div class="abs cbtns" id="cbBtns"></div>
+    </div>
+    <ul>
+      <li><b>Gauze:</b> 2 turns, +25 Health. <b>Pills, water, a can:</b> 1 turn each. Rice can't be eaten in a fight.</li>
+      <li><b>Run</b> odds follow the load: it's on this screen's button.</li>
+      <li>Out on the map, wrapping a wound costs 1 move: he sits down to do it.</li>
+    </ul>
+  </div>
+
+  <!-- 4 · a survivor -->
+  <div class="col">
+    <h2>4 · Someone asks</h2>
+    <div class="sub">Lorna wants medicine for her son. What you give is gone. What you refuse comes back.</div>
+    <div class="scr" id="svScr">
+      <canvas class="bg" id="svCv" width="110" height="225"></canvas>
+      <div class="abs tcard" id="svCard"></div>
+    </div>
+    <ul>
+      <li>Eight people, each met once a run (the roster is below).</li>
+      <li>Saying no is never free: Dread now, and something days later.</li>
+    </ul>
+  </div>
+
+  <!-- 5 · Mang Isko -->
+  <div class="col">
+    <h2>5 · Mang Isko</h2>
+    <div class="sub">The knife sharpener, nights only. <a href="isko.html" style="color:#8cc7dd">Play his upgrade mini-games →</a></div>
+    <div class="scr" id="hsScr">
+      <canvas class="bg" id="hsCv" width="110" height="225"></canvas>
+      <div class="abs tcard" id="hsCard"></div>
+    </div>
+    <ul>
+      <li><b>Fix it:</b> back to full swings, ½ a point per missing swing.</li>
+      <li><b>Sharpen / Nail it:</b> +1 damage for 12 swings, 6 points.</li>
+      <li><b>Sell him steel:</b> he pays 0.8 for weapons, and it comes off your back.</li>
+    </ul>
+  </div>
+
+  <!-- 6 · the shelter -->
+  <div class="col">
+    <h2>6 · Eating at home</h2>
+    <div class="sub">Tap the counter. The meal sits there and steams; then it's gone, and so is its weight.</div>
+    <div class="scr" id="shScr">
+      <canvas class="bg" id="shCv" width="110" height="225"></canvas>
+      <div class="abs eatmenu" id="shMenu" hidden></div>
+      <div class="abs meter" id="shMeter"></div>
+      <div class="abs toast" id="shToast"></div>
+    </div>
+    <ul>
+      <li>Eating is shown, not listed: the bowl appears on Nida's counter.</li>
+      <li>Rice weighs 2 kg, so carrying it home to cook is a real choice.</li>
+    </ul>
+  </div>
+</div>
+
+<section class="roster">
+  <h2>The people who ask</h2>
+  <p>Eight survivors, met once each, all eight painted now. Everything they ask, and what giving or refusing costs, is written out here.</p>
+  <div class="cards" id="roster"></div>
+</section>
+
+<script src="world.js"></script>
+<script>
+const W = window.WORLD, S = 3;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+const img = (src) => { const i = new Image(); i.src = src; return i; };
+
+// ---------------- the one Juan ----------------
+const ST = {
+  bag: [{ id: 'rebar', qty: 1 }, { id: 'water', qty: 2 }, { id: 'rice', qty: 1 }, { id: 'sardines', qty: 2 }, { id: 'antibiotics', qty: 1 },
+    { id: 'gauze', qty: 2 }, { id: 'copper-wire', qty: 1 }, { id: 'gold', qty: 1 }, { id: 'gin', qty: 1 }, { id: 'scrap-vest', qty: 1 }],
+  worn: ['nailed-plank', 'denim-jacket'],
+  health: 52, energy: 40, food: 30, hope: 46, dread: 22, tab: 9, rain: false, night: true,
+};
+const kgOf = (id) => W.KG[id] ?? 0.3;
+const weight = () => Math.round((ST.bag.reduce((s, x) => s + kgOf(x.id) * x.qty, 0) + ST.worn.reduce((s, id) => s + kgOf(id), 0)) * 10) / 10;
+const load = () => W.loadOf(weight());
+const has = (id) => ST.bag.find((x) => x.id === id && x.qty > 0);
+function take(id, n = 1) { const s = has(id); if (!s) return false; s.qty -= n; if (s.qty <= 0) ST.bag.splice(ST.bag.indexOf(s), 1); return true; }
+const LCOL = { light: '#7ee0a0', carrying: '#ece4d5', loaded: '#f0a63c', over: '#ff7b66' };
+const runOdds = () => Math.max(5, 35 + load().run);
+
+function update() {
+  const l = load(), kg = weight();
+  $('state').innerHTML = `<span>CARRYING <b>${kg.toFixed(1)} kg</b></span><span class="ld" style="color:${LCOL[l.id]};border-color:${LCOL[l.id]}">${l.name.toUpperCase()}</span>
+    <span>HEALTH <b>${ST.health}</b></span><span>ENERGY <b>${ST.energy}</b></span><span>FOOD <b>${ST.food}</b></span><span>HOPE <b>${ST.hope}</b></span><span style="color:var(--dread)">DREAD <b style="color:var(--dread)">${ST.dread}</b></span><span>TAB <b>${ST.tab}</b></span>
+    <label><input type="checkbox" id="rainT" ${ST.rain ? 'checked' : ''}> rain</label><button id="resetB">Reset</button>`;
+  $('rainT').onchange = (e) => { ST.rain = e.target.checked; };
+  $('resetB').onclick = () => location.reload();
+  renderMap(); renderBag(); renderCombat(); renderSurvivor(); renderHasa(); renderShelter();
+}
+
+// ---------------- rain, shared by the scenes ----------------
+const drops = Array.from({ length: 70 }, () => ({ x: Math.random() * 110, y: Math.random() * 225, v: 110 + Math.random() * 70 }));
+function rain(g, dt, floor = 200) {
+  if (!ST.rain) return;
+  for (const d of drops) {
+    d.y += d.v * dt; d.x -= d.v * .06 * dt; if (d.y > 225) { d.y = -6; d.x = Math.random() * 120; }
+    g.fillStyle = 'rgba(170,190,210,.32)'; g.fillRect(Math.round(d.x), Math.round(d.y), 1, 3);
+    if (d.y > floor && Math.random() < .02) { g.fillStyle = 'rgba(190,210,225,.4)'; g.fillRect(Math.round(d.x) - 1, Math.round(d.y), 3, 1); }
+  }
+  g.fillStyle = 'rgba(20,30,45,.18)'; g.fillRect(0, 0, 110, 225);
+}
+
+// ---------------- 1 · map ----------------
+const mapShot = img('out/map-shot.png');
+const mapG = $('mapCv').getContext('2d');
+function renderMap() {
+  const l = load(), kg = weight();
+  $('mapBag').src = `out/${l.bag}.png`;
+  $('mapBag').classList.toggle('strain', l.id === 'loaded' || l.id === 'over');
+  $('mapBag').style.filter = l.id === 'over' ? 'drop-shadow(2px 2px 0 #000) sepia(.4) saturate(2) hue-rotate(-25deg)' : '';
+  $('mapKg').textContent = `${kg.toFixed(1)} KG`;
+  $('mapKg').style.color = $('mapKg').style.borderColor = LCOL[l.id];
+  $('mapLine').innerHTML = `<span style="color:${LCOL[l.id]}">${l.name.toUpperCase()}</span> · fresh step ${l.fresh} EN${l.cleared ? ` · cleared ${l.cleared} EN` : ''} · dash ${l.dash}<br><span style="color:#cfd6d9;font-weight:400">${esc(l.line)}</span>`;
+}
+
+// ---------------- 2 · bag ----------------
+function renderBag() {
+  const l = load(), kg = weight(), pct = (v) => (v / W.MAX) * 100;
+  const slots = [];
+  for (let i = 0; i < 10; i++) {
+    const s = ST.bag[i];
+    if (!s) { slots.push('<div class="slot empty"></div>'); continue; }
+    const it = W.ITEMS[s.id] ?? { name: s.id }, w = kgOf(s.id) * s.qty;
+    slots.push(`<button class="slot${kgOf(s.id) >= 1.5 ? ' heavy' : ''}" data-drop="${s.id}" title="Drop one ${esc(it.name)}">${it.sprite ? `<img src="${it.sprite}" alt="">` : esc(it.name)}${s.qty > 1 ? `<span class="q">×${s.qty}</span>` : ''}<span class="w">${w < 1 ? w.toFixed(2).replace(/0$/, '') : w.toFixed(1)}</span></button>`);
+  }
+  const wornKg = ST.worn.reduce((s, id) => s + kgOf(id), 0);
+  $('bagScr').innerHTML = `<h3>THE BAG</h3>
+    <div class="wlab"><span style="color:${LCOL[l.id]}">${l.name.toUpperCase()}</span><span>${kg.toFixed(1)} / ${W.CARRY} KG</span></div>
+    <div class="wbar"><i style="width:${Math.min(100, pct(kg))}%;background:${LCOL[l.id]}"></i>${[6, 12, 16].map((m) => `<u style="left:${pct(m)}%"></u>`).join('')}</div>
+    <div class="wlab" style="color:var(--muted);font-weight:400"><span>0</span><span style="margin-left:22%">6</span><span>12</span><span>16</span><span>20</span></div>
+    <div class="weff">${esc(l.line)}<br><b>Fresh step ${l.fresh} EN</b>${l.cleared ? ` · cleared ${l.cleared} EN` : ''} · <b>dash ${l.dash}</b> · run ${l.run >= 0 ? '+' : ''}${l.run}% · noise ×${l.noise}</div>
+    <div class="body">ON HIM: makeshift bat 1.2 · denim jacket 1.0 = ${wornKg.toFixed(1)} kg</div>
+    <div class="slots">${slots.join('')}</div>
+    <div class="hintp">Tap a thing to drop one. Heavy ones (1.5 kg+) have a rust border.</div>`;
+  $('bagScr').querySelectorAll('[data-drop]').forEach((b) => b.onclick = () => { take(b.dataset.drop); update(); });
+}
+
+// ---------------- 3 · combat ----------------
+const SH = { 38: { w: 87, h: 54, px: 31, py: 51 }, 60: { w: 136, h: 83, px: 48, py: 80 } };
+let cb = { step: 'idle', row: 'MID', log: 'A Shambler drags itself out of the dark. <b class="hurt">Health 52.</b> You\'re bleeding from the arm.' };
+function placeShambler() {
+  const s = cb.row === 'MID' ? 38 : 60, m = SH[s], el = $('cbShm');
+  el.src = `../../public/game/enemies/shambler/shambler-h${s}-idle.png`;
+  // first frame of the idle strip, feet on the row's line
+  el.style.width = `${m.w * S}px`; el.style.height = `${m.h * S}px`; el.style.objectFit = 'none'; el.style.objectPosition = '0 0';
+  el.style.left = `${(55 - m.px) * S}px`; el.style.top = `${((cb.row === 'MID' ? 148 : 176) - m.py) * S}px`;
+  el.style.transform = `scale(${S})`; el.style.transformOrigin = '0 0'; el.style.width = `${m.w}px`; el.style.height = `${m.h}px`;
+}
+function renderCombat() {
+  $('cbHp').style.width = `${ST.health}%`; $('cbHpN').textContent = ST.health;
+  placeShambler();
+  $('cbLog').innerHTML = cb.log;
+  const hands = $('cbHands');
+  hands.hidden = !['wrap1', 'wrap1b', 'ruined'].includes(cb.step);
+  if (!hands.hidden) hands.src = 'out/use-bandage.png';
+  hands.classList.toggle('dip', cb.step === 'ruined');
+  const g = has('gauze');
+  let btns = '';
+  if (cb.step === 'idle') btns = `<button class="go" data-cb="wrap" ${g ? '' : 'disabled'}>Use gauze<small>2 turns · +25</small></button><button data-cb="run">Run<small>${runOdds()}% (${load().name.toLowerCase()})</small></button>`;
+  else if (cb.step === 'wrap1') btns = `<button data-cb="enemy">Enemy turn ▸<small>it's at MID</small></button>`;
+  else if (cb.step === 'wrap1b') btns = `<button class="go" data-cb="finish">Finish wrapping<small>turn 2 of 2</small></button><button data-cb="bitten">…but it lunges<small>see the risk</small></button>`;
+  else btns = `<button data-cb="again">Again<small>reset the fight</small></button>`;
+  $('cbBtns').innerHTML = btns;
+  $('cbBtns').querySelectorAll('[data-cb]').forEach((b) => b.onclick = () => combatAct(b.dataset.cb));
+}
+function combatAct(a) {
+  if (a === 'wrap') { take('gauze'); cb = { step: 'wrap1', row: 'MID', log: 'You start wrapping the bite. <b>1 of 2.</b> Your hands are busy.' }; }
+  else if (a === 'enemy') { cb = { step: 'wrap1b', row: 'CLOSE', log: 'It lurches to CLOSE. You keep your eyes on the knot.' }; }
+  else if (a === 'finish') { ST.health = Math.min(100, ST.health + 25); cb = { step: 'done', row: 'CLOSE', log: `Tied off. <b class="heal">+25 Health.</b> Now it's on you.` }; }
+  else if (a === 'bitten') { ST.health = Math.max(1, ST.health - 10); ST.dread += 4; cb = { step: 'ruined', row: 'CLOSE', log: '<b class="hurt">It bites through your hands. −10.</b> The gauze is soaked and useless.' }; }
+  else if (a === 'run') { const ok = Math.random() * 100 < runOdds(); cb = { step: 'done', row: 'MID', log: ok ? `You get away. <b class="heal">${runOdds()}%</b> with that load.` : `<b class="hurt">The bag drags you back.</b> It's still coming. (${runOdds()}%)` }; }
+  else if (a === 'again') { cb = { step: 'idle', row: 'MID', log: 'Another one. It\'s at MID.' }; }
+  update();
+}
+
+// ---------------- 4 · Lorna ----------------
+const svBase = img('out/scene-mother.png'), svG = $('svCv').getContext('2d');
+let sv = { done: null };
+function renderSurvivor() {
+  const p = W.SURVIVORS[0];
+  const meds = ['antibiotics', 'medicine', 'painkillers'].filter((id) => has(id));
+  let body;
+  if (!sv.done) {
+    body = `<div class="who"><img class="face" src="out/${p.art.portrait}.png" alt="${p.name}"><div class="ask"><b>${p.who}.</b><br>"Kuya, please. Anything for the fever."<br><span class="mono" style="font-size:10.5px;color:var(--muted)">Asks: ${esc(p.ask)}</span></div></div>
+      <div class="ch">${meds.length ? meds.map((id) => `<button class="primary" data-sv="give:${id}"><span>Give the ${esc((W.ITEMS[id]?.name ?? id).toLowerCase())}</span><em>+${p.give.hope} Hope · −${kgOf(id)} kg</em></button>`).join('')
+        : '<button disabled><span>You have no medicine</span><em>—</em></button>'}
+        <button data-sv="refuse"><span>"I'm sorry. Not today."</span><em>+${p.refuse.dread} Dread</em></button></div>`;
+  } else {
+    const o = sv.done === 'give' ? p.give : p.refuse;
+    body = `<div class="out">${esc(o.now)}<span class="later">LATER · ${esc(o.later)}</span></div><div class="ch" style="margin-top:8px"><button data-sv="again"><span>Meet her again (mockup only)</span><em>↺</em></button></div>`;
+  }
+  $('svCard').innerHTML = `<div class="grab"></div><div class="hd"><span class="tag" style="background:#c9a0dc">Survivor</span><h3>${p.name}</h3></div>${body}`;
+  $('svCard').querySelectorAll('[data-sv]').forEach((b) => b.onclick = () => {
+    const [a, id] = b.dataset.sv.split(':');
+    if (a === 'give') { take(id); ST.hope += p.give.hope; ST.dread = Math.max(0, ST.dread + p.give.dread); sv.done = 'give'; }
+    else if (a === 'refuse') { ST.dread += p.refuse.dread; sv.done = 'refuse'; }
+    else sv.done = null;
+    update();
+  });
+}
+
+// ---------------- 5 · Mang Isko ----------------
+const hsBase = img('out/scene-hasa.png'), hsG = $('hsCv').getContext('2d');
+const sparks = [];
+let hs = { pick: 'nailed-plank', note: '', swings: { 'nailed-plank': 4, rebar: 22 }, edge: {} };
+const MAXSW = { 'nailed-plank': 12, rebar: 22 };
+const BLUNT = (id) => !W.HASA.edge.blades.includes(id);
+function burst(n = 40) { for (let i = 0; i < n; i++) sparks.push({ x: 78, y: 112, vx: 20 + Math.random() * 70, vy: -30 + Math.random() * 60, life: .3 + Math.random() * .5 }); }
+function renderHasa() {
+  const weps = [{ id: 'nailed-plank', where: 'in hand' }, ...(has('rebar') ? [{ id: 'rebar', where: 'in the bag · 2.5 kg' }] : [])];
+  const pick = weps.find((w) => w.id === hs.pick) ? hs.pick : weps[0].id;
+  const sw = hs.swings[pick], max = MAXSW[pick], missing = max - sw, fixCost = Math.max(W.HASA.fix.min, Math.ceil(missing * W.HASA.fix.per));
+  const pips = (id) => Array.from({ length: MAXSW[id] }, (_, i) => `<i class="${i < hs.swings[id] ? (hs.edge[id] ? 'e' : 'f') : ''}"></i>`).join('');
+  const sellFor = Math.round(17.5 * W.HASA.rack.buys);
+  $('hsCard').innerHTML = `<div class="grab"></div><div class="hd"><span class="tag" style="background:#a9b4b8">Hasa</span><h3>Mang Isko's grindstone</h3></div>
+    <div class="who" style="align-items:center"><img class="face" style="width:57px;height:60px" src="out/isko-big.png" alt="Mang Isko"><div class="ask">"Show me the edge."<br><span class="mono" style="font-size:11px">Street tab: <b style="color:var(--sodium)">${ST.tab}</b></span> <span class="mono" style="font-size:10px;color:var(--muted)">(shared with Aling Cora)</span></div></div>
+    <div class="sec">YOUR WEAPONS · TAP ONE</div>
+    ${weps.map((w) => `<button class="wrow${w.id === pick ? ' on' : ''}" data-hs="pick:${w.id}"><img src="${W.ITEMS[w.id].sprite}" alt=""><span class="sw">${W.ITEMS[w.id].name} ${hs.edge[w.id] ? '<span class="badge">EDGE 12</span>' : ''}<small>${w.where} · ${hs.swings[w.id]}/${MAXSW[w.id]} swings</small><span class="pips">${pips(w.id)}</span></span></button>`).join('')}
+    <div class="ch">
+      <button class="primary" data-hs="fix" ${missing ? '' : 'disabled'}><span>${missing ? 'Fix it' : 'Like new already'}</span><em>${missing ? `${fixCost} pts · back to ${max}` : ''}</em></button>
+      <button data-hs="edge" ${hs.edge[pick] ? 'disabled' : ''}><span>${BLUNT(pick) ? 'Nail it' : 'Sharpen it'}</span><em>6 pts · +1 dmg, 12 swings</em></button>
+      ${has('rebar') ? `<button data-hs="sell"><span>Sell him the rebar</span><em>+${sellFor} on the tab · −2.5 kg</em></button>` : ''}
+    </div>
+    ${hs.note ? `<p class="fl" style="margin-bottom:0">${hs.note}</p>` : ''}`;
+  $('hsCard').querySelectorAll('[data-hs]').forEach((b) => b.onclick = () => {
+    const [a, id] = b.dataset.hs.split(':');
+    if (a === 'pick') hs.pick = id;
+    else if (a === 'fix') { if (ST.tab < fixCost) hs.note = 'Not enough on the tab. Sell him something.'; else { ST.tab -= fixCost; hs.swings[pick] = max; burst(); hs.note = `He works it on the stone for a long minute. <b>${max}/${max}.</b>`; } }
+    else if (a === 'edge') { if (ST.tab < 6) hs.note = 'Six points. You don\'t have them. Sell him something.'; else { ST.tab -= 6; hs.edge[pick] = true; burst(60); hs.note = BLUNT(pick) ? 'Wire and three nails through the head. <b>+1 damage, 12 swings.</b>' : 'A fresh edge. <b>+1 damage, 12 swings.</b>'; } }
+    else if (a === 'sell') { take('rebar'); ST.tab += sellFor; hs.pick = 'nailed-plank'; hs.note = `He weighs it in one hand. "Good steel." <b>+${sellFor}</b>, and 2.5 kg off your back.`; }
+    update();
+  });
+}
+
+// ---------------- 6 · shelter ----------------
+const room = img('../shelter-ui/shelter-nida-110.png'), shG = $('shCv').getContext('2d');
+const MEALS = { rice: { meal: 'meal-rice', food: 30, line: 'Rice and two tuyo. Hot. He eats slowly.' }, sardines: { meal: 'meal-sardines', food: 15, line: 'Cold sardines straight from the can, crackers on the side.' } };
+const mealImg = {}; for (const k of ['meal-rice', 'meal-sardines', 'meal-noodles', 'meal-coffee']) mealImg[k] = img(`out/${k}.png`);
+let sh = { meal: null, t: 0, menu: false };
+function renderShelter() {
+  const bars = [['HEALTH', ST.health, '#d94b3b'], ['ENERGY', ST.energy, '#2e86ab'], ['FOOD', ST.food, '#9cb840'], ['HOPE', ST.hope, '#f0a63c']];
+  $('shMeter').innerHTML = bars.map(([n, v, c]) => `<div>${n} ${v}<i><b style="width:${Math.min(100, v)}%;background:${c}"></b></i></div>`).join('');
+  const m = $('shMenu');
+  m.hidden = !sh.menu;
+  if (sh.menu) {
+    const opts = Object.keys(MEALS).filter((id) => has(id));
+    m.innerHTML = `<b style="color:var(--sodium)">EAT · THE COUNTER</b>${opts.map((id) => `<button data-eat="${id}"><img src="${W.ITEMS[id].sprite}" alt="">${W.ITEMS[id].name}<em>+${MEALS[id].food} food · −${kgOf(id)} kg</em></button>`).join('') || '<p style="color:var(--muted)">Nothing to eat in the bag.</p>'}<button data-eat="x"><em style="margin:0">close</em></button>`;
+    m.querySelectorAll('[data-eat]').forEach((b) => b.onclick = (e) => { e.stopPropagation();
+      const id = b.dataset.eat; sh.menu = false;
+      if (id !== 'x') { take(id); ST.food = Math.min(100, ST.food + MEALS[id].food); sh.meal = MEALS[id].meal; sh.t = 0; const t = $('shToast'); t.textContent = MEALS[id].line; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2600); }
+      update(); });
+  }
+}
+$('shScr').addEventListener('click', (e) => {
+  if (e.target.closest('#shMenu')) return;
+  const r = $('shScr').getBoundingClientRect(), x = (e.clientX - r.left - 3) / S, y = (e.clientY - r.top - 3) / S;
+  if (x > 54 && x < 102 && y > 108 && y < 162) { sh.menu = true; renderShelter(); }
+});
+
+// ---------------- the roster ----------------
+function renderRoster() {
+  $('roster').innerHTML = W.SURVIVORS.map((p) => `<div class="pc">${p.art?.portrait ? `<img class="ph" src="out/${p.art.portrait}.png" alt="${p.name}">` : '<div class="ph">PAINTING<br>NEEDED</div>'}
+    <div><h4>${p.name}</h4><div class="w">${esc(p.who)} · ${esc(p.where)}</div>
+    <div class="t"><b>Asks:</b> ${esc(p.ask)}${p.costs ? ` <span class="mono" style="font-size:10px">(${esc(p.costs)})</span>` : ''}<br>
+    <span class="y">Give:</span> ${esc(p.give.now)} <i>${esc(p.give.later)}</i><br>
+    <span class="n">Refuse:</span> ${esc(p.refuse.now)} <i>${esc(p.refuse.later)}</i></div></div></div>`).join('');
+}
+
+// ---------------- the animated layers ----------------
+let last = 0;
+function frame(T) {
+  const dt = last ? Math.min(.05, (T - last) / 1000) : 0; last = T;
+  // map
+  mapG.clearRect(0, 0, 110, 225); if (mapShot.complete) mapG.drawImage(mapShot, 0, 0); rain(mapG, dt, 120);
+  // survivor: the candle breathes
+  svG.clearRect(0, 0, 110, 225); if (svBase.complete) svG.drawImage(svBase, 0, 0);
+  { const f = .5 + .25 * Math.sin(T / 140) + .15 * Math.sin(T / 47); const gr = svG.createRadialGradient(62, 120, 1, 62, 120, 30); gr.addColorStop(0, `rgba(255,170,70,${.18 * f})`); gr.addColorStop(1, 'rgba(255,170,70,0)'); svG.fillStyle = gr; svG.fillRect(0, 0, 110, 225); }
+  rain(svG, dt, 150);
+  // Mang Isko: the lamp flickers, the stone throws sparks
+  hsG.clearRect(0, 0, 110, 225); if (hsBase.complete) hsG.drawImage(hsBase, 0, 0);
+  { const f = .8 + .1 * Math.sin(T / 110) + .07 * Math.sin(T / 37); const gr = hsG.createRadialGradient(31, 110, 1, 31, 110, 34); gr.addColorStop(0, `rgba(255,180,80,${.22 * f})`); gr.addColorStop(1, 'rgba(255,180,80,0)'); hsG.fillStyle = gr; hsG.fillRect(0, 0, 110, 225); }
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 160 * dt; s.life -= dt;
+    if (s.life <= 0) { sparks.splice(i, 1); continue; } hsG.fillStyle = s.life > .3 ? '#fff2b0' : '#f0a63c'; hsG.fillRect(Math.round(s.x), Math.round(s.y), 1, 1); }
+  rain(hsG, dt, 150);
+  // shelter: a meal on the counter, steaming, then gone
+  shG.clearRect(0, 0, 110, 225); if (room.complete) shG.drawImage(room, 0, 0);
+  if (sh.meal) { sh.t += dt; const m = mealImg[sh.meal]; if (m.complete) shG.drawImage(m, 75, 128 - m.height);          // on the counter top, right of the lamp
+    for (let k = 0; k < 3; k++) { const yy = 126 - m.height - ((T / 40 + k * 7) % 14), xx = 75 + m.width / 2 + Math.sin(T / 300 + k) * 2; shG.fillStyle = 'rgba(236,228,213,.35)'; shG.fillRect(Math.round(xx), Math.round(yy), 1, 2); }
+    if (sh.t > 6) sh.meal = null; }
+  if (!sh.meal && (T % 1400) < 700) { R(shG, 86, 118, 1, 3, '#f0a63c'); R(shG, 85, 119, 3, 1, '#f0a63c'); }
+  requestAnimationFrame(frame);
+}
+renderRoster(); update(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

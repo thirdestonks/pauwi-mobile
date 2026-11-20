@@ -14,8 +14,10 @@ export const SAVE_VERSION = 1
 
 import { useBoardStore } from '~/stores/board'
 import { useCombatStore } from '~/stores/combat'
+import { useHouseStore, type HouseState } from '~/stores/house'
 import { useInventoryStore } from '~/stores/inventory'
 import { usePlayerStore } from '~/stores/player'
+import { useTraderStore } from '~/stores/trader'
 import { useUiStore } from '~/stores/ui'
 
 // Each store's snapshot shape, inferred straight from the store — the blob can't
@@ -33,6 +35,10 @@ export interface SaveBlob {
   board: BoardSnapshot
   ui: UiSnapshot
   stats: { enemiesDefeated: number }
+  /** How far Juan got in each house he went into (missing in older saves). */
+  houses?: Record<string, HouseState>
+  /** Aling Cora's tab and standing (missing in older saves). */
+  trader?: ReturnType<ReturnType<typeof useTraderStore>['snapshot']>
 }
 
 // --- Persistence (localStorage here; Capacitor Preferences is the phone backend) -------
@@ -102,6 +108,8 @@ export function snapshotRun(): SaveBlob {
     board: board.snapshot(),
     ui: ui.snapshot(),
     stats: { enemiesDefeated: combat.enemiesDefeated },
+    houses: useHouseStore().snapshot(),
+    trader: useTraderStore().snapshot(),
   }
 }
 
@@ -110,6 +118,8 @@ export function hydrateRun(blob: SaveBlob) {
   useInventoryStore().hydrate(blob.inventory)
   useBoardStore().hydrate(blob.board)
   useUiStore().hydrate(blob.ui)
+  useHouseStore().hydrate(blob.houses ?? {})
+  useTraderStore().hydrate(blob.trader)
   if (typeof blob.stats?.enemiesDefeated === 'number') {
     useCombatStore().enemiesDefeated = blob.stats.enemiesDefeated
   }

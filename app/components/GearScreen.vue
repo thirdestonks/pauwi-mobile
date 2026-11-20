@@ -1,195 +1,230 @@
 <script setup lang="ts">
-import { EQUIPMENT, EQUIP_SLOTS, SLOT_LABELS, itemInfo } from '~/data/equipment'
-import type { EquipSlot } from '~/data/equipment'
+import { PIXEL_COMBAT, rowMultOf } from '~/data/combat'
+import { EQUIPMENT, SLOT_LABELS, type EquipSlot } from '~/data/equipment'
+import { damageRange } from '~/stores/combat'
 
 const ui = useUiStore()
 const inventory = useInventoryStore()
 const player = usePlayerStore()
+const sfx = useSfx()
 
-/** Screen-tag order around the paper doll. */
-const DOLL_ORDER: EquipSlot[] = [
-  'head',
-  'shoulderL',
-  'shoulderR',
-  'handL',
-  'handR',
-  'body',
-  'legs',
-  'feet',
+const columns: EquipSlot[][] = [
+  ['head', 'shoulderL', 'handL', 'legs'],
+  ['body', 'shoulderR', 'handR', 'feet'],
 ]
+const selectedSlot = ref<EquipSlot>('handR')
+const selectedBagSlot = ref<number | null>(null)
+const notice = ref('Tap a slot or spare gear to inspect it.')
+const bagGear = computed(() => inventory.bag.flatMap((entry, slot) =>
+  entry && EQUIPMENT[entry.id] ? [{ id: entry.id, slot, spec: EQUIPMENT[entry.id] }] : [],
+))
+const stashGearCount = computed(() => inventory.stash.reduce((n, item) =>
+  n + (EQUIPMENT[item.id] ? item.qty : 0), 0,
+))
+const selectedId = computed(() => selectedBagSlot.value === null
+  ? player.equipped[selectedSlot.value]
+  : inventory.bag[selectedBagSlot.value]?.id)
+const selectedSpec = computed(() => selectedId.value ? EQUIPMENT[selectedId.value] : undefined)
+const selectedDurability = computed(() => selectedId.value ? player.durabilityOf(selectedId.value) : undefined)
+const lowDurability = computed(() => selectedDurability.value !== undefined && selectedDurability.value <= 2)
+const weaponRows = computed(() => {
+  const combat = selectedSpec.value?.combat
+  if (!combat) return []
+  const [lo, hi] = damageRange(combat.dmg)
+  return ['CLOSE', 'MID', 'FAR'].map((label, row) => {
+    const mult = rowMultOf(combat, row)
+    const min = +(lo * mult).toFixed(1), max = +(hi * mult).toFixed(1)
+    return { label, range: min === max ? `${min}` : `${min}\u2013${max}` }
+  })
+})
+const replacement = computed(() => {
+  if (selectedBagSlot.value === null || !selectedSpec.value) return ''
+  // A two-handed piece occupies two slots but only returns one item to the bag.
+  const ids = [...new Set(selectedSpec.value.slots.map((slot) => player.equipped[slot]))]
+    .filter((id): id is string => !!id)
+  return ids.length ? `Replaces ${ids.map((id) => EQUIPMENT[id]!.name).join(' + ')}.` : 'Fits an empty slot.'
+})
 
-const wornEntry = (slot: EquipSlot) => {
+function worn(slot: EquipSlot) {
   const id = player.equipped[slot]
-  return id ? { id, spec: EQUIPMENT[id] } : null
+  return id ? EQUIPMENT[id] : undefined
 }
 
-const bagGear = computed(() =>
-  inventory.bag
-    .map((id, slot) => ({ id, slot }))
-    .filter((entry): entry is { id: string; slot: number } => entry.id !== null && !!EQUIPMENT[entry.id]),
-)
-
-/** Kit tray: gear in the bag the player can put on. Grouped per piece with its slots. */
-const kitTray = computed(() =>
-  bagGear.value.map((entry) => ({
-    ...entry,
-    spec: EQUIPMENT[entry.id],
-    slotsLabel: EQUIPMENT[entry.id].slots.map((s) => SLOT_LABELS[s]).join(' / '),
-  })),
-)
-
-function equip(id: string) {
-  inventory.equipItem(id)
+function offered(slot: EquipSlot) {
+  return bagGear.value.some((entry) => entry.spec.slots.includes(slot))
 }
 
-function takeOff(slot: EquipSlot) {
-  inventory.unequipSlot(slot)
+function inspectSlot(slot: EquipSlot) {
+  selectedSlot.value = slot
+  selectedBagSlot.value = null
 }
 
-/** Which tray pieces could go into this empty slot (lights the slot's + affordance). */
-function trayOffersFor(slot: EquipSlot): number {
-  return kitTray.value.filter((entry) => entry.spec.slots.includes(slot)).length
+function equipSelected() {
+  const spec = selectedSpec.value
+  if (selectedBagSlot.value === null || !spec || !inventory.equipItem(spec.id)) return
+  sfx.play(spec.id === 'pistol' ? 'pistol-cock' : 'equip-sound', 0.8)
+  notice.value = `${spec.name} equipped. Replaced gear goes into the bag, or the stash if full.`
+  inspectSlot(spec.slots[0]!)
 }
 
-const weapon = computed(() => player.weapon)
-const durabilityPercent = computed(() =>
-  player.unbreakable ? 100 : Math.round((player.weaponDurability / player.weapon.durability) * 100),
-)
+function removeSelected() {
+  const spec = selectedSpec.value
+  if (selectedBagSlot.value !== null || !spec) return
+  const destination = inventory.bagCount < inventory.bag.length ? 'bag' : 'stash'
+  if (!inventory.unequipSlot(selectedSlot.value)) return
+  sfx.play('put-item', 0.8)
+  notice.value = `${spec.name} put in the ${destination}.${destination === 'stash' ? ' The bag is full.' : ''}`
+}
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col overflow-y-auto">
-    <div class="px-4 py-3 flex items-baseline justify-between" style="background: linear-gradient(180deg, var(--night), rgba(14,18,20,.85)); border-bottom: 1px solid var(--line)">
-      <div class="text-xl uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">JUAN'S KIT</div>
-      <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">tap worn gear to strip it</div>
-    </div>
+  <div class="px-screen kit-screen flex-1 flex flex-col overflow-y-auto">
+    <div class="px-title">JUAN'S KIT</div>
+    <p class="kit-caption">GEAR UP BEFORE HEADING OUT</p>
 
-    <!-- The paper doll: Juan in the middle, what he's wearing hanging off him.
-         Slot plates sit around the silhouette; filled plates show the piece and glow
-         sodium, empty ones hum at the margin until the tray below has something. -->
-    <div class="relative mx-4 mt-4 rounded-md overflow-hidden" style="background: radial-gradient(90% 120% at 50% 0%, #14202a 0%, #0b1114 70%); border: 1px solid var(--line)">
-      <div class="absolute top-0 left-0 right-0 h-1" style="background: repeating-linear-gradient(90deg, var(--sari-blue) 0 10px, transparent 10px 20px); opacity: .5" />
-
-      <div class="relative grid grid-cols-3 items-center px-2 pt-4 pb-2" style="min-height: 235px">
-        <!-- Left column -->
-        <div class="flex flex-col gap-2 z-10">
-          <button
-            v-for="slot in ['head', 'shoulderL', 'handL'] as EquipSlot[]"
-            :key="slot"
-            class="flex items-center gap-1.5 py-1.5 px-1.5 text-left"
-            :style="wornEntry(slot)
-              ? { background: 'var(--panel3)', border: '1px solid var(--sodium)', boxShadow: '2px 2px 0 rgba(0,0,0,.4)' }
-              : { background: 'var(--panel)', border: '1px dashed var(--line)' }"
-            @click="wornEntry(slot) && takeOff(slot)"
-          >
-            <span class="text-[17px] leading-none w-5 text-center">{{ wornEntry(slot) ? wornEntry(slot)!.spec.icon : '·' }}</span>
-            <span class="flex-1 min-w-0">
-              <span class="block text-[7px] uppercase tracking-wide truncate" :style="{ fontFamily: 'var(--font-mono)', color: wornEntry(slot) ? 'var(--sodium)' : 'var(--muted)' }">{{ SLOT_LABELS[slot] }}</span>
-              <span v-if="wornEntry(slot)" class="block text-[8px] truncate" style="font-family: var(--font-mono); color: var(--bone)">{{ wornEntry(slot)!.spec.name }}</span>
-            </span>
-          </button>
-        </div>
-
-        <!-- Center: the man himself -->
-        <div class="flex flex-col items-center justify-center">
-          <img src="/images/juan.png" class="w-20 h-24 object-contain" style="image-rendering: pixelated; filter: drop-shadow(3px 4px 0 rgba(0,0,0,.45))" />
-          <div class="mt-1 px-2 py-0.5 text-[8px] uppercase tracking-[2px]" style="font-family: var(--font-mono); color: var(--sodium); border: 1px solid rgba(240,166,60,.35); background: rgba(240,166,60,.08)">WORN · 🛡 {{ player.armorTotal }}</div>
-        </div>
-
-        <!-- Right column -->
-        <div class="flex flex-col gap-2 z-10">
-          <button
-            v-for="slot in ['shoulderR', 'handR', 'body'] as EquipSlot[]"
-            :key="slot"
-            class="flex items-center gap-1.5 py-1.5 px-1.5 text-left"
-            :style="wornEntry(slot)
-              ? { background: 'var(--panel3)', border: '1px solid var(--sodium)', boxShadow: '2px 2px 0 rgba(0,0,0,.4)' }
-              : { background: 'var(--panel)', border: '1px dashed var(--line)' }"
-            @click="wornEntry(slot) && takeOff(slot)"
-          >
-            <span class="flex-1 min-w-0 text-right">
-              <span class="block text-[7px] uppercase tracking-wide truncate" :style="{ fontFamily: 'var(--font-mono)', color: wornEntry(slot) ? 'var(--sodium)' : 'var(--muted)' }">{{ SLOT_LABELS[slot] }}</span>
-              <span v-if="wornEntry(slot)" class="block text-[8px] truncate" style="font-family: var(--font-mono); color: var(--bone)">{{ wornEntry(slot)!.spec.name }}</span>
-            </span>
-            <span class="text-[17px] leading-none w-5 text-center">{{ wornEntry(slot) ? wornEntry(slot)!.spec.icon : '·' }}</span>
-          </button>
-        </div>
+    <div class="paper-doll px-panel">
+      <div class="doll-slots">
+        <template v-for="(column, side) in columns" :key="side">
+          <div v-if="side === 1" class="juan">
+            <span class="juan-label">JUAN</span>
+            <img src="/game/encounters/src/juan-full.png" alt="Juan" class="juan-img">
+            <span class="armor"><b>{{ player.armorTotal }}</b> ARMOR</span>
+          </div>
+          <div class="slot-column">
+            <button
+              v-for="slot in column"
+              :key="slot"
+              class="gear-slot"
+              :class="{ filled: worn(slot), offered: !worn(slot) && offered(slot) }"
+              :aria-pressed="selectedBagSlot === null && selectedSlot === slot"
+              :aria-label="`${SLOT_LABELS[slot]}: ${worn(slot)?.name ?? 'Empty'}`"
+              @click="inspectSlot(slot)"
+            >
+              <span class="slot-label">{{ SLOT_LABELS[slot] }}</span>
+              <span class="slot-content">
+                <img v-if="worn(slot)?.sprite" :src="worn(slot)!.sprite" alt="">
+                <span v-else class="slot-icon">{{ worn(slot)?.icon ?? (offered(slot) ? '+' : '\u00b7') }}</span>
+                <span class="slot-name">{{ worn(slot)?.name ?? (offered(slot) ? 'GEAR IN BAG' : 'EMPTY') }}</span>
+              </span>
+            </button>
+          </div>
+        </template>
       </div>
-
-      <!-- Bottom row of the doll: legs + feet under the boots-line -->
-      <div class="grid grid-cols-2 gap-2 px-2 pb-3">
-        <button
-          v-for="slot in ['legs', 'feet'] as EquipSlot[]"
-          :key="slot"
-          class="flex items-center justify-between py-1.5 px-2"
-          :style="wornEntry(slot)
-            ? { background: 'var(--panel3)', border: '1px solid var(--sodium)', boxShadow: '2px 2px 0 rgba(0,0,0,.4)' }
-            : { background: 'var(--panel)', border: '1px dashed var(--line)' }"
-          @click="wornEntry(slot) && takeOff(slot)"
-        >
-          <span class="text-[7px] uppercase tracking-wide" :style="{ fontFamily: 'var(--font-mono)', color: wornEntry(slot) ? 'var(--sodium)' : 'var(--muted)' }">{{ SLOT_LABELS[slot] }}</span>
-          <span class="flex items-center gap-1">
-            <span v-if="wornEntry(slot)" class="text-[8px]" style="font-family: var(--font-mono); color: var(--bone)">{{ wornEntry(slot)!.spec.name }}</span>
-            <span class="text-[15px] leading-none">{{ wornEntry(slot) ? wornEntry(slot)!.spec.icon : '·' }}</span>
-          </span>
-        </button>
+      <div class="doll-footer">
+        <span>IN HAND <b>{{ player.weapon.name }}</b></span>
+        <span>BAG <b>{{ inventory.bagCount }}/{{ inventory.bag.length }}</b></span>
       </div>
     </div>
 
-    <!-- The weapon plaque: what Juan actually swings with -->
-    <div class="mx-4 mt-3 p-3 relative" style="background: linear-gradient(135deg,#1c1710,#12100c); border: 2px solid #4a3b1e; box-shadow: 0 3px 0 rgba(0,0,0,.35)">
-      <div class="absolute top-0 left-0 right-0 h-1" style="background: repeating-linear-gradient(90deg, var(--sari-yel) 0 12px, transparent 12px 24px); opacity: .4" />
-      <div class="flex items-center justify-between mt-1">
-        <span class="flex items-center gap-2">
-          <span class="text-xl">{{ weapon.icon }}</span>
-          <span>
-            <span class="block uppercase text-[13px]" style="font-family: var(--font-display); font-weight: 700; letter-spacing: .5px; color: var(--bone)">{{ weapon.name }}</span>
-            <span class="block text-[9px]" style="font-family: var(--font-mono); color: var(--muted)">{{ weapon.damage }} dmg · {{ Math.round(weapon.accuracy * 100) }}% acc{{ player.unbreakable ? ' · unbreakable' : '' }}</span>
-          </span>
-        </span>
-        <span v-if="!player.unbreakable" class="flex items-center gap-1.5">
-          <span class="inline-block h-1.5 w-14 overflow-hidden" style="background: #0c1113">
-            <b class="block h-full" :style="{ width: durabilityPercent + '%', background: player.weaponDurability <= 2 ? 'var(--sari-red)' : 'var(--sodium)' }" />
-          </span>
-          <span class="text-[9px]" style="font-family: var(--font-mono); color: var(--muted)">{{ player.weaponDurability }}</span>
-        </span>
-      </div>
-    </div>
+    <section class="inspection px-panel" aria-label="Gear details">
+      <template v-if="selectedSpec">
+        <div class="inspection-heading">
+          <div>
+            <small>{{ selectedBagSlot === null ? 'WORN' : 'IN THE BAG' }} · {{ selectedSpec.twoHanded ? 'BOTH HANDS' : selectedSpec.slots.map((s) => SLOT_LABELS[s]).join(' / ') }}</small>
+            <h2>{{ selectedSpec.name }}</h2>
+          </div>
+          <button v-if="selectedBagSlot !== null" class="px-btn go gear-action" @click="equipSelected">EQUIP</button>
+          <button v-else class="px-btn gear-action" @click="removeSelected">TAKE OFF</button>
+        </div>
+        <div v-if="weaponRows.length" class="weapon-rows" aria-label="Damage by distance">
+          <span v-for="row in weaponRows" :key="row.label"><small>{{ row.label }}</small><b>{{ row.range }}</b></span>
+        </div>
+        <p v-if="selectedSpec.combat" class="stat-note">{{ Math.round((1 - (player.shaken ? PIXEL_COMBAT.shakenMiss : 0)) * 100) }}% hit · {{ Math.round((selectedSpec.combat.crit ?? PIXEL_COMBAT.critChance) * 100) }}% crit ×{{ PIXEL_COMBAT.critMult }}{{ player.shaken ? ' · SHAKEN' : '' }}</p>
+        <p v-else class="stat-note">{{ selectedSpec.armor ?? 0 }} armor · takes that much off each hit (never more than half)</p>
+        <p v-if="selectedSpec.trait" class="stat-note">{{ selectedSpec.trait }}</p>
+        <div v-if="selectedSpec.condition" class="condition" :class="{ low: player.conditionOf(selectedSpec.id) <= selectedSpec.condition / 4 }">
+          <span>CONDITION</span>
+          <div class="condition-bar" role="meter" aria-label="Armor condition" :aria-valuenow="player.conditionOf(selectedSpec.id)" :aria-valuemin="0" :aria-valuemax="selectedSpec.condition"><i :style="{ width: `${Math.max(0, Math.min(100, player.conditionOf(selectedSpec.id) / selectedSpec.condition * 100))}%` }" /></div>
+          <b>{{ player.conditionOf(selectedSpec.id) }}/{{ selectedSpec.condition }}</b>
+          <small>Wears down by what it blocks. Patch it at the stash.</small>
+        </div>
+        <div v-if="selectedSpec.combat?.gun" class="condition">
+          <span>LOADED</span><b>{{ player.loadedOf(selectedSpec.id) }}/{{ PIXEL_COMBAT.guns[selectedSpec.id]?.mag ?? PIXEL_COMBAT.magazine }}</b><small>Reload from the bag in combat.</small>
+        </div>
+        <div v-else-if="selectedSpec.combat && selectedSpec.durability && selectedDurability !== undefined" class="condition" :class="{ low: lowDurability }">
+          <span>SWINGS</span>
+          <div class="condition-bar" role="meter" aria-label="Swings remaining" :aria-valuenow="selectedDurability" :aria-valuemin="0" :aria-valuemax="selectedSpec.durability"><i :style="{ width: `${Math.max(0, Math.min(100, selectedDurability / selectedSpec.durability * 100))}%` }" /></div>
+          <b>{{ selectedDurability }}/{{ selectedSpec.durability }}</b>
+          <small v-if="lowDurability">Nearly broken</small>
+        </div>
+        <p v-else-if="selectedSpec.combat" class="stat-note">Doesn't break.</p>
+        <p v-if="replacement" class="replacement">{{ replacement }}</p>
+      </template>
+      <template v-else>
+        <small>{{ SLOT_LABELS[selectedSlot] }}</small>
+        <h2>Empty slot</h2>
+        <p class="stat-note">{{ offered(selectedSlot) ? 'Compatible gear is waiting in the bag below.' : 'Pack spare gear at the shelter, then equip it here.' }}</p>
+      </template>
+    </section>
 
-    <!-- Kit tray: gear in the bag, waiting to be worn -->
-    <div class="flex items-baseline justify-between mx-4 mt-4 mb-2">
-      <div class="uppercase text-sm" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1.5px">Kit in bag</div>
-      <div class="text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">tap to wear it</div>
-    </div>
-    <div v-if="kitTray.length" class="mx-4 flex flex-col gap-2">
-      <button
-        v-for="entry in kitTray"
-        :key="entry.id"
-        class="flex items-center gap-3 py-2.5 px-3 text-left"
-        style="background: var(--panel3); border: 1px solid var(--line); box-shadow: 3px 3px 0 rgba(0,0,0,.3)"
-        @click="equip(entry.id)"
-      >
-        <span class="text-xl">{{ entry.spec.icon }}</span>
-        <span class="flex-1 min-w-0">
-          <span class="block text-[12px]" style="color: var(--bone)">{{ entry.spec.name }}</span>
-          <span class="block text-[9px] truncate" style="font-family: var(--font-mono); color: var(--muted)">{{ entry.slotsLabel }} · {{ entry.spec.weapon ? `${entry.spec.weapon.damage} dmg` : `${entry.spec.armor} armor` }}</span>
-        </span>
-        <span class="text-[11px]" style="font-family: var(--font-mono); color: var(--sodium)">wear →</span>
+    <div class="px-label">SPARE GEAR <small>{{ bagGear.length }} in the bag · tap to inspect</small></div>
+    <div v-if="bagGear.length" class="spare-grid">
+      <button v-for="entry in bagGear" :key="entry.slot" class="spare-item" :aria-pressed="selectedBagSlot === entry.slot" :aria-label="`Inspect ${entry.spec.name}, bag slot ${entry.slot + 1}`" @click="selectedBagSlot = entry.slot">
+        <img v-if="entry.spec.sprite" :src="entry.spec.sprite" alt="">
+        <span v-else class="spare-icon">{{ entry.spec.icon }}</span>
+        <span>{{ entry.spec.name }}</span>
       </button>
     </div>
-    <div v-else class="mx-4 p-3 text-[11px]" style="font-family: var(--font-mono); color: var(--muted); border: 1px dashed var(--line)">
-      Nothing spare in the bag. What Juan wears is what he's got.
-    </div>
+    <p v-else class="empty-tray">No spare gear in the bag.</p>
+    <button v-if="stashGearCount" class="stash-link" @click="ui.setTab('pack')">{{ stashGearCount }} piece{{ stashGearCount === 1 ? '' : 's' }} of gear in the stash · OPEN PACK →</button>
+    <p class="px-detail notice" role="status">{{ notice }}</p>
 
-    <div class="flex-1" />
-
-    <div class="grid grid-cols-2 gap-2.5 m-4">
-      <div class="p-3.5 rounded flex flex-col gap-0.5 items-center justify-center" style="background: var(--panel2); border: 1px solid var(--line)" @click="ui.setTab('shelter')">
-        <span class="uppercase text-base" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">Back</span>
-      </div>
-      <div class="p-3.5 rounded flex flex-col gap-0.5 items-center justify-center" style="background: var(--panel2); border: 1px solid var(--line)" @click="ui.setTab('pack')">
-        <span class="uppercase text-base" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">Pack bag →</span>
-      </div>
+    <div class="actions">
+      <button class="px-btn" @click="ui.setTab('shelter')">← SHELTER</button>
+      <button class="px-btn go" @click="ui.setTab('pack')">PACK BAG →</button>
     </div>
   </div>
 </template>
+
+<style scoped>
+.kit-screen { gap: 0; min-height: 0 }
+.kit-screen > * { flex-shrink: 0 }
+.kit-caption { margin: 2px 0 12px; color: var(--muted); font-size: 9px; letter-spacing: .12em; text-align: center }
+.paper-doll { padding: 12px 10px 0 }
+.doll-slots { display: grid; grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr); gap: 8px; align-items: center }
+.slot-column { display: grid; gap: 8px }
+.gear-slot { min-width: 0; min-height: 50px; padding: 5px; background: #0e1214; border: 2px solid #36302a; box-shadow: 2px 2px 0 #000; text-align: left }
+.gear-slot[aria-pressed='true'], .spare-item[aria-pressed='true'] { border-color: var(--sodium) }
+.gear-slot.offered { border-color: var(--green) }
+.slot-label { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted) }
+.filled .slot-label { color: var(--sodium) }
+.slot-content { display: flex; align-items: center; gap: 5px; margin-top: 3px }
+.slot-content img { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated }
+.slot-icon { flex: 0 0 24px; font-size: 17px; text-align: center; color: var(--muted) }
+.slot-name { min-width: 0; font-size: 9px; line-height: 1.3; overflow-wrap: anywhere }
+.gear-slot:not(.filled) .slot-name { color: var(--muted); font-size: 8px }
+.juan { display: flex; flex-direction: column; align-items: center; align-self: stretch; justify-content: space-between; padding-top: 5px; background: #171510 }
+.juan-label { color: var(--muted); font-size: 8px; letter-spacing: .18em }
+.juan-img { width: 78px; height: 192px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(4px 4px 0 #000) }
+.armor { margin-top: 6px; font-size: 9px; color: var(--muted); white-space: nowrap }
+.armor b { color: var(--sodium); font-size: 14px }
+.doll-footer { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; padding: 9px 0; border-top: 2px solid #000; font-size: 8px; color: var(--muted) }
+.doll-footer b { color: var(--bone); font-weight: 400 }
+.inspection { padding: 10px; margin-top: 12px }
+.inspection-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.inspection small { font-size: 8px; color: var(--muted) }
+.inspection h2 { margin: 3px 0; font-size: 13px; color: var(--bone) }
+.gear-action { flex-shrink: 0; min-height: 44px; padding: 8px; font-size: 13px }
+.weapon-rows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 6px }
+.weapon-rows span { display: flex; justify-content: space-between; align-items: center; gap: 4px; background: #0e1214; padding: 6px }
+.weapon-rows b { font-size: 11px; color: var(--sodium); font-weight: 400 }
+.stat-note, .replacement { margin: 6px 0 0; color: #b8b1a3; font-size: 9px; line-height: 1.5 }
+.replacement { color: var(--sodium) }
+.condition { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 9px }
+.condition > span { font-size: 8px; color: var(--muted) }
+.condition b { color: var(--sodium); font-weight: 400 }
+.condition-bar { flex: 1; height: 6px; background: #000 }
+.condition-bar i { display: block; height: 100%; background: var(--sodium) }
+.condition.low b, .condition.low small { color: var(--sari-red) }
+.condition.low i { background: var(--sari-red) }
+.spare-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px }
+.spare-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 78px; padding: 6px; background: #0e1214; border: 2px solid #000; box-shadow: 2px 2px 0 #000; font-size: 9px; text-align: center }
+.spare-item img { width: 30px; height: 30px; object-fit: contain; image-rendering: pixelated }
+.spare-icon { font-size: 24px }
+.empty-tray { margin: 0; padding: 12px; border: 2px solid #36302a; color: var(--muted); font-size: 10px }
+.stash-link { margin-top: 10px; min-height: 44px; padding: 8px; text-align: left; font-size: 10px; color: var(--sodium); border: 2px solid #36302a }
+.notice { font-size: 10px; min-height: 32px }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; padding-top: 14px }
+.actions .px-btn { padding: 12px 8px; font-size: 16px }
+.kit-screen button:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px }
+</style>

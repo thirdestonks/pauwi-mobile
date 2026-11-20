@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import {
   CONSUMABLE_EFFECTS,
-  DREAD_TO_HOPE_DIVISOR,
   JUAN_MAX_ENERGY,
   JUAN_MAX_HEALTH,
+  PIXEL_COMBAT,
   SHAKEN_AT,
 } from '~/data/combat'
-import { EQUIPMENT, EQUIP_SLOTS, type EquipSlot, type EquipmentSpec } from '~/data/equipment'
+import { useInventoryStore } from './inventory'
+import { EQUIPMENT, EQUIP_SLOTS, FISTS, type EquipSlot, type EquipmentSpec, type HandArt } from '~/data/equipment'
 
 // The run's source of truth. Before this existed, Juan's Health was a hardcoded 72 inside
 // ShelterScreen and combat kept its own private copy — which is why nothing could ever
@@ -18,12 +19,14 @@ const STARTING = {
   hope: 34,
 }
 
-// Shelter recovery. Sleep is the night skip (the board flips the phase, this spends the
-// food and does the recovering). Eating is player's choice of food from the stash —
-// ShelterScreen lists what's eatable and calls applyConsumable with the pick.
-export const SLEEP_FOOD_COST = 1
-export const SLEEP_HEALTH = 8
-export const SLEEP_STARVING_ENERGY = 50
+// Shelter recovery, the hex-map preview's numbers. Sleep is the night skip (the board flips
+// the phase, this spends the food and does the recovering): Food −15, Energy +30, Health +5 —
+// or, sleeping on less than 15 Food, Health −10 instead. Eating is the player's pick from the
+// stash: ShelterScreen lists what's eatable and calls applyConsumable with it.
+export const SLEEP_FOOD_COST = 15
+export const SLEEP_ENERGY = 30
+export const SLEEP_HEALTH = 5
+export const SLEEP_HUNGRY_HEALTH = 10
 
 /** Resolved weapon stats — what combat actually swings with. */
 export interface WeaponStats {
@@ -34,16 +37,21 @@ export interface WeaponStats {
   variance: number
   accuracy: number
   durability: number
+  /** The pixel combat's stats: damage at CLOSE, the hand art, whether it's a gun, and its trait (reach, crit, knock, lane). */
+  combat: NonNullable<EquipmentSpec['combat']>
+  sprite?: string
 }
 
 const BARE_HANDS: WeaponStats = {
   id: 'bare-hands',
-  name: 'Bare Hands',
-  icon: '✅',
+  name: 'Fists',
+  icon: '✊',
   damage: 9,
   variance: 0.25,
   accuracy: 0.7,
   durability: Infinity,
+  combat: FISTS.combat,
+  sprite: FISTS.sprite,
 }
 
 const STARTING_WEAPON_ID = 'nailed-plank'
@@ -72,6 +80,8 @@ export const usePlayerStore = defineStore('player', () => {
   const dread = ref(0)
   /** Hope lost to the last fight's Dread — surfaced on the shelter screen. */
   const lastDreadPenalty = ref(0)
+  /** The last night's sleep was on an empty stomach (the shelter says so). */
+  const lastSleptHungry = ref(false)
 
   // --- Equipment -------------------------------------------------------------------------
   // One equipped item per slot. Two-handed weapons occupy handL AND handR. Whatever Juan
@@ -116,15 +126,93 @@ export const usePlayerStore = defineStore('player', () => {
       variance: spec.weapon.variance,
       accuracy: spec.weapon.accuracy,
       durability: spec.durability ?? Infinity,
+      combat: spec.combat ?? { dmg: 2, hands: 'makeshift' },
+      sprite: spec.sprite,
     }
   })
 
+  /** Rounds in the 9mm (up to 18). They outlast the fight; packs and boxes from the bag load it (the Bag screen, or a reload in a fight). */
+  const rounds = ref(0)
+  /** Rounds loose in Juan's pockets: what a pack had over when the gun filled up. Loading uses these first. */
+  const spareRounds = ref(0)
+  /** The sumpak's one shell (0 or 1), and shells loose in his pockets from an opened box (4 to a box). */
+  const shells = ref(0)
+  const spareShells = ref(0)
+  /** What a gun has loaded and loose, by gun id (the 9mm or the sumpak). */
+  const loadedOf = (id: string) => (id === 'sumpak' ? shells.value : rounds.value)
+  const spareOf = (id: string) => (id === 'sumpak' ? spareShells.value : spareRounds.value)
+  function setGun(id: string, loaded: number, spare: number) {
+    if (id === 'sumpak') { shells.value = loaded; spareShells.value = spare }
+    else { rounds.value = loaded; spareRounds.value = spare }
+  }
+  /** Juan owns the 9mm: in his hand, worn in a slot, or in the bag. */
+  const hasPistol = () => Object.values(equipped.value).includes('pistol') || useInventoryStore().hasInBag('pistol')
+  /** Out of a fight, ammo goes into the 9mm (up to its 18): loose rounds first, then the smallest pack in the bag, again and again
+      until it's full or there's nothing left. What a pack has over stays loose in his pockets. Returns how many went in. */
+  function loadPistol(): number {
+    const inventory = useInventoryStore(), gun = PIXEL_COMBAT.guns.pistol!
+    let loaded = rounds.value, spare = spareRounds.value
+    const before = loaded
+    for (;;) {
+      const take = Math.min(gun.mag - loaded, spare)
+      loaded += take; spare -= take
+      if (loaded >= gun.mag) break
+      const pack = Object.keys(gun.packs).find((p) => inventory.hasInBag(p))   // rounds (6) before a box (12)
+      if (!pack) break
+      inventory.removeFromBag(pack)
+      spare += gun.packs[pack]!
+    }
+    rounds.value = loaded; spareRounds.value = spare
+    return loaded - before
+  }
+  /** There is room in the 9mm and something to put in it. */
+  const canLoadPistol = computed(() => hasPistol() && rounds.value < PIXEL_COMBAT.guns.pistol!.mag
+    && (spareRounds.value > 0 || Object.keys(PIXEL_COMBAT.guns.pistol!.packs).some((p) => useInventoryStore().hasInBag(p))))
+
   const weaponDurability = computed(() => durability.value[weapon.value.id] ?? weapon.value.durability)
+  /** Swings a weapon has left, carried or not (a fresh one has its full count). */
+  function durabilityOf(id: string): number | undefined {
+    return durability.value[id] ?? EQUIPMENT[id]?.durability
+  }
   const unbreakable = computed(() => !Number.isFinite(weaponDurability.value))
-  /** Flat damage subtracted from every enemy hit that connects. */
-  const armorTotal = computed(() =>
-    equippedItems.value.reduce((sum, { id }) => sum + (EQUIPMENT[id]?.armor ?? 0), 0),
-  )
+
+  /** Armor wear: points of damage each piece can still soak, by id (absent = as new). */
+  const armorWear = ref<Record<string, number>>({})
+  const conditionOf = (id: string) => armorWear.value[id] ?? EQUIPMENT[id]?.condition ?? 0
+  /** Each worn piece of armor once (a piece spanning two slots counts once), with what it still blocks. */
+  const wornArmor = computed(() => [...new Set(equippedItems.value.map((e) => e.id))]
+    .filter((id) => (EQUIPMENT[id]?.armor ?? 0) > 0 && conditionOf(id) > 0)
+    .map((id) => ({ id, armor: EQUIPMENT[id]!.armor!, condition: conditionOf(id), max: EQUIPMENT[id]!.condition ?? 1 })))
+  /** Flat damage subtracted from every enemy hit that connects (capped at half the hit in combat). */
+  const armorTotal = computed(() => wornArmor.value.reduce((sum, a) => sum + a.armor, 0))
+
+  /**
+   * A hit landed: armor soaks `blocked` points, shared out piece by piece, and each point soaked wears that piece down.
+   * Returns the names of pieces that fell apart (they come off Juan and are gone).
+   */
+  function wearArmor(blocked: number): string[] {
+    const broke: string[] = []
+    for (const a of wornArmor.value) {
+      if (blocked <= 0) break
+      const take = Math.min(a.armor, blocked, a.condition)
+      blocked -= take
+      armorWear.value[a.id] = a.condition - take
+      if (armorWear.value[a.id]! <= 0) {
+        for (const s of slotsFor(a.id)) if (equipped.value[s] === a.id) equipped.value[s] = null
+        delete armorWear.value[a.id]
+        broke.push(EQUIPMENT[a.id]!.name)
+      }
+    }
+    return broke
+  }
+  /** Patched at the shelter: `n` points back on the most worn piece Juan has on. Returns [its name, points it got] or null. */
+  function repairArmor(n: number): [string, number] | null {
+    const worst = [...wornArmor.value].sort((a, b) => a.condition / a.max - b.condition / b.max)[0]
+    if (!worst || worst.condition >= worst.max) return null
+    const got = Math.min(worst.max, worst.condition + n) - worst.condition
+    armorWear.value[worst.id] = worst.condition + got
+    return [EQUIPMENT[worst.id]!.name, got]
+  }
 
   const shaken = computed(() => dread.value >= SHAKEN_AT)
 
@@ -138,26 +226,39 @@ export const usePlayerStore = defineStore('player', () => {
     const effect = CONSUMABLE_EFFECTS[id]
     if (!effect) return
     if (effect.heal) heal(effect.heal)
+    // Outside a fight there are no turns to spread it over: the whole course lands now.
+    if (effect.regen) heal(effect.regen.amount * effect.regen.turns)
     if (effect.energy) restoreEnergy(effect.energy)
     if (effect.hope) raiseHope(effect.hope)
     if (effect.dreadRelief) relieveDread(effect.dreadRelief)
+    if (effect.food) food.value = Math.min(100, food.value + effect.food)
   }
 
   /**
-   * Sleeping through the night. Fed: full recovery. Starving: a bad night's rest —
-   * half energy, no healing. The board's phase flip happens separately (ShelterScreen
-   * calls sleepThroughToMorning when sleep succeeds).
+   * Sleeping through the night: hunger, rest, and the night's Dread (passNight). Returns
+   * whether Juan went to bed fed. The board's phase flip happens separately (ShelterScreen
+   * calls sleepThroughToMorning).
    */
   function sleep(): boolean {
     const fed = food.value >= SLEEP_FOOD_COST
-    if (fed) {
-      food.value -= SLEEP_FOOD_COST
-      energy.value = JUAN_MAX_ENERGY
-      health.value = Math.min(JUAN_MAX_HEALTH, health.value + SLEEP_HEALTH)
-    } else {
-      energy.value = SLEEP_STARVING_ENERGY
-    }
+    food.value = Math.max(0, food.value - SLEEP_FOOD_COST)
+    restoreEnergy(SLEEP_ENERGY)
+    health.value = fed ? Math.min(JUAN_MAX_HEALTH, health.value + SLEEP_HEALTH) : Math.max(1, health.value - SLEEP_HUNGRY_HEALTH)
+    lastSleptHungry.value = !fed
+    passNight()
     return fed
+  }
+
+  /**
+   * A night goes by, slept through or spent out in the dark. Dread barely fades — 8 a night —
+   * and each night it eats at Hope, 1 per 10 Dread. lastDreadPenalty is the shelter's report.
+   */
+  function passNight(): number {
+    const penalty = Math.floor(dread.value / PIXEL_COMBAT.dreadPerHopeLost)
+    if (penalty > 0) hope.value = Math.max(0, hope.value - penalty)
+    lastDreadPenalty.value = penalty
+    dread.value = Math.max(0, dread.value - PIXEL_COMBAT.dreadNightlyDrain)
+    return penalty
   }
 
   /** Returns true when this blow ended the run. */
@@ -210,24 +311,13 @@ export const usePlayerStore = defineStore('player', () => {
     if (!spec) return []
 
     const displaced: EquipSlot[] = []
-    const occupied = new Set<EquipSlot>()
     for (const slot of spec.slots) {
       const current = equipped.value[slot]
       if (current) displaced.push(slot)
-      occupied.add(slot)
-    }
-    // Two-handers also evict whatever a one-hander left in the other mitt.
-    for (const slot of EQUIP_SLOTS) {
-      if (occupied.has(slot)) continue
-      const current = equipped.value[slot]
-      if (current && EQUIPMENT[current]?.slots.includes(slot)) {
-        // Another item (e.g. a one-hander in the opposite hand) is displaced too.
-        displaced.push(slot)
-        occupied.add(slot)
-      }
     }
 
-    // Clear everything this piece touches, then seat it.
+    // Clear each overlapping piece's full footprint so a one-hander releases both
+    // halves of a two-handed grip. Gear in unrelated slots stays on Juan.
     for (const slot of displaced) {
       const current = equipped.value[slot]
       if (current && EQUIPMENT[current]?.slots.length) {
@@ -263,23 +353,19 @@ export const usePlayerStore = defineStore('player', () => {
     return left === 0
   }
 
+  /** Taped up at the shelter: `n` swings back on the weapon in hand, never past new. Returns the swings it actually got. */
+  function repairWeapon(n: number): number {
+    const id = weapon.value.id, max = weapon.value.durability
+    if (!Number.isFinite(max)) return 0
+    const now = durability.value[id] ?? max
+    durability.value[id] = Math.min(max, now + n)
+    return durability.value[id]! - now
+  }
+
   /** Weapon broke mid-fight: hands come out empty (bare hands are the fallback). */
   function breakWeapon() {
     const id = weapon.value.id
     for (const s of slotsFor(id)) equipped.value[s] = null
-  }
-
-  /**
-   * Called when the player reaches the shelter at the end of an outing. A bad fight
-   * follows you home: carried Dread is taken out of Hope, then the night clears it.
-   * Returns the Hope actually lost.
-   */
-  function settleDreadAtShelter(): number {
-    const penalty = Math.floor(dread.value / DREAD_TO_HOPE_DIVISOR)
-    if (penalty > 0) hope.value = Math.max(0, hope.value - penalty)
-    lastDreadPenalty.value = penalty
-    dread.value = 0
-    return penalty
   }
 
   function clearShelterReport() {
@@ -293,6 +379,7 @@ export const usePlayerStore = defineStore('player', () => {
     hope.value = STARTING.hope
     dread.value = 0
     lastDreadPenalty.value = 0
+    lastSleptHungry.value = false
     equipped.value = {
       head: null,
       shoulderL: null,
@@ -304,6 +391,11 @@ export const usePlayerStore = defineStore('player', () => {
       body: null,
     }
     durability.value = { [STARTING_WEAPON_ID]: EQUIPMENT[STARTING_WEAPON_ID].durability ?? 1 }
+    rounds.value = 0
+    spareRounds.value = 0
+    shells.value = 0
+    spareShells.value = 0
+    armorWear.value = {}
     dead.value = false
   }
 
@@ -322,6 +414,11 @@ export const usePlayerStore = defineStore('player', () => {
       lastDreadPenalty: lastDreadPenalty.value,
       equipped: { ...equipped.value },
       durability: { ...durability.value },
+      rounds: rounds.value,
+      spareRounds: spareRounds.value,
+      shells: shells.value,
+      spareShells: spareShells.value,
+      armorWear: { ...armorWear.value },
       dead: dead.value,
     }
   }
@@ -336,6 +433,11 @@ export const usePlayerStore = defineStore('player', () => {
     lastDreadPenalty.value = state.lastDreadPenalty
     equipped.value = { ...STARTING_EQUIPPED, ...state.equipped }
     durability.value = { ...state.durability }
+    rounds.value = state.rounds ?? 0                     // saves from before the pistol have none
+    spareRounds.value = state.spareRounds ?? 0
+    shells.value = state.shells ?? 0                     // saves from before the sumpak and armor wear have none
+    spareShells.value = state.spareShells ?? 0
+    armorWear.value = { ...(state.armorWear ?? {}) }
     dead.value = false // the DeathScreen owns death; a save is never restored into it
   }
 
@@ -352,7 +454,21 @@ export const usePlayerStore = defineStore('player', () => {
     weapon,
     weaponDurability,
     unbreakable,
+    rounds,
+    spareRounds,
+    shells,
+    spareShells,
+    loadedOf,
+    spareOf,
+    setGun,
+    loadPistol,
+    canLoadPistol,
     armorTotal,
+    wornArmor,
+    armorWear,
+    conditionOf,
+    wearArmor,
+    repairArmor,
     shaken,
     applyDamage,
     applyConsumable,
@@ -367,7 +483,10 @@ export const usePlayerStore = defineStore('player', () => {
     unequip,
     spendDurability,
     breakWeapon,
-    settleDreadAtShelter,
+    passNight,
+    durabilityOf,
+    repairWeapon,
+    lastSleptHungry,
     clearShelterReport,
     resetRun,
     snapshot,

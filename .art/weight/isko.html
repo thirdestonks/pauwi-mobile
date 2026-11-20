@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Mang Isko</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--s:3;
+  --panel:#161c1f;--panel2:#1d2529;--panel3:#232b2f;--line:#2f3a3f;
+  --mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif;--body:system-ui,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:var(--body)}
+body{padding:16px}
+header{max-width:1000px;margin:0 auto 12px}
+h1{margin:0;font:400 32px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 0;color:#b9c3c8;font:13px/1.55 var(--mono);max-width:860px}
+header a{color:#8cc7dd}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;max-width:1000px;margin:0 auto}
+.notes{flex:1 1 300px;max-width:560px;font:12.5px/1.55 var(--mono);color:#b9c3c8}
+.notes h2{margin:4px 0 6px;font:400 20px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--bone)}
+.notes ul{margin:4px 0 14px;padding-left:16px}.notes b{color:var(--bone)}
+.notes table{border-collapse:collapse;width:100%;margin:4px 0 14px;font-size:11.5px}
+.notes td,.notes th{border:1px solid #26313a;padding:4px 6px;text-align:left;vertical-align:top}.notes th{color:var(--bone)}
+.dbg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.dbg button,.dbg label{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:4px 9px;font:700 11px var(--mono);cursor:pointer;display:flex;gap:5px;align-items:center}
+
+.scr{position:relative;width:calc(110px*var(--s));height:calc(225px*var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none;flex:none;touch-action:none}
+#cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.abs{position:absolute}
+[hidden]{display:none!important}
+
+/* the stall card (flat signage, like the app's tile card) */
+.tcard{left:0;right:0;bottom:0;max-height:66%;overflow-y:auto;background:var(--panel2);border-top:2px solid var(--sodium);border-radius:14px 14px 0 0;box-shadow:0 -20px 40px rgba(0,0,0,.5);padding:0 12px 12px;z-index:6}
+.grab{width:40px;height:4px;border-radius:9px;background:#3a464b;margin:9px auto 7px}
+.hd{display:flex;align-items:center;gap:7px}
+.tag{padding:1px 6px;border-radius:3px;font:9px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#0e1214;background:#a9b4b8}
+.tcard h3{margin:0;font:700 18px/1.1 'Arial Narrow',var(--disp);letter-spacing:1px;text-transform:uppercase}
+.who{display:flex;gap:9px;align-items:center;margin:8px 0}
+.who img{width:48px;height:53px;image-rendering:pixelated;border:2px solid #0e1214;background:#1a2024;flex:none}
+.who div{font-size:12px;line-height:1.45;color:#cdc6b8}.who b{color:var(--sodium);font-family:var(--mono)}
+.sec{font:10px var(--mono);letter-spacing:2px;color:var(--muted);margin:9px 0 5px}
+.weps{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.wp{position:relative;padding:5px 2px 4px;border-radius:6px;background:var(--panel3);border:1px solid var(--line);cursor:pointer;color:var(--bone);font:10px var(--mono);text-align:center}
+.wp.on{border-color:var(--sodium)}
+.wp img{display:block;width:30px;height:30px;margin:0 auto 2px;image-rendering:pixelated;object-fit:contain}
+.stars{display:block;margin-top:2px;font:700 11px/1 var(--mono);letter-spacing:1px;color:#ffd56b}.stars.big{display:inline;font-size:13px}
+.wp.away{opacity:.5}.wp .awayt{position:absolute;inset:auto 0 26px;font-size:8px;color:#8cc7dd}
+.stat{padding:8px 9px;border-radius:6px;background:#141a1d;border:1px solid var(--line);font:11px/1.6 var(--mono);color:#cfd6d9}
+.stat b{color:var(--bone)}.gn{color:#7ee0a0}.rd{color:#ff9a8a}.tr{color:#e6b15e}
+.ups{display:flex;flex-direction:column;gap:5px}
+.up{display:block;width:100%;text-align:left;padding:8px 9px;border-radius:6px;background:var(--panel3);border:1px solid var(--line);color:var(--bone);font:12.5px var(--body);cursor:pointer}
+.up.on{border-color:var(--sodium);background:#2a2618}
+.up:disabled{opacity:.42;cursor:not-allowed}
+.up .t{display:flex;justify-content:space-between;gap:6px}.up .t em{font:11px var(--mono);font-style:normal;color:var(--sodium);white-space:nowrap}
+.up small{display:block;font:10.5px/1.4 var(--mono);color:var(--muted);margin-top:2px}
+.up small .p{color:#7ee0a0}.up small .m{color:#ff9a8a}
+.go{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.go button{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;border-radius:6px;font:13px var(--body);text-align:left;cursor:pointer;background:var(--panel3);border:1px solid var(--line);color:var(--bone)}
+.go button.primary{background:var(--sodium);border-color:var(--sodium);color:#0e1214;font-weight:600}
+.go button em{font:11px var(--mono);font-style:normal;opacity:.8;white-space:nowrap}
+.go button:disabled{opacity:.45;cursor:not-allowed}
+.note{font-size:12px;line-height:1.5;color:var(--bone);margin:8px 0 0}
+
+/* the mini-games */
+.logbox{position:absolute;left:5px;right:5px;top:5px;display:flex;align-items:center;gap:6px;min-height:66px;padding:8px 11px;border:15px solid transparent;
+  border-image:url('../../public/game/kit/out/dialog-frame.png') 5 fill / 15px stretch;image-rendering:pixelated;pointer-events:none;z-index:8}
+.logbox img{flex:none;width:40px;height:44px;image-rendering:pixelated;margin:-9px 0}
+.logbox p{flex:1;margin:0;font:700 10.5px/1.45 var(--mono);color:#f2ecdc;text-shadow:1px 1px 0 #000}
+.chips{left:8px;right:8px;top:86px;display:flex;justify-content:space-between;gap:6px;font:700 10.5px var(--mono);text-shadow:1px 1px 0 #000;z-index:8;pointer-events:none}
+.chips span{padding:2px 6px;background:#0e1214cc;border:1px solid #3a4851}
+.ctl{left:6px;right:6px;bottom:8px;display:flex;gap:6px;z-index:9}
+.ctl button{flex:1;padding:16px 4px;background:#0e1214e6;border:3px solid #526169;color:var(--bone);font:700 15px var(--mono);letter-spacing:.04em;cursor:pointer;box-shadow:3px 3px 0 #000;touch-action:none}
+.ctl button:active,.ctl button.press{border-color:var(--sodium);color:var(--sodium);transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
+.ctl.dirs button{padding:14px 2px;font-size:20px}
+.intro,.result{left:14px;right:14px;top:50%;transform:translateY(-50%);z-index:10;background:#0c1418f2;border:2px solid #526169;box-shadow:4px 4px 0 #000;padding:14px;font:12px/1.5 var(--mono);color:#cfd6d9}
+.intro h3,.result h3{margin:0 0 6px;font:400 24px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.intro b{color:var(--bone)}
+.intro button,.result button{margin-top:10px;width:100%;padding:11px;background:var(--sodium);border:0;color:#0e1214;font:700 13px var(--mono);letter-spacing:.06em;cursor:pointer}
+.result .grade{font:400 34px/1 var(--disp);letter-spacing:.06em;margin:4px 0 8px}
+.result .perfect{color:#ffd56b}.result .good{color:#7ee0a0}.result .botch{color:#ff7b66}
+.result .d{margin-top:6px;padding-top:6px;border-top:1px solid #26313a}
+.kring{left:50%;top:330px;width:0;height:0;z-index:7;pointer-events:none}
+.kring .a{position:absolute;left:-22px;top:-26px;width:44px;text-align:center;font:700 40px/52px var(--mono);color:var(--bone);text-shadow:2px 2px 0 #000}
+.kring .r{position:absolute;border:3px solid var(--sodium);border-radius:50%}
+.kring .w{position:absolute;border:2px dashed #7ee0a0aa;border-radius:50%}
+.kseq{left:10px;right:10px;top:470px;display:flex;justify-content:center;gap:5px;z-index:7;pointer-events:none}
+.kseq span{width:30px;height:30px;display:flex;align-items:center;justify-content:center;font:700 16px var(--mono);background:#0e1214cc;border:2px solid #3a4851}
+.kseq .now{border-color:var(--sodium);color:var(--sodium)}.kseq .ok{border-color:#5aa17a;color:#7ee0a0}.kseq .no{border-color:#d94b3b;color:#ff7b66}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mang Isko · upgrades</h1>
+  <p>His stall, playable. Pick a weapon, pick an upgrade, bring the materials, then either <b>work it with him now</b> (a mini-game: how well you do sets the quality) or <b>leave it overnight</b> (always Good, but the weapon is gone until tomorrow night). Melee only: guns are another trader, later. Back to <a href="index.html">The Weight</a>.</p>
+</header>
+
+<div class="row">
+  <div class="scr" id="scr">
+    <canvas id="cv" width="110" height="225"></canvas>
+    <div id="ui"></div>
+  </div>
+
+  <div class="notes">
+    <h2>Test bench</h2>
+    <div class="dbg" id="dbg"></div>
+    <h2>The four mini-games</h2>
+    <table>
+      <tr><th>Work</th><th>For</th><th>How</th><th>The risk</th></tr>
+      <tr><td><b>The grindstone</b></td><td>Hone the edge, Serrate</td><td>Pedal: alternate ◀ ▶ (or A/D, ←/→) to keep the stone's speed in the amber band. 3 passes.</td><td>Too fast and the blade heats; blue steel is ruined.</td></tr>
+      <tr><td><b>The hammer</b></td><td>Drive nails, Weight the head</td><td>Strike (tap, or space) when the marker is over the nail head. 3 nails / 3 blows.</td><td>A miss bends the nail: it's gone from your bag.</td></tr>
+      <tr><td><b>The wrap</b></td><td>Wrap the grip, Bind with wire</td><td>Hold to feed one turn, let go inside the green window. 6 turns.</td><td>Short leaves a gap, long wastes strap. Wire feeds unevenly.</td></tr>
+      <tr><td><b>The knot</b></td><td>Lash it to a pole</td><td>Press the arrow shown when the ring closes on the dashed circle. 6 steps.</td><td>One slip and the blade sits crooked (−1 damage); two and it's undone.</td></tr>
+    </table>
+    <h2>Grades</h2>
+    <ul>
+      <li><b style="color:#ffd56b">★ Perfect:</b> the upgrade plus a bonus (+2 swings, or +5% crits on an edge).</li>
+      <li><b style="color:#7ee0a0">Good:</b> the upgrade as written. Overnight jobs are always Good.</li>
+      <li><b style="color:#ff7b66">✗ Botched:</b> no upgrade, the material is gone, he keeps half the points. A burnt edge also costs 2 swings.</li>
+    </ul>
+    <h2>Rules</h2>
+    <ul>
+      <li>Three upgrades per weapon. Each one costs more on a weapon that already has work on it (×1, ×1.5, ×2).</li>
+      <li>Every upgrade has a minus (weight, swings, sticking, two hands). Check the stat block before you commit.</li>
+      <li>His respect grows with jobs done: at 3 he puts his own bolo on the rack; at 6 he'll do anything while you wait.</li>
+    </ul>
+  </div>
+</div>
+
+<script src="../sfx/sfx.js"></script>
+<script src="world.js"></script>
+<script>
+const W = window.WORLD, H = W.HASA, S = 3;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const R = (g, x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+function disc(g, cx, cy, r, c) { g.fillStyle = c; for (let y = -r; y <= r; y++) { const w = Math.floor(Math.sqrt(r * r - y * y + r * .8)); g.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1); } }
+const lerp = (a, b, t) => a + (b - a) * t;
+function mix(c1, c2, t) { const p = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)); const a = p(c1), b = p(c2); return `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], t))).join(',')})`; }
+
+// ---------------- Juan's stuff ----------------
+const SPR = { 'nailed-plank': '../../public/game/encounters/src/ui/w-makeshift.png', itak: '../../public/game/encounters/src/ui/w-itak.png',
+  knife: '../../public/game/encounters/src/items/knife.png', rebar: '../../public/game/encounters/src/items/rebar.png' };
+const NAME = { 'nailed-plank': 'Makeshift Bat', itak: 'Itak', knife: 'Kitchen Knife', rebar: 'Rebar' };
+const MATN = { nails: 'nails', straps: 'straps', 'copper-wire': 'copper wire', kaldero: 'dented pot', arnis: 'arnis stick' };
+function fresh() {
+  return { tab: 40, mats: { nails: 6, straps: 3, 'copper-wire': 1, kaldero: 1, arnis: 1 }, jobs: 0, rain: false,
+    weps: [{ id: 'nailed-plank', ups: [], bonus: {}, used: 4, away: null }, { id: 'itak', ups: [], bonus: {}, used: 2, away: null },
+      { id: 'knife', ups: [], bonus: {}, used: 0, away: null }, { id: 'rebar', ups: [], bonus: {}, used: 6, away: null }],
+    pick: 0, sel: null, note: '' };
+}
+let ST = fresh();
+let mode = 'shop', game = null, result = null, muted = false;
+
+function stats(w) {
+  const s = W.upgraded(w.id, w.ups);
+  if (s.swings) s.swings += w.bonus.swings ?? 0;
+  s.dmg += w.bonus.dmg ?? 0;
+  if (w.bonus.crit) s.crit = (s.crit ?? 0.1) + w.bonus.crit;
+  return s;
+}
+const costOf = (w, U) => Math.round(U.cost * H.costStep[Math.min(w.ups.length, 2)]);
+const matsFor = (U) => U.id === 'nails' ? { nails: 3 } : Object.fromEntries(U.mat.map((m) => [m, 1]));
+const haveMats = (U) => Object.entries(matsFor(U)).every(([m, n]) => (ST.mats[m] ?? 0) >= n);
+const GAME_OF = { edge: 'grind', serrate: 'grind', nails: 'hammer', weight: 'flatten', grip: 'wrap', wire: 'wire', lash: 'knot' };
+const GAME_NAME = { grind: 'the grindstone', hammer: 'the hammer', flatten: 'the hammer', wrap: 'the wrap', wire: 'the wrap', knot: 'the knot' };
+const respect = () => [...H.respect].reverse().find((r) => ST.jobs >= r.at);
+/** A weapon's level: one star per upgrade, three at most. */
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(H.slots - n);
+
+// ---------------- the stall (shop) ----------------
+function statLine(s, w) {
+  const tr = s.traits.map((t) => ({ sticks: 'sticks 1/10', steady: 'steady', knock: 'knock-back', 'close+1': '+1 at CLOSE', reach: 'REACH', 'two-handed': 'two hands' }[t] ?? t));
+  const left = s.swings ? `${Math.max(0, s.swings - w.used)}/${s.swings}` : 'never breaks';
+  return `DMG <b>${s.dmg}</b> · SWINGS <b>${left}</b> · <b>${s.kg} kg</b>${s.crit ? ` · CRIT <b>${Math.round(s.crit * 100)}%</b>` : ''}${tr.length ? `<br><span class="tr">${tr.join(' · ')}</span>` : ''}`;
+}
+function diffLine(a, b) {
+  const d = [];
+  if (b.dmg !== a.dmg) d.push(`<span class="${b.dmg > a.dmg ? 'gn' : 'rd'}">DMG ${a.dmg}→${b.dmg}</span>`);
+  if (b.swings !== a.swings && a.swings) d.push(`<span class="${b.swings > a.swings ? 'gn' : 'rd'}">SWINGS ${a.swings}→${b.swings}</span>`);
+  if (b.kg !== a.kg) d.push(`<span class="rd">${a.kg}→${b.kg} kg</span>`);
+  if ((b.crit ?? 0) !== (a.crit ?? 0)) d.push(`<span class="gn">CRIT ${Math.round((a.crit ?? .1) * 100)}→${Math.round(b.crit * 100)}%</span>`);
+  const nt = b.traits.filter((t) => !a.traits.includes(t)); if (nt.length) d.push(`<span class="tr">+ ${nt.join(', ')}</span>`);
+  return d.join(' · ');
+}
+function renderShop() {
+  const w = ST.weps[ST.pick], s = stats(w), rsp = respect();
+  const list = H.upgrades.filter((U) => W.fits(w.id, U));
+  const ups = list.map((U) => {
+    const c = costOf(w, U), done = w.ups.includes(U.id), full = w.ups.length >= H.slots, mats = matsFor(U);
+    const why = done ? 'done' : full ? 'three already' : w.away ? 'with him' : !haveMats(U) ? 'no material' : ST.tab < c ? 'tab short' : '';
+    const matTxt = Object.entries(mats).map(([m, n]) => `${n > 1 ? n + ' ' : ''}${MATN[m]} (${ST.mats[m] ?? 0})`).join(' + ') || 'no material';
+    return `<button class="up${ST.sel === U.id ? ' on' : ''}" data-sel="${U.id}" ${why ? 'disabled' : ''}>
+      <span class="t"><span>${esc(U.name)}${done ? ' ✓' : ''}</span><em>${why && why !== 'done' ? why : c + ' pts'}</em></span>
+      <small><span class="p">+ ${esc(U.plus)}</span><br><span class="m">− ${esc(U.minus)}</span><br>needs: ${matTxt}</small></button>`;
+  }).join('');
+  let actions = '';
+  const U = ST.sel && H.upgrades.find((x) => x.id === ST.sel);
+  if (U && !w.away) {
+    const after = stats({ ...w, ups: [...w.ups, U.id] }), c = costOf(w, U);
+    actions = `<div class="stat" style="margin-top:6px">After: ${diffLine(s, after)}</div>
+      <div class="go"><button class="primary" data-go="now"><span>Work it with him now</span><em>${GAME_NAME[GAME_OF[U.id]]} · ${c} pts</em></button>
+      <button data-go="night"><span>Leave it overnight</span><em>Good · back tomorrow night</em></button></div>`;
+  }
+  const fixCost = s.swings && w.used ? Math.max(H.fix.min, Math.ceil(w.used * H.fix.per)) : 0;
+  $('ui').innerHTML = `<div class="abs tcard"><div class="grab"></div>
+    <div class="hd"><span class="tag">Hasa</span><h3>Mang Isko's grindstone</h3></div>
+    <div class="who"><img src="out/isko-big.png" alt="Mang Isko"><div>${ST.note ? ST.note : esc(H.slotsLine)}<br><span class="mono" style="font-size:11px">Tab <b>${ST.tab}</b> · respect: <b>${rsp.name}</b> (${ST.jobs} jobs)</span></div></div>
+    <div class="sec">YOUR MELEE WEAPONS</div>
+    <div class="weps">${ST.weps.map((x, i) => `<button class="wp${i === ST.pick ? ' on' : ''}${x.away ? ' away' : ''}" data-pick="${i}"><img src="${SPR[x.id]}" alt="">${NAME[x.id].split(' ').pop()}<span class="stars">${stars(x.ups.length)}</span>${x.away ? '<span class="awayt">WITH HIM</span>' : ''}</button>`).join('')}</div>
+    <div class="stat" style="margin-top:7px"><b>${NAME[w.id]}</b> <span class="stars big">${stars(w.ups.length)}</span> · ${W.HASA.melee[w.id].kind}${w.ups.length ? ` · ${w.ups.map((u) => H.upgrades.find((x) => x.id === u).name.split(' ')[0]).join(', ')}` : ''}<br>${statLine(s, w)}</div>
+    ${w.away ? `<div class="go"><button class="primary" data-go="collect"><span>▸ Next night: collect it</span><em>${esc(H.upgrades.find((x) => x.id === w.away).name)}</em></button></div>`
+      : `${fixCost ? `<div class="go"><button data-go="fix"><span>Fix it (while you wait)</span><em>${fixCost} pts · back to ${s.swings}</em></button></div>` : ''}
+      <div class="sec">${w.ups.length >= H.slots ? 'THREE STARS · AS GOOD AS HE MAKES THEM' : `NEXT STAR: ${stars(w.ups.length + 1)}`}</div><div class="ups">${ups}</div>${actions}`}
+  </div>`;
+  $('ui').querySelectorAll('[data-pick]').forEach((b) => b.onclick = () => { ST.pick = +b.dataset.pick; ST.sel = null; ST.note = ''; render(); });
+  $('ui').querySelectorAll('[data-sel]').forEach((b) => b.onclick = () => { ST.sel = ST.sel === b.dataset.sel ? null : b.dataset.sel; render(); });
+  $('ui').querySelectorAll('[data-go]').forEach((b) => b.onclick = () => shopAct(b.dataset.go));
+}
+function spend(U) { for (const [m, n] of Object.entries(matsFor(U))) ST.mats[m] -= (U.id === 'nails' ? 0 : n); }
+function shopAct(a) {
+  const w = ST.weps[ST.pick], U = H.upgrades.find((x) => x.id === ST.sel);
+  if (a === 'fix') { const c = Math.max(H.fix.min, Math.ceil(w.used * H.fix.per)); if (ST.tab < c) { ST.note = '"Points first."'; } else { ST.tab -= c; w.used = 0; burst(50); SFX.bed('grind-spark', true, .8); setTimeout(() => SFX.bed('grind-spark', false), 1100); setTimeout(() => SFX.play('upgrade-success', .7), 1150); ST.note = '"There. Like it came from the hardware."'; } }
+  else if (a === 'night') { const c = costOf(w, U); ST.tab -= c; spend(U); if (U.id === 'nails') ST.mats.nails -= 3; w.away = U.id; ST.sel = null; ST.note = `"Leave it. Come back tomorrow night." <span class="mono" style="font-size:10.5px;color:#8cc7dd">You'll fight without your ${NAME[w.id].toLowerCase()} until then.</span>`; }
+  else if (a === 'collect') { w.ups.push(w.away); w.away = null; ST.jobs++; burst(30); SFX.play('upgrade-success'); ST.note = '"As promised." It\'s heavier in your hand, and better.'; }
+  else if (a === 'now') { spend(U); startGame(GAME_OF[U.id], w, U); return; }
+  render();
+}
+
+// ---------------- the mini-games ----------------
+const LINES = {
+  grind: { intro: 'Pedal for me. Not too fast, the steel will cook.', slow: 'Faster. Make it sing.', fast: 'Easy! You\'ll burn it!', good: 'Good. Like that. Hold it.', pass: ['One pass. Again.', 'Two. Once more.'] },
+  hammer: { intro: 'Hold it straight. Hit the head, not my fingers.', perfect: 'Clean. One blow.', ok: 'Again, it\'s not in yet.', bent: 'Bent. Pull it, take another.' },
+  flatten: { intro: 'Flatten the pot onto the head. Hard and straight.', perfect: 'There. Tight.', ok: 'Again.', bent: 'You\'re cracking it. Careful.' },
+  wrap: { intro: 'Feed it slow. Each turn half over the last one.', good: 'Tight.', loose: 'Gap. That\'ll slip.', over: 'Too much, you\'re wasting it.' },
+  wire: { intro: 'Wire fights you. Feed it, feel it, let go.', good: 'Tight.', loose: 'Gap.', over: 'Too much wire.' },
+  knot: { intro: 'Over, under, pull. Follow my hands.', ok: 'Yes.', miss: 'No, no. Again.' },
+};
+function startGame(kind, w, U) {
+  const rain = ST.rain;
+  const base = { kind, w, U, t: 0, started: false, done: false, grade: null, why: '', line: LINES[kind].intro };
+  if (kind === 'grind') game = Object.assign(base, { speed: 0, prog: 0, heat: 0, peak: 0, last: null, ang: 0, band: rain ? [.54, .7] : [.5, .72], passes: 0 });
+  if (kind === 'hammer' || kind === 'flatten') game = Object.assign(base, { need: 3, driven: 0, depth: 0, bent: 0, hits: 0, phase: 0, pos: 0, speed: 1.0, swing: 0, flash: '' });
+  if (kind === 'wrap' || kind === 'wire') game = Object.assign(base, { need: 6, turns: 0, fill: 0, holding: false, loose: 0, waste: 0, stock: 100, res: [], win: kind === 'wire' ? [.6, .72] : [.55, .76], rate: kind === 'wire' ? .85 : .62 });
+  if (kind === 'knot') { const d = ['←', '↑', '→', '↓']; game = Object.assign(base, { seq: Array.from({ length: 6 }, () => d[Math.floor(Math.random() * 4)]), i: 0, ring: 1, errors: 0, marks: [], dur: 1.25 }); }
+  mode = 'game'; result = null; render();
+}
+function finish(grade, why) {
+  if (game.done) return;
+  game.done = true; game.grade = grade; game.why = why;
+  const w = game.w, U = game.U, before = stats(w), c = costOf(w, U);
+  if (grade === 'botch') {
+    ST.tab -= Math.ceil(c / 2);
+    if (game.kind === 'grind') w.used += 2;
+    if (game.kind === 'knot') ST.mats.arnis += 1;                       // he unties it: the stick is fine, the strap is not
+  } else {
+    ST.tab -= c; w.ups.push(U.id); ST.jobs++;
+    if (grade === 'perfect') { if (game.kind === 'grind' && U.id === 'edge') w.bonus.crit = (w.bonus.crit ?? 0) + .05; else w.bonus.swings = (w.bonus.swings ?? 0) + 2; }
+    if (game.kind === 'knot' && game.errors === 1) w.bonus.dmg = (w.bonus.dmg ?? 0) - 1;
+    burst(70);
+  }
+  result = { grade, why, before, after: stats(w), cost: grade === 'botch' ? Math.ceil(c / 2) : c, jobs: ST.jobs, rank: respect() };
+  SFX.bed('grind-loop', false); SFX.bed('grind-spark', false);
+  SFX.play(grade === 'botch' ? 'upgrade-fail' : 'upgrade-success');
+  setTimeout(() => { mode = 'result'; ST.sel = null; render(); }, 650);
+}
+function input(type, val) {
+  const g = game; if (!g || g.done) return;
+  if (!g.started) return;
+  if (g.kind === 'grind' && (val === 'L' || val === 'R') && type === 'down') { g.speed = Math.min(1.25, g.speed + (val !== g.last ? .12 : .03)); g.last = val; }
+  if ((g.kind === 'hammer' || g.kind === 'flatten') && type === 'down' && val === 'STRIKE' && g.swing <= 0) strike(g);
+  if ((g.kind === 'wrap' || g.kind === 'wire') && val === 'HOLD') { if (type === 'down') g.holding = true; else if (g.holding) release(g); }
+  if (g.kind === 'knot' && type === 'down' && ['←', '↑', '→', '↓'].includes(val)) knotMark(g, val === g.seq[g.i] && g.ring <= .42 && g.ring >= .1);
+}
+function strike(g) {
+  g.hits++; g.swing = .16; const d = Math.abs(g.pos - .5), L = LINES[g.kind];
+  if (d < .06) { g.depth = 1; g.line = L.perfect; g.flash = 'PERFECT'; SFX.play('hammer-impact', 1); }
+  else if (d < .17) { g.depth += .5; g.line = L.ok; g.flash = 'GOOD'; SFX.play('hammer-impact', .75); }
+  else {
+    SFX.play('hammer-impact', .35); SFX.play('put-item', .6);   // a glancing blow, and the nail skitters off
+    g.bent++; g.flash = 'MISS'; g.line = L.bent; g.depth = 0;
+    if (g.kind === 'hammer') { ST.mats.nails--; if (ST.mats.nails < 3 - g.driven) return finish('botch', 'Out of nails. Bring more next time.'); }
+    else if (g.bent >= 2) return finish('botch', 'The pot cracked in two. It\'s scrap now.');
+  }
+  if (g.depth >= 1) { g.driven++; g.depth = 0; g.speed += .3; if (g.kind === 'hammer') ST.mats.nails--; burst(14); }
+  if (g.driven >= g.need) finish(g.bent === 0 && g.hits <= 4 ? 'perfect' : 'good', g.bent === 0 ? 'Every blow clean.' : `${g.bent} bent along the way.`);
+}
+function release(g) {
+  g.holding = false; const f = g.fill, [lo, hi] = g.win, L = LINES[g.kind];
+  let r = 'good';
+  if (f < lo) { r = 'loose'; g.loose++; g.line = L.loose; } else if (f > hi) { r = 'over'; g.waste += (f - hi) * 100; g.line = L.over; } else g.line = L.good;
+  SFX.play(r === 'good' ? 'equip-sound' : 'paper-grab', r === 'good' ? .5 : .45);
+  g.stock -= 12 + Math.max(0, f - hi) * 70; g.res.push(r); g.turns++; g.fill = 0;
+  if (g.turns >= g.need) {
+    if (g.loose === 0 && g.waste < 12) finish('perfect', 'Six tight turns. It won\'t move.');
+    else if (g.loose <= 1) finish('good', g.loose ? 'One turn sits loose, but it holds.' : 'A little wasteful, but tight.');
+    else finish('botch', `${g.loose} gaps. It'll slip in your hand. He cuts it off.`);
+  } else if (g.stock <= 0) finish('botch', 'Ran out before the last turn. He cuts it off.');
+}
+function knotMark(g, ok) {
+  g.marks.push(ok); if (!ok) { g.errors++; g.line = LINES.knot.miss; } else g.line = LINES.knot.ok;
+  SFX.play(ok ? 'item-pickup' : 'punch-impact', ok ? .55 : .4);
+  g.i++; g.ring = 1;
+  if (g.errors >= 2) return finish('botch', 'It came loose. He unties it all: the stick is fine, the strap isn\'t.');
+  if (g.i >= g.seq.length) finish(g.errors ? 'good' : 'perfect', g.errors ? 'It holds, but the blade sits crooked: −1 damage.' : 'Straight as a spear.');
+}
+function update(dt) {
+  const g = game; if (!g || !g.started || g.done) return;
+  g.t += dt;
+  if (g.kind === 'grind') {
+    g.speed = Math.max(0, g.speed - .45 * dt); g.ang += g.speed * 16 * dt;
+    const [lo, hi] = g.band, L = LINES.grind;
+    if (g.speed >= lo && g.speed <= hi) { g.prog += dt * 100 / 8; g.heat += 3 * dt; g.line = L.good; }
+    else if (g.speed > hi) { g.heat += (g.speed - hi) * 230 * dt; g.line = L.fast; }
+    else { g.heat = Math.max(0, g.heat - 14 * dt); if (g.t > 1.5) g.line = L.slow; }
+    g.peak = Math.max(g.peak, g.heat);
+    const p = Math.floor(g.prog / 33.4); if (p > g.passes && p < 3) { g.passes = p; g.line = L.pass[p - 1]; }
+    if (g.speed > .3 && Math.random() < g.speed * 1.4) burst(g.speed >= lo && g.speed <= hi ? 3 : 1, 50 + Math.random() * 10, 97);
+    // the stone hums louder as it spins up; the steel scrapes loudest in the band, and screams past it
+    SFX.bed('grind-loop', g.speed > .05, Math.min(.9, .25 + g.speed * .6));
+    const mid = (lo + hi) / 2, near = Math.max(0, 1 - Math.abs(g.speed - mid) / .35);
+    SFX.bed('grind-spark', g.speed > .3, Math.min(1, .2 + near * .6 + (g.speed > hi ? .3 : 0)));
+    if (g.heat >= 100) finish('botch', 'The steel went blue. The edge is gone, and two swings with it.');
+    else if (g.prog >= 100) finish(g.peak < 55 && g.t < 15 ? 'perfect' : 'good', g.peak < 55 ? 'Cool steel, clean edge.' : 'It ran hot, but it held.');
+    else if (g.t >= 24) finish(g.prog >= 70 ? 'good' : 'botch', g.prog >= 70 ? 'Not all three passes, but sharp enough.' : 'Too slow. The stone barely touched it.');
+  } else if (g.kind === 'hammer' || g.kind === 'flatten') {
+    g.phase += dt * g.speed * 1.25; const x = g.phase % 2; g.pos = x < 1 ? x : 2 - x; g.swing = Math.max(0, g.swing - dt);
+  } else if (g.kind === 'wrap' || g.kind === 'wire') {
+    if (g.holding) { const r = g.kind === 'wire' ? g.rate * (.6 + .8 * Math.abs(Math.sin(g.t * 5.3))) : g.rate; g.fill += r * dt; if (g.fill >= 1) { g.fill = 1; release(g); } }
+  } else if (g.kind === 'knot') {
+    g.ring -= dt / g.dur; if (g.ring < 0) knotMark(g, false);
+  }
+  renderGameHud();
+}
+
+// ---------------- drawing ----------------
+const scene = new Image(); scene.src = 'out/scene-hasa.png';
+const cv = $('cv'), G = cv.getContext('2d');
+const sparks = [];
+function burst(n, x = 78, y = 112) { for (let i = 0; i < n; i++) sparks.push({ x, y, vx: 15 + Math.random() * 70, vy: -40 + Math.random() * 60, life: .25 + Math.random() * .5 }); }
+const drops = Array.from({ length: 60 }, () => ({ x: Math.random() * 110, y: Math.random() * 225, v: 110 + Math.random() * 70 }));
+function drawScene(T, dim) {
+  if (scene.complete) G.drawImage(scene, 0, 0);
+  const f = .8 + .1 * Math.sin(T / 110) + .07 * Math.sin(T / 37), gr = G.createRadialGradient(31, 110, 1, 31, 110, 34);
+  gr.addColorStop(0, `rgba(255,180,80,${.22 * f})`); gr.addColorStop(1, 'rgba(255,180,80,0)'); G.fillStyle = gr; G.fillRect(0, 0, 110, 225);
+  if (dim) { G.fillStyle = `rgba(4,6,8,${dim})`; G.fillRect(0, 0, 110, 225); }
+}
+function drawGrind(g, T) {
+  // the stone, close up, spinning; the blade laid on it, colouring with the heat
+  const cx = 55, cy = 128, r = 30;
+  disc(G, cx, cy, r + 2, '#3a3630'); disc(G, cx, cy, r, '#8a8478'); disc(G, cx, cy, r - 4, '#7c766b');
+  for (let k = 0; k < 6; k++) { const a = g.ang + k * Math.PI / 3; for (let s = 6; s < r - 2; s++) R(G, cx + Math.cos(a) * s, cy + Math.sin(a) * s, 1, 1, '#6b665d'); }
+  disc(G, cx, cy, 4, '#3a3630'); disc(G, cx, cy, 2, '#9a958a');
+  const hc = g.heat < 60 ? mix('#b8bcc0', '#e08a3a', g.heat / 60) : mix('#e08a3a', '#4a6ab0', (g.heat - 60) / 40);
+  for (let x = 14; x < 72; x++) { const top = 92 - Math.round((x - 14) * .06); R(G, x, top, 1, 6 - (x > 64 ? (x - 64) * .6 : 0), x > 50 && x < 62 ? hc : '#a9adb1'); R(G, x, top + 5, 1, 1, '#2a2c2e'); }
+  R(G, 72, 90, 24, 7, '#6b4528'); R(G, 72, 90, 24, 1, '#8a5e38'); R(G, 72, 96, 24, 1, '#3c2614');
+  // speed gauge (right), heat (bottom), passes (top)
+  R(G, 100, 60, 7, 100, '#0b0d0e'); const [lo, hi] = g.band;
+  R(G, 101, 160 - hi * 100 / 1.25, 5, (hi - lo) * 100 / 1.25, '#f0a63c55'); R(G, 100, 160 - Math.min(1.25, g.speed) * 100 / 1.25, 7, 2, '#ece4d5');
+  R(G, 6, 168, 88, 6, '#0b0d0e'); R(G, 7, 169, 86 * Math.min(1, g.heat / 100), 4, g.heat > 70 ? '#4a6ab0' : g.heat > 45 ? '#e08a3a' : '#c9a46a');
+  for (let k = 0; k < 3; k++) { R(G, 8 + k * 30, 46, 27, 4, '#0b0d0e'); R(G, 9 + k * 30, 47, 25 * Math.max(0, Math.min(1, (g.prog - k * 33.4) / 33.4)), 2, '#7ee0a0'); }
+}
+function drawHammer(g, T) {
+  // the head of the weapon across the screen; nails standing on it; the hammer above the one in play
+  R(G, 4, 132, 102, 16, '#7a5332'); R(G, 4, 132, 102, 2, '#94673f'); R(G, 4, 146, 102, 2, '#4a301c');
+  for (let i = 0; i < 9; i++) R(G, 8 + i * 11, 137 + (i % 2), 6, 1, '#6b4528');
+  const xs = [30, 55, 80];
+  if (g.kind === 'flatten') {
+    const h = 18 - g.driven * 5 - g.depth * 2.5; R(G, 30, 132 - h, 50, h, '#8a8f93'); R(G, 30, 132 - h, 50, 2, '#b3b8bc'); R(G, 30, 131, 50, 1, '#4a4e52');
+  } else {
+    for (let k = 0; k < g.driven; k++) { R(G, xs[k] - 2, 130, 5, 2, '#9aa0a4'); R(G, xs[k] - 2, 130, 5, 1, '#c9ced2'); }
+    if (g.driven < 3) { const x = xs[g.driven], h = Math.round(16 * (1 - g.depth)); R(G, x, 132 - h, 1, h, '#b0b6ba'); R(G, x - 2, 131 - h, 5, 2, '#9aa0a4'); }
+    for (let k = 0; k < g.bent; k++) { R(G, 10 + k * 7, 156, 5, 1, '#8a9094'); R(G, 14 + k * 7, 154, 1, 2, '#8a9094'); }
+  }
+  const hx = g.kind === 'flatten' ? 55 : xs[Math.min(2, g.driven)], hy = g.swing > 0 ? 112 : 84;
+  R(G, hx - 1, hy - 26, 3, 26, '#6b4528'); R(G, hx - 8, hy, 16, 7, '#5a5e62'); R(G, hx - 8, hy, 16, 1, '#8a8f93');
+  // the swing meter
+  R(G, 8, 172, 94, 9, '#0b0d0e'); R(G, 8 + 94 * .33, 173, 94 * .34, 7, '#5aa17a66'); R(G, 8 + 94 * .44, 173, 94 * .12, 7, '#f0a63caa');
+  R(G, 8 + 94 * g.pos - 1, 170, 2, 13, '#ece4d5');
+}
+function drawWrap(g, T) {
+  const copper = g.kind === 'wire', col = copper ? '#c87a3a' : '#b08a5a', dark = copper ? '#8a4f22' : '#7a5c3a';
+  R(G, 4, 118, 102, 16, '#6b4528'); R(G, 4, 118, 102, 2, '#8a5e38'); R(G, 4, 132, 102, 2, '#3c2614');
+  g.res.forEach((r, k) => { const x = 8 + k * 15, w = r === 'over' ? 17 : 13;
+    for (let i = 0; i < w; i++) R(G, x + i, 117 + (i % 3 === 0 ? 0 : 1), 1, 17, (i + k) % 4 === 0 ? dark : col);
+    if (r === 'loose') { R(G, x + 13, 118, 2, 16, '#3c2614'); R(G, x + 4, 116, 4, 1, '#ff7b66'); } });
+  if (g.turns < g.need) { const x = 8 + g.turns * 15; for (let i = 0; i < 13 * g.fill; i++) R(G, x + i, 117, 1, 17, (i % 4 === 0) ? dark : col);
+    R(G, x + 13 * g.fill, 100, 1, 18, col); }
+  R(G, 100, 60, 7, 100, '#0b0d0e'); R(G, 101, 160 - g.win[1] * 100, 5, (g.win[1] - g.win[0]) * 100, '#5aa17a88'); R(G, 101, 160 - g.fill * 100, 5, g.fill * 100, col);
+  R(G, 6, 168, 88, 6, '#0b0d0e'); R(G, 7, 169, 86 * Math.max(0, g.stock) / 100, 4, col);
+}
+function drawKnot(g, T) {
+  for (let y = 36; y < 208; y++) R(G, 52, y, 6, 1, (y % 22 === 0) ? '#8a7a48' : '#b8a060');
+  R(G, 50, 18, 10, 22, '#a9adb1'); R(G, 50, 18, 2, 22, '#d4d8dc'); R(G, 53, 12, 4, 8, '#a9adb1');
+  g.marks.forEach((ok, k) => { const y = 42 + k * 5; R(G, 49, y, 12, 3, ok ? '#b08a5a' : '#8a5a3a'); R(G, 49, y, 12, 1, ok ? '#d4b07a' : '#a06a4a'); });
+}
+let last = 0;
+function frame(T) {
+  const dt = last ? Math.min(.05, (T - last) / 1000) : 0; last = T;
+  G.clearRect(0, 0, 110, 225);
+  drawScene(T, mode === 'shop' ? 0 : .72);
+  if (mode !== 'shop' && game) { update(dt); ({ grind: drawGrind, hammer: drawHammer, flatten: drawHammer, wrap: drawWrap, wire: drawWrap, knot: drawKnot })[game.kind](game, T); }
+  for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 160 * dt; s.life -= dt;
+    if (s.life <= 0) { sparks.splice(i, 1); continue; } G.fillStyle = s.life > .3 ? '#fff2b0' : '#f0a63c'; G.fillRect(Math.round(s.x), Math.round(s.y), 1, 1); }
+  if (ST.rain) for (const d of drops) { d.y += d.v * dt; d.x -= d.v * .06 * dt; if (d.y > 225) { d.y = -6; d.x = Math.random() * 120; } G.fillStyle = 'rgba(170,190,210,.3)'; G.fillRect(Math.round(d.x), Math.round(d.y), 1, 3); }
+  requestAnimationFrame(frame);
+}
+
+// ---------------- the game's overlay ----------------
+const HOW = {
+  grind: '<b>Pedal.</b> Alternate ◀ ▶ (or A/D, ←/→) to spin the stone. Keep the white line in the <b>amber band</b> on the right. Above it, the blade heats (bottom bar); at blue it\'s ruined. Three passes.',
+  hammer: '<b>Strike</b> (tap, or space) when the white marker is over the <b>amber</b> centre: one clean blow drives a nail. Green: half way. Outside: the nail bends and is lost. Three nails.',
+  flatten: '<b>Strike</b> when the marker is in the amber centre to flatten the pot onto the head. Three blows. Two misses crack it.',
+  wrap: '<b>Hold</b> to feed one turn of strap, let go when the fill is inside the <b>green window</b>. Short leaves a gap; long wastes strap (bottom bar). Six turns.',
+  wire: '<b>Hold</b> to feed copper wire, let go inside the green window. Wire feeds unevenly: watch it. Six turns.',
+  knot: 'Press the <b>arrow shown</b> (buttons or arrow keys) when the shrinking ring reaches the <b>dashed circle</b>. Six steps. One slip: crooked. Two: undone.',
+};
+const TITLE = { grind: 'The grindstone', hammer: 'The hammer', flatten: 'Flatten the pot', wrap: 'The wrap', wire: 'The wire', knot: 'The knot' };
+function renderGame() {
+  const g = game;
+  const ctl = { grind: '<div class="abs ctl"><button data-in="L">◀ L</button><button data-in="R">R ▶</button></div>',
+    hammer: '<div class="abs ctl"><button data-in="STRIKE">STRIKE</button></div>', flatten: '<div class="abs ctl"><button data-in="STRIKE">STRIKE</button></div>',
+    wrap: '<div class="abs ctl"><button data-in="HOLD">HOLD TO FEED</button></div>', wire: '<div class="abs ctl"><button data-in="HOLD">HOLD TO FEED</button></div>',
+    knot: '<div class="abs ctl dirs"><button data-in="←">←</button><button data-in="↑">↑</button><button data-in="↓">↓</button><button data-in="→">→</button></div>' }[g.kind];
+  $('ui').innerHTML = `<div class="logbox"><img src="out/isko-big.png" alt=""><p id="gLine"></p></div><div class="abs chips" id="gChips"></div>
+    ${g.kind === 'knot' ? '<div class="abs kring" id="kRing"><span class="w"></span><span class="r"></span><span class="a"></span></div><div class="abs kseq" id="kSeq"></div>' : ''}
+    ${ctl}
+    ${g.started ? '' : `<div class="abs intro"><h3>${TITLE[g.kind]}</h3>${NAME[g.w.id]} · ${esc(g.U.name)}<br><br>${HOW[g.kind]}<button id="gGo">Start</button></div>`}`;
+  const go = $('gGo'); if (go) go.onclick = () => { g.started = true; renderGame(); };
+  $('ui').querySelectorAll('[data-in]').forEach((b) => {
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.classList.add('press'); input('down', b.dataset.in); });
+    const up = () => { b.classList.remove('press'); input('up', b.dataset.in); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointerleave', () => { if (b.classList.contains('press')) up(); });
+  });
+  renderGameHud();
+}
+function renderGameHud() {
+  const g = game; if (!g || mode !== 'game') return;
+  const ln = $('gLine'); if (ln) ln.textContent = g.line;
+  const ch = $('gChips'); if (!ch) return;
+  if (g.kind === 'grind') ch.innerHTML = `<span>PASS ${Math.min(3, g.passes + 1)}/3</span><span>HEAT ${Math.round(g.heat)}</span><span>${Math.max(0, 24 - g.t).toFixed(0)}s</span>`;
+  if (g.kind === 'hammer') ch.innerHTML = `<span>NAILS IN ${g.driven}/3</span><span>BENT ${g.bent}</span><span>NAILS LEFT ${ST.mats.nails}</span>${g.flash ? `<span>${g.flash}</span>` : ''}`;
+  if (g.kind === 'flatten') ch.innerHTML = `<span>BLOWS ${g.driven}/3</span><span>MISSES ${g.bent}/2</span>${g.flash ? `<span>${g.flash}</span>` : ''}`;
+  if (g.kind === 'wrap' || g.kind === 'wire') ch.innerHTML = `<span>TURN ${Math.min(6, g.turns + 1)}/6</span><span>GAPS ${g.loose}</span><span>${g.kind === 'wire' ? 'WIRE' : 'STRAP'} ${Math.max(0, Math.round(g.stock))}%</span>`;
+  if (g.kind === 'knot') {
+    ch.innerHTML = `<span>STEP ${Math.min(6, g.i + 1)}/6</span><span>SLIPS ${g.errors}/2</span>`;
+    const k = $('kRing'); if (k) { const r = 18 + g.ring * 70, w0 = 18 + .26 * 70;
+      k.querySelector('.r').style.cssText = `left:${-r}px;top:${-r}px;width:${2 * r}px;height:${2 * r}px`;
+      k.querySelector('.w').style.cssText = `left:${-w0}px;top:${-w0}px;width:${2 * w0}px;height:${2 * w0}px`;
+      k.querySelector('.a').textContent = g.seq[g.i] ?? ''; }
+    const s = $('kSeq'); if (s) s.innerHTML = g.seq.map((d, k) => `<span class="${k < g.i ? (g.marks[k] ? 'ok' : 'no') : k === g.i ? 'now' : ''}">${d}</span>`).join('');
+  }
+}
+function renderResult() {
+  const r = result, lab = { perfect: '★ PERFECT', good: 'GOOD', botch: '✗ BOTCHED' }[r.grade];
+  const d = diffLine(r.before, r.after);
+  $('ui').innerHTML = `<div class="abs intro result"><h3>${TITLE[game.kind]}</h3><div class="grade ${r.grade}">${lab}</div>${esc(r.why)}
+    <div class="d">${r.grade !== 'botch' ? `<span class="stars big">${stars(game.w.ups.length)}</span> now<br>` : ''}${d ? d + '<br>' : ''}Paid <b style="color:var(--sodium)">${r.cost}</b> pts${r.grade === 'botch' ? ' (half: he keeps it for his time)' : ''} · tab ${ST.tab}<br>Respect: <b>${r.rank.name}</b> · ${r.jobs} jobs${r.rank.unlock && r.jobs === r.rank.at ? `<br><span style="color:#ffd56b">${esc(r.rank.unlock)}</span>` : ''}</div>
+    <button id="rBack">Back to the stall</button></div>`;
+  $('rBack').onclick = () => { SFX.bed('grind-loop', false); SFX.bed('grind-spark', false); mode = 'shop'; game = null; ST.note = r.grade === 'botch' ? '"Again. Slower next time."' : r.grade === 'perfect' ? '"You have good hands for a province boy."' : '"Good. It\'ll do."'; render(); };
+}
+function render() {
+  if (mode === 'shop') renderShop(); else if (mode === 'game') renderGame(); else renderResult();
+  $('dbg').innerHTML = `<label><input type="checkbox" id="rainT" ${ST.rain ? 'checked' : ''}> rain (narrower heat band)</label>
+    <label><input type="checkbox" id="muteT" ${muted ? 'checked' : ''}> mute</label><button id="restock">Restock: tab 40, materials</button><button id="resetAll">Reset everything</button>
+    <span style="font:11px var(--mono);color:var(--muted);align-self:center">nails ${ST.mats.nails} · straps ${ST.mats.straps} · wire ${ST.mats['copper-wire']} · pot ${ST.mats.kaldero} · arnis ${ST.mats.arnis}</span>`;
+  $('rainT').onchange = (e) => { ST.rain = e.target.checked; };
+  $('muteT').onchange = (e) => { muted = e.target.checked; SFX.mute(muted); };
+  $('restock').onclick = () => { ST.tab = 40; Object.assign(ST.mats, { nails: 6, straps: 3, 'copper-wire': 1, kaldero: 1, arnis: 1 }); render(); };
+  $('resetAll').onclick = () => { ST = fresh(); mode = 'shop'; game = null; render(); };
+}
+
+// keys: A/D or ←/→ pedal; space strikes or holds; arrows for the knot
+const KEYMAP = { a: 'L', ArrowLeft: 'L', d: 'R', ArrowRight: 'R' };
+addEventListener('keydown', (e) => {
+  if (!game || mode !== 'game' || e.repeat) return;
+  if (!game.started && (e.key === ' ' || e.key === 'Enter')) { game.started = true; renderGame(); e.preventDefault(); return; }
+  if (game.kind === 'grind' && KEYMAP[e.key]) { input('down', KEYMAP[e.key]); e.preventDefault(); }
+  if ((game.kind === 'hammer' || game.kind === 'flatten') && e.key === ' ') { input('down', 'STRIKE'); e.preventDefault(); }
+  if ((game.kind === 'wrap' || game.kind === 'wire') && e.key === ' ') { input('down', 'HOLD'); e.preventDefault(); }
+  if (game.kind === 'knot') { const m = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' }[e.key]; if (m) { input('down', m); e.preventDefault(); } }
+});
+addEventListener('keyup', (e) => { if (game && (game.kind === 'wrap' || game.kind === 'wire') && e.key === ' ') input('up', 'HOLD'); });
+
+render(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

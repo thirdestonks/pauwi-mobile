@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat BG · Interior</title>
+<style>
+  :root { --ink:#0E1214; --amber:#F0A63C; --bone:#ECE4D5; --slate:#828B90; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--ink); color:var(--bone);
+         font:13px/1.4 ui-monospace, Consolas, monospace; display:flex; flex-direction:column; align-items:center; gap:14px; padding:16px; }
+  h1 { margin:0; font:700 15px/1 ui-monospace, Consolas, monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--amber); }
+  .frame { height:min(900px, calc(100vh - 150px)); aspect-ratio:110/225; background:#000; outline:1px solid #23263a; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .controls { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:480px; }
+  button { background:#15171f; color:var(--bone); border:1px solid #2c3040; padding:6px 10px; font:inherit; cursor:pointer; }
+  button[aria-pressed="true"] { border-color:var(--amber); color:var(--amber); }
+  p.note { color:var(--slate); max-width:460px; margin:0; text-align:center; }
+  .embed { padding:0; gap:0; justify-content:center; overflow:hidden; }
+  .embed h1, .embed .controls, .embed p.note { display:none; }
+  .embed .frame { height:100vh; outline:none; }
+</style>
+</head>
+<body>
+<h1>Combat BG · Interior</h1>
+<div class="controls">
+  <button data-floor="wood" aria-pressed="true">Wooden floor</button>
+  <button data-floor="tile" aria-pressed="false">Tiled floor</button>
+  <button id="flick" aria-pressed="true">Flicker</button>
+  <button id="grid" aria-pressed="false">Show grid</button>
+  <button id="fast" aria-pressed="false">Fast (4×)</button>
+</div>
+<div class="frame" id="frame"><canvas id="c" width="110" height="225"></canvas></div>
+<p class="note">Native 110×225 at 4×, 40 colours, pixelated from the painted interiors. The room is dark; only the floor is lit by Juan's flashlight, which wobbles like a dying battery, flickers every so often, and now and then sags and has to be tapped back to life. <code>?floor=wood|tile</code>, <code>?flicker=0</code>, <code>?grid=1</code>.</p>
+
+<script>
+const Q = new URLSearchParams(location.search);
+if (Q.has('embed')) document.body.classList.add('embed');
+const W = 110, H = 225;
+const $ = s => document.querySelector(s);
+const cv = $('#c'), ctx = cv.getContext('2d', { willReadFrequently: true });
+
+// The grid numbers each painting was calibrated to (the same ones CombatScreen.vue uses), for the optional overlay.
+const GEO = {
+  wood: { hy: 143, vx: 55, f: 58, lane: 1.2, cx: 0 },
+  tile: { hy: 143, vx: 55, f: 58, lane: 1.2, cx: 0 },
+};
+// The beam on the floor: where it lands, how wide and deep it reaches, and its tint.
+const LIGHT = {
+  wood: { cx: 55, cy: 172, rx: 70, ry: 66, tint: [1.0, 0.9, 0.72] },
+  tile: { cx: 55, cy: 172, rx: 70, ry: 66, tint: [0.84, 1.0, 1.0] },
+};
+let floor = Q.get('floor') === 'tile' ? 'tile' : 'wood';
+let flicker = Q.get('flicker') !== '0';
+let showGrid = Q.get('grid') === '1';
+let speed = 1;
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;      // fewer, shallower flickers for people who ask for less motion
+
+const base = {};
+// Loads one floor's painting on demand. The game only ships the wooden floor, so a missing tiled image must never stall the page.
+function loadFloor(name) {
+  if (base[name]) return Promise.resolve();
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const g = c.getContext('2d'); g.drawImage(im, 0, 0);
+      base[name] = g.getImageData(0, 0, W, H).data; res();
+    };
+    im.onerror = () => res();
+    im.src = name + '-110.png';
+  });
+}
+
+// ---------- the flashlight: a wobble, quick flickers, and a slow sag that gets tapped back ----------
+const rnd = (a, b) => a + Math.random() * (b - a);
+let T = 0, nextEvent = rnd(3, 6), event = null, tap = null;
+function startFlicker() {
+  const steps = [], n = calm ? 2 : Math.floor(rnd(2, 5));
+  for (let i = 0; i < n; i++) { steps.push([rnd(0.03, 0.08), rnd(calm ? 0.7 : 0.35, 0.75)]); steps.push([rnd(0.04, 0.14), 1]); }
+  event = { kind: 'flicker', steps, i: 0, t: 0 };
+}
+function startSag() { event = { kind: 'sag', t: 0, down: rnd(2, 3.2), hold: rnd(0.4, 0.9), to: rnd(0.55, 0.72) }; }
+function level(dt) {
+  T += dt;
+  let wobble = 0.9 + 0.05 * Math.sin(T * 0.9) + 0.03 * Math.sin(T * 2.7 + 1) + 0.015 * Math.sin(T * 9.1);      // a tired battery, never quite steady
+  let mult = 1;
+  if (!flicker) return 0.95;
+  if (!event) { nextEvent -= dt; if (nextEvent <= 0) { Math.random() < 0.16 ? startSag() : startFlicker(); } }
+  if (event) {
+    event.t += dt;
+    if (event.kind === 'flicker') {
+      const s = event.steps[event.i]; mult = s[1];
+      if (event.t >= s[0]) { event.t = 0; event.i++; if (event.i >= event.steps.length) { event = null; nextEvent = rnd(6, 13); } }
+    } else if (event.t < event.down) {                                       // fading slowly
+      const k = event.t / event.down; mult = 1 - (1 - event.to) * (k * k * (3 - 2 * k));
+    } else if (event.t < event.down + event.hold) {                          // struggling at the bottom
+      mult = event.to + 0.05 * Math.sin(event.t * 40) * Math.random();
+    } else {                                                                 // a tap on the torch: two stutters, then it comes back
+      startFlicker(); event.steps.unshift([0.05, 0.3], [0.08, 1]); nextEvent = rnd(8, 14);
+    }
+  }
+  return Math.max(0.12, Math.min(1, wobble * mult));
+}
+
+// ---------- drawing: the base painting lit by the beam, banded and dithered so it stays pixel art ----------
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const BANDS = 7;
+const motes = Array.from({ length: 16 }, () => ({ x: rnd(10, 100), y: rnd(120, 215), vx: rnd(-1.2, 1.2), vy: rnd(-1.5, 0.3), p: rnd(0, 6) }));
+const out = ctx.createImageData(W, H);
+function draw(lv) {
+  const L = LIGHT[floor], b = base[floor]; if (!b) return;
+  const reach = 0.5 + 0.5 * lv;                                              // the beam shrinks as it dies
+  const rx = L.rx * reach, ry = L.ry * reach, o = out.data;
+  const [tr, tg, tb] = L.tint;
+  let i = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++, i += 4) {
+    const dx = (x - L.cx) / rx, dy = (y - L.cy) / ry, d = Math.sqrt(dx * dx + dy * dy);
+    let beam = d >= 1 ? 0 : (1 - d) * (1 - d) * (3 - 2 * (1 - d)) ** 0.5;   // soft edge, hot centre
+    beam = Math.min(1, beam * 1.25);
+    const wall = y < 140 ? 0.4 : 1;                                          // the room beyond the floor stays in the dark
+    const v = Math.min(1, 0.075 + beam * lv * 1.15 * wall);
+    const q = Math.min(1, Math.floor(v * BANDS + BAYER[((y & 3) << 2) | (x & 3)] / 16) / BANDS);
+    const glow = beam * lv;
+    o[i]     = Math.min(255, b[i]     * q * (1 + glow * (tr - 1) * 0.5));
+    o[i + 1] = Math.min(255, b[i + 1] * q * (1 + glow * (tg - 1) * 0.5));
+    o[i + 2] = Math.min(255, b[i + 2] * q * (1 + glow * (tb - 1) * 0.5));
+    o[i + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  // dust drifting in the beam
+  for (const m of motes) {
+    const dx = (m.x - L.cx) / rx, dy = (m.y - L.cy) / ry;
+    if (dx * dx + dy * dy < 0.8) { const a = 0.35 * lv * (0.6 + 0.4 * Math.sin(T * 2 + m.p)); ctx.fillStyle = `rgba(236,228,213,${a.toFixed(2)})`; ctx.fillRect(Math.round(m.x), Math.round(m.y), 1, 1); }
+  }
+  if (showGrid) drawGrid();
+}
+function drawGrid() {
+  const g = GEO[floor], e = 1.6 * g.f, ROWS = [1.5, 2.5, 4.2, 7.5];
+  const proj = (X, z) => [g.vx + g.f * X / z, g.hy + e / z], lx = i => g.cx + (i - 1.5) * g.lane;
+  ctx.strokeStyle = 'rgba(236,228,213,.55)'; ctx.lineWidth = 1;
+  for (const z of ROWS) { const [xa, y] = proj(lx(0), z), [xb] = proj(lx(3), z); ctx.beginPath(); ctx.moveTo(xa, Math.round(y) + .5); ctx.lineTo(xb, Math.round(y) + .5); ctx.stroke(); }
+  for (let i = 0; i <= 3; i++) { const [xa, ya] = proj(lx(i), ROWS[0]), [xb, yb] = proj(lx(i), ROWS[3]); ctx.beginPath(); ctx.moveTo(xa, ya); ctx.lineTo(xb, yb); ctx.stroke(); }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000) * speed; last = now;
+  const lv = level(dt);
+  for (const m of motes) { m.x += m.vx * dt * 3; m.y += m.vy * dt * 3; if (m.x < 4 || m.x > 106 || m.y < 110 || m.y > 218) { m.x = rnd(10, 100); m.y = rnd(150, 215); } }
+  draw(lv);
+  requestAnimationFrame(frame);
+}
+
+// controls (hidden when embedded)
+function press(sel, on) { document.querySelectorAll(sel).forEach(b => b.setAttribute('aria-pressed', on(b))); }
+document.querySelectorAll('[data-floor]').forEach(b => b.onclick = () => loadFloor(b.dataset.floor).then(() => { if (base[b.dataset.floor]) { floor = b.dataset.floor; press('[data-floor]', x => x.dataset.floor === floor); } }));
+$('#flick').onclick = e => { flicker = !flicker; e.target.setAttribute('aria-pressed', flicker); };
+$('#grid').onclick = e => { showGrid = !showGrid; e.target.setAttribute('aria-pressed', showGrid); };
+$('#fast').onclick = e => { speed = speed === 1 ? 4 : 1; e.target.setAttribute('aria-pressed', speed !== 1); };
+press('[data-floor]', x => x.dataset.floor === floor); $('#flick').setAttribute('aria-pressed', flicker); $('#grid').setAttribute('aria-pressed', showGrid);
+
+loadFloor(floor).then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>

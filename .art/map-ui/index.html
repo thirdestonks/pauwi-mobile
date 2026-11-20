@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Map screen concepts</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--line:#2a3338;--s:3;--mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{padding:16px}
+header{max-width:900px;margin:0 auto 14px}
+h1{margin:0;font:400 30px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 10px;color:#b9c3c8;font:13px/1.5 var(--mono)}
+.tog{display:flex;gap:6px;flex-wrap:wrap}
+.tog button{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:6px 10px;font:700 12px var(--mono);letter-spacing:.06em;cursor:pointer}
+.tog button[aria-pressed=true]{border-color:var(--sodium);color:var(--sodium)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.col{width:calc(110px * var(--s));flex:none}
+.col h2{margin:0 0 2px;font:400 22px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.col .sub{margin:0 0 8px;color:var(--muted);font:12px/1.4 var(--mono)}
+.col ul{margin:10px 0 0;padding-left:16px;font:12px/1.5 var(--mono);color:#b9c3c8}
+.col li b{color:var(--bone)}
+
+/* the phone: a 110x225 game screen at --s; everything inside is placed in game pixels via u() */
+.scr{position:relative;width:calc(110px * var(--s));height:calc(225px * var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.scr>.map{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;cursor:pointer}
+.px{image-rendering:pixelated}
+.abs{position:absolute}
+.t{font-family:var(--mono);font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-shadow:1px 1px 0 #000;white-space:nowrap}
+.btn{cursor:pointer;background:none;border:0;padding:0}
+
+/* ----- A: hotbar ----- */
+.a-top{left:0;right:0;top:0;height:calc(15px*var(--s));display:flex;align-items:center;gap:calc(4px*var(--s));padding:0 calc(3px*var(--s));background:linear-gradient(#0e1214f0,#0e1214c0);border-bottom:calc(1px*var(--s)) solid #000;font-size:calc(4px*var(--s))}
+.a-top img{height:calc(7px*var(--s))}
+.pips{display:flex;gap:calc(1px*var(--s))}
+.pips i{width:calc(3px*var(--s));height:calc(5px*var(--s));background:var(--sodium);box-shadow:0 0 0 calc(.5px*var(--s)) #000}
+.pips i.off{background:#2a3338}
+.a-tut{right:calc(3px*var(--s));top:calc(17px*var(--s));font-size:calc(3.4px*var(--s));color:#8cc7dd;background:#0e1214b0;padding:calc(1px*var(--s)) calc(2px*var(--s))}
+.a-help{left:calc(3px*var(--s));top:calc(17px*var(--s));width:calc(9px*var(--s));height:calc(9px*var(--s));font-size:calc(5px*var(--s));color:var(--bone);background:#0e1214d0;border:calc(1px*var(--s)) solid #526169}
+.a-bar{left:calc(3px*var(--s));right:calc(3px*var(--s));bottom:calc(3px*var(--s));display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:calc(2px*var(--s))}
+.a-bar button{height:calc(20px*var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(1px*var(--s));background:#0e1214e8;border:calc(1px*var(--s)) solid #000;box-shadow:inset 0 0 0 calc(1px*var(--s)) #3a4851;color:var(--bone);font-size:calc(3.4px*var(--s));cursor:pointer}
+.a-bar button.home{background:var(--sodium);color:#0e1214;box-shadow:inset 0 0 0 calc(1px*var(--s)) #ffd08a;text-shadow:none}
+.a-bar img{height:calc(9px*var(--s))}
+.status{left:0;right:0;text-align:center;font-size:calc(3.6px*var(--s));color:var(--bone);transition:opacity .25s;pointer-events:none}
+.status span{background:#0e1214d8;padding:calc(1.5px*var(--s)) calc(3px*var(--s))}
+
+/* ----- B: Juan's kit ----- */
+.b-watch{left:calc(2px*var(--s));top:calc(2px*var(--s));width:calc(38px*var(--s));height:calc(22px*var(--s))}
+.b-comp{right:calc(2px*var(--s));top:calc(2px*var(--s));width:calc(22px*var(--s));height:calc(26px*var(--s))}
+.b-bag{left:calc(-2px*var(--s));bottom:calc(-3px*var(--s));width:calc(30px*var(--s));height:calc(33px*var(--s))}
+.b-phone{right:calc(6px*var(--s));bottom:calc(-10px*var(--s));width:calc(24px*var(--s));height:calc(36px*var(--s));transition:transform .15s}
+.b-phone:hover{transform:translateY(calc(-3px*var(--s)))}
+.b-compn{right:calc(1px*var(--s));top:calc(24px*var(--s));font-size:calc(3px*var(--s));color:#8cc7dd;background:#0e1214c8;padding:0 calc(1px*var(--s))}
+.b-key{left:50%;bottom:calc(1px*var(--s));width:calc(18px*var(--s));height:calc(24px*var(--s));transform:translateX(-50%)}
+.b-sub{left:calc(26px*var(--s));right:calc(26px*var(--s));bottom:calc(30px*var(--s));text-align:center;font-size:calc(3.6px*var(--s));color:#f6ecd8;text-transform:none;letter-spacing:.02em;white-space:normal}
+
+/* shared overlays */
+.sheet{left:calc(3px*var(--s));right:calc(3px*var(--s));bottom:calc(3px*var(--s));padding:calc(4px*var(--s));background:#0c1418f4;border:calc(1px*var(--s)) solid #526169;box-shadow:calc(1px*var(--s)) calc(1px*var(--s)) 0 #000;font-family:var(--mono);font-size:calc(3.6px*var(--s));z-index:20}
+.sheet h3{margin:0 0 calc(1px*var(--s));font:400 calc(8px*var(--s))/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.sheet p{margin:0 0 calc(3px*var(--s));color:#c9c3b6;line-height:1.4}
+.sheet .acts{display:flex;gap:calc(2px*var(--s))}
+.sheet .acts button{flex:1;padding:calc(2.5px*var(--s));font:700 calc(3.6px*var(--s)) var(--mono);letter-spacing:.06em;text-transform:uppercase;background:#16212a;color:var(--bone);border:calc(.7px*var(--s)) solid #3a4851;cursor:pointer}
+.sheet .acts button.go{background:var(--sodium);color:#0e1214;border-color:var(--sodium)}
+.legend div{display:flex;align-items:center;gap:calc(2px*var(--s));margin:calc(1px*var(--s)) 0;color:#c9c3b6}
+.legend i{width:calc(3px*var(--s));height:calc(3px*var(--s));flex:none}
+.phonev{inset:0;z-index:30;background:#000}
+.phonev img{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.mk{position:absolute;width:calc(3px*var(--s));height:calc(3px*var(--s));border:calc(.5px*var(--s)) solid #000;transform:translate(-50%,-50%);cursor:pointer}
+.pcard{position:absolute;left:calc(24px*var(--s));right:calc(24px*var(--s));top:calc(54px*var(--s));padding:calc(2px*var(--s)) calc(2.5px*var(--s));background:#0c1418f2;border:calc(.7px*var(--s)) solid #526169;font-family:var(--mono);font-size:calc(2.6px*var(--s));line-height:1.45;color:#ece4d5}
+.pcard small{display:block;color:#c9b38a;font-size:calc(2.2px*var(--s));letter-spacing:.05em}
+.pcard b{display:block;font-size:calc(3.4px*var(--s))}
+.pcard em{display:block;font-style:normal;color:var(--sodium)}
+.pcard .dots{display:grid;grid-template-columns:1fr 1fr;margin-top:calc(1px*var(--s))}
+.pnote{position:absolute;left:0;right:0;bottom:calc(6px*var(--s));text-align:center;font-family:var(--mono);font-size:calc(3px*var(--s));color:var(--muted)}
+.toast{left:calc(6px*var(--s));right:calc(6px*var(--s));top:calc(40px*var(--s));text-align:center;font:700 calc(3.6px*var(--s)) var(--mono);padding:calc(2px*var(--s));background:#0e1214ee;border:calc(.5px*var(--s)) solid #3a4851;opacity:0;transition:opacity .2s;pointer-events:none;z-index:25}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>Map screen: two overhauls</h1>
+  <p>Both drop the title bar, the paragraph, the legend, the big Head Back button and the tab bar. The pixel map takes the <b>whole screen</b> (it is already 110&times;225, the phone's own shape), and the phone, when Juan pulls it out, fills it too. Tap the buttons and objects: they work.</p>
+  <div class="tog" role="group" aria-label="Time of day">
+    <button id="tDay" aria-pressed="true">DAY</button><button id="tNight" aria-pressed="false">NIGHT</button>
+  </div>
+</header>
+
+<div class="row">
+  <!-- ================= A ================= -->
+  <section class="col">
+    <h2>A · Hotbar</h2>
+    <p class="sub">A game HUD over the map: a thin strip on top, three big buttons at the bottom.</p>
+    <div class="scr" id="A">
+      <img class="map" src="cap-day.png" alt="The street map around Juan">
+      <div class="abs a-top t">
+        <img class="px" src="icon-day.png" alt="" data-dn><span data-daylabel>DAY 1</span>
+        <span style="flex:1"></span>
+        <span class="pips" aria-label="4 of 5 moves left"><i></i><i></i><i></i><i></i><i class="off"></i></span>
+        <span style="flex:1"></span>
+        <img class="px" src="icon-energy.png" alt=""><span>40</span>
+      </div>
+      <div class="abs a-tut t">TUTUBAN 43 &#9650;</div>
+      <button class="abs a-help btn t" data-act="legend" aria-label="What the colours mean">?</button>
+      <div class="abs status t" style="bottom:calc(26px*var(--s))"><span data-status>TAP AN OPEN HEX TO WALK</span></div>
+      <div class="abs a-bar t">
+        <button data-act="bag"><img class="px" src="bag-icon.png" alt="">BAG</button>
+        <button class="home" data-act="home"><img class="px" src="icon-home.png" alt="">HOME · FREE</button>
+        <button data-act="phone"><canvas class="px" data-phoneicon width="9" height="13" style="height:calc(9px*var(--s))"></canvas>PHONE</button>
+      </div>
+    </div>
+    <ul>
+      <li><b>Clear and familiar.</b> Everything is one tap and labelled.</li>
+      <li>Moves are pips you can read at a glance; energy and Tutuban stay visible.</li>
+      <li>The legend moves behind <b>?</b>; Head Back becomes the big middle button with a confirm.</li>
+      <li>Costs a little of the map at the top and the bottom.</li>
+    </ul>
+  </section>
+
+  <!-- ================= B ================= -->
+  <section class="col">
+    <h2>B · Juan's kit</h2>
+    <p class="sub">No bars at all: the interface is what Juan carries.</p>
+    <div class="scr" id="B">
+      <img class="map" src="cap-day.png" alt="The street map around Juan">
+      <canvas class="abs b-watch px" width="38" height="22" aria-label="Wristwatch: day 1, 4 of 5 moves, energy 40"></canvas>
+      <canvas class="abs b-comp px" width="22" height="26" aria-label="Compass: Tutuban, 43 tiles"></canvas>
+      <div class="abs b-compn t">TUTUBAN 43</div>
+      <div class="abs b-sub t" data-status></div>
+      <button class="abs b-bag btn" data-act="bag" aria-label="Open the bag"><img class="px" src="bag-icon.png" alt="" style="width:100%;height:100%;object-fit:contain;transform:rotate(-12deg)"></button>
+      <button class="abs b-key btn" data-act="home" aria-label="Head back to shelter"><canvas class="px" width="18" height="24" style="width:100%;height:100%"></canvas></button>
+      <button class="abs b-phone btn" data-act="phone" aria-label="Pull out the phone"><canvas class="px" width="24" height="36" style="width:100%;height:100%"></canvas></button>
+    </div>
+    <ul>
+      <li><b>The most immersive.</b> The whole screen is the street; nothing reads as an app.</li>
+      <li>Watch = day, time, moves (the segments) and energy. Compass = Tutuban.</li>
+      <li>Bag strap, phone and shelter key sit in the corners like they are on him.</li>
+      <li>Status shows only when it matters, as a subtitle line.</li>
+      <li>Harder to learn on day one: needs a short first-time hint.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let night = false;
+const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+
+/* ---------- small pixel drawings ---------- */
+function phoneIcon(cv) {
+  const c = cv.getContext('2d');
+  rect(c, 0, 0, 9, 13, '#000'); rect(c, 1, 1, 7, 11, '#526169'); rect(c, 2, 2, 5, 8, night ? '#2e86ab' : '#5fa9c4'); rect(c, 4, 11, 1, 1, '#000');
+}
+function watch(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 38, 22);
+  rect(c, 4, 0, 30, 3, '#2b2420'); rect(c, 4, 19, 30, 3, '#2b2420');                 // strap
+  rect(c, 1, 2, 36, 18, '#000'); rect(c, 2, 3, 34, 16, '#3a4148'); rect(c, 3, 4, 32, 14, '#1a1f1c');
+  rect(c, 4, 5, 30, 12, night ? '#24361f' : '#8fa98a');                                // LCD
+  const ink = night ? '#a8e08a' : '#1a2318';
+  const glyph = { D: ['110', '101', '101', '101', '110'], '1': ['01', '11', '01', '01', '11'], '0': ['111', '101', '101', '101', '111'], '6': ['111', '100', '111', '101', '111'], '4': ['101', '101', '111', '001', '001'], ':': ['0', '1', '0', '1', '0'], '9': ['111', '101', '111', '001', '111'], '2': ['111', '001', '111', '100', '111'] };
+  let x = 6;
+  for (const ch of (night ? 'D1 21:40' : 'D1 06:40')) {
+    if (ch === ' ') { x += 2; continue; }
+    const g = glyph[ch]; g.forEach((row, j) => [...row].forEach((b, i) => { if (b === '1') rect(c, x + i, 6 + j, 1, 1, ink); })); x += g[0].length + 1;
+  }
+  for (let k = 0; k < 5; k++) rect(c, 6 + k * 4, 13, 3, 2, k < 4 ? ink : (night ? '#33492c' : '#7d9578'));   // moves: 4 of 5
+  rect(c, 27, 13, 6, 2, night ? '#33492c' : '#7d9578'); rect(c, 27, 13, 3, 2, '#d9b33a');                 // energy
+  rect(c, 37, 8, 1, 4, '#5a6268');
+}
+function compass(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 22, 26);
+  for (let y = 0; y < 22; y++) for (let x = 0; x < 22; x++) { const d = Math.hypot(x - 10.5, y - 10.5); if (d < 10.5) rect(c, x, y, 1, 1, d > 9.4 ? '#000' : d > 8.2 ? '#8a6a3a' : '#e9dfc8'); }
+  rect(c, 10, 2, 2, 2, '#d94b3b');                                                      // N
+  const a = -Math.PI / 2 + .55;                                                          // Tutuban, up and a little to the right
+  for (let k = -7; k <= 7; k++) { const x = 10.5 + Math.cos(a) * k, y = 10.5 + Math.sin(a) * k; rect(c, Math.round(x), Math.round(y), 1, 1, k > 0 ? '#2e86ab' : '#4a4a4a'); }
+  rect(c, 10, 10, 2, 2, '#000');
+}
+function bag(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 30, 33);
+  rect(c, 18, 0, 5, 14, '#000'); rect(c, 19, 0, 3, 14, '#4d3a24');                       // strap
+  rect(c, 2, 10, 25, 23, '#000'); rect(c, 3, 11, 23, 22, '#5a4630'); rect(c, 3, 11, 23, 6, '#6e5739'); rect(c, 3, 17, 23, 1, '#000');
+  rect(c, 12, 15, 5, 5, '#000'); rect(c, 13, 16, 3, 3, '#c9a24a');                       // buckle
+  rect(c, 6, 22, 16, 9, '#4d3a24'); rect(c, 6, 22, 16, 1, '#000');                       // pocket
+}
+function key(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 18, 24);
+  for (let y = 0; y < 8; y++) { rect(c, 5 + Math.round(Math.sin(y * .7)), y, 2, 1, '#d94b3b'); rect(c, 11 - Math.round(Math.sin(y * .7)), y, 2, 1, '#d94b3b'); }   // lanyard
+  rect(c, 4, 7, 10, 10, '#000'); rect(c, 5, 8, 8, 8, '#d6a640'); rect(c, 7, 10, 4, 4, '#000');               // bow
+  rect(c, 7, 16, 4, 8, '#000'); rect(c, 8, 16, 2, 8, '#d6a640'); rect(c, 10, 19, 3, 2, '#000'); rect(c, 10, 22, 2, 2, '#000');
+}
+function phonePeek(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 24, 36);
+  rect(c, 0, 0, 24, 36, '#000'); rect(c, 1, 1, 22, 35, '#4a5560'); rect(c, 2, 2, 20, 34, '#2b3238');
+  rect(c, 3, 5, 18, 31, night ? '#1d4a5c' : '#3f7f96');
+  rect(c, 9, 3, 6, 1, '#11161a');
+  for (let i = 0; i < 4; i++) rect(c, 5 + i * 4, 9 + (i % 2) * 6, 2, 2, ['#f0a63c', '#a860ec', '#5aa17a', '#c9b38a'][i]);   // map dots
+  rect(c, 6, 22, 12, 2, '#0e1214'); rect(c, 6, 26, 8, 2, '#0e1214');
+}
+function drawAll() {
+  for (const m of $$('.map')) m.src = night ? 'cap-night.png' : 'cap-day.png';
+  for (const cv of $$('[data-phoneicon]')) phoneIcon(cv);
+  for (const im of $$('[data-dn]')) im.src = night ? 'icon-night.png' : 'icon-day.png';
+  for (const s of $$('[data-daylabel]')) s.textContent = night ? 'NIGHT 1' : 'DAY 1';
+  watch($('.b-watch')); compass($('.b-comp')); key($('.b-key canvas')); phonePeek($('.b-phone canvas'));
+}
+
+/* ---------- behaviour ---------- */
+const LEGEND = [['#5aa17a', 'Cleared: free to cross'], ['#a860ec', 'Shop: +2 moves'], ['#f49638', 'Shelter you could claim'], ['#ffc45c', 'House with a door'], ['#828b90', 'Bag · body · radio: next door']];
+function sheet(scr, html, acts) {
+  for (const old of $$('.sheet', scr)) old.remove();
+  const d = document.createElement('div'); d.className = 'abs sheet'; d.innerHTML = html;
+  const row = document.createElement('div'); row.className = 'acts';
+  for (const a of acts) { const b = document.createElement('button'); b.textContent = a.t; if (a.go) b.className = 'go'; b.onclick = e => { e.stopPropagation(); d.remove(); a.fn && a.fn(); }; row.appendChild(b); }
+  d.appendChild(row); d.addEventListener('click', e => e.stopPropagation()); scr.appendChild(d);
+}
+function toast(scr, msg) {
+  let t = $('.toast', scr); if (!t) { t = document.createElement('div'); t.className = 'abs toast'; scr.appendChild(t); }
+  t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1600);
+}
+function status(scr, msg) {
+  const el = $('[data-status]', scr); if (!el) return;
+  el.textContent = msg; el.style.opacity = 1;
+  if (scr.id === 'B') { clearTimeout(el._h); el._h = setTimeout(() => (el.style.opacity = 0), 1800); }
+}
+function phone(scr) {
+  const v = document.createElement('div'); v.className = 'abs phonev';
+  v.innerHTML = '<img src="cap-phone.png" alt="Juan\'s phone: the offline map">' +
+    [[38, 72, '#c9b38a', 'house'], [58, 86, '#a860ec', 'shop'], [83, 96, '#f49638', 'shelter'], [44, 108, '#5aa17a', ''], [70, 120, '#a9cde2', 'shop']]
+      .map(([x, y, c, k]) => '<i class="mk" data-k="' + k + '" style="left:calc(' + x + 'px*var(--s));top:calc(' + y + 'px*var(--s));background:' + c + '"></i>').join('') +
+    '<div class="pnote">TAP A SQUARE · TAP OUTSIDE TO PUT AWAY</div>';
+  v.addEventListener('click', e => {
+    const k = e.target.dataset && e.target.dataset.k;
+    for (const c of $$('.pcard', v)) c.remove();
+    if (k === 'house') v.insertAdjacentHTML('beforeend', '<div class="pcard"><small>HOUSE WITH A DOOR · 1 HEX</small><b>House</b><em>Half-searched · 4 of 13</em>THREAT ▮▮▯ 1 still up<div class="dots"><span>▣▣□ Food</span><span>▣□□ Medical</span><span>▣□□ Tools</span><span>□□□ Weapons</span></div></div>');
+    else if (k) v.insertAdjacentHTML('beforeend', '<div class="pcard"><small>' + k.toUpperCase() + ' · 3 HEXES</small><b>' + (k === 'shelter' ? "Mang Mel's Bike Shop" : 'Botika') + '</b><em>' + (k === 'shelter' ? 'Potential shelter' : 'Not searched yet') + '</em></div>');
+    else if (e.target === v || e.target.tagName === 'IMG') v.remove();
+  });
+  scr.appendChild(v);
+}
+for (const scr of $$('.scr')) {
+  scr.addEventListener('click', e => {
+    const a = e.target.closest('[data-act]');
+    if (!a) { if (e.target.classList.contains('map')) status(scr, scr.id === 'A' ? 'STEP · 1 MOVE · 8 EN' : 'Fresh ground: 1 move, 8 energy.'); return; }
+    const act = a.dataset.act;
+    if (act === 'bag') toast(scr, 'Opens the Bag screen');
+    else if (act === 'phone') phone(scr);
+    else if (act === 'legend') sheet(scr, '<h3>On the map</h3><div class="legend">' + LEGEND.map(([c, t]) => '<div><i style="background:' + c + '"></i>' + t + '</div>').join('') + '</div><p></p>', [{ t: 'Got it', go: true }]);
+    else if (act === 'home') sheet(scr, '<h3>Head back to shelter?</h3><p>Straight back to Nida\'s, free. ' + (night ? 'Dawn comes after.' : 'Dusk waits for no one.') + '</p>', [{ t: 'Go home', go: true, fn: () => toast(scr, 'Through the shelter door…') }, { t: 'Stay out' }]);
+  });
+}
+$('#tDay').onclick = () => { night = false; $('#tDay').setAttribute('aria-pressed', 'true'); $('#tNight').setAttribute('aria-pressed', 'false'); drawAll(); };
+$('#tNight').onclick = () => { night = true; $('#tNight').setAttribute('aria-pressed', 'true'); $('#tDay').setAttribute('aria-pressed', 'false'); drawAll(); };
+function fit() { document.documentElement.style.setProperty('--s', Math.max(2, Math.min(3.4, (innerHeight - 150) / 225, (innerWidth - 40) / 110)).toFixed(2)); }
+addEventListener('resize', fit); fit(); drawAll();
+status($('#B'), 'Fresh ground: 1 move, 8 energy.');
+})();
+</script>
+</body>
+</html>

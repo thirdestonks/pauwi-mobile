@@ -1,0 +1,60 @@
+const {chromium} = require('C:/Users/Thirde/AppData/Local/npm-cache/_npx/e41f203b7505f1fb/node_modules/playwright-core');
+const {pathToFileURL} = require('node:url');
+const path = require('node:path');
+(async () => {
+  const browser = await chromium.launch({channel:'chrome',headless:true});
+  try {
+    const page = await browser.newPage({viewport:{width:1100,height:960}});
+    const errors = [];
+    page.on('pageerror',error => errors.push(error.message));
+    page.on('console',message => {if(message.type() === 'error') errors.push(message.text());});
+    await page.goto(pathToFileURL(path.join(__dirname,'index.html')).href);
+    await page.waitForFunction(() => window.juanPreview?.ready);
+    await page.waitForTimeout(200);
+    if(await page.evaluate(() => images.idle.length !== 20 || images.move.length !== 20)) throw new Error('Missing frames.');
+    if(!await page.evaluate(() => images.original[0]?.naturalWidth === 60)) throw new Error('Original map Juan did not load.');
+    await page.locator('#originalJuan').click();
+    await page.waitForFunction(() => window.juanPreview.useOriginal);
+    const originalMap = await page.locator('#map').evaluate(canvas => canvas.toDataURL());
+    await page.locator('#newJuan').click();
+    await page.waitForFunction(() => !window.juanPreview.useOriginal);
+    await page.waitForTimeout(80);
+    if(originalMap === await page.locator('#map').evaluate(canvas => canvas.toDataURL())) throw new Error('Map sprite toggle did not change the canvas.');
+    const first = await page.locator('#detail').evaluate(canvas => canvas.toDataURL());
+    await page.waitForTimeout(250);
+    if(first === await page.locator('#detail').evaluate(canvas => canvas.toDataURL())) throw new Error('Idle animation did not advance.');
+    const box = await page.locator('#map').boundingBox();
+    await page.mouse.click(box.x+55/110*box.width,box.y+146/225*box.height);
+    await page.waitForFunction(() => window.juanPreview.renderer.walking() && window.juanPreview.mode === 'move');
+    await page.waitForFunction(() => window.juanPreview.state.jr === 1 && window.juanPreview.mode === 'idle');
+    await page.evaluate(() => window.juanPreview.moveTo(0,3));
+    if(await page.evaluate(() => window.juanPreview.state.jr) !== 1) throw new Error('Accepted non-neighbour movement.');
+    await page.locator('#reset').click();
+    await page.evaluate(() => window.juanPreview.moveTo(0,-1));
+    if(await page.evaluate(() => window.juanPreview.renderer.walking())) throw new Error('Walked into a building.');
+    await page.locator('#move').click();
+    await page.waitForFunction(() => window.juanPreview.mode === 'move');
+    await page.locator('#idle').click();
+    await page.waitForFunction(() => window.juanPreview.mode === 'idle');
+    for(const angle of [-135,-90,-45,180,0,135,90,45]) {
+      await page.locator('[data-angle="'+angle+'"]').click();
+      if(Math.abs(await page.evaluate(() => window.juanPreview.angle)-angle*Math.PI/180)>0.001) throw new Error('Direction failed.');
+    }
+    await page.locator('#tour').click();
+    await page.waitForFunction(() => window.juanPreview.steps >= 3,{},{timeout:15000});
+    await page.locator('#tour').click();
+    await page.waitForFunction(() => !window.juanPreview.renderer.walking());
+    await page.locator('#night').click();
+    if(!await page.evaluate(() => window.juanPreview.state.night)) throw new Error('Night toggle failed.');
+    await page.screenshot({path:path.join(__dirname,'night.png'),fullPage:true});
+    await page.locator('#day').click();
+    await page.locator('#reset').click();
+    await page.locator('[data-angle="45"]').click();
+    await page.screenshot({path:path.join(__dirname,'day.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:path.join(__dirname,'mobile.png'),fullPage:true});
+    if(await page.evaluate(() => document.documentElement.scrollWidth>innerWidth)) throw new Error('Mobile overflow.');
+    if(errors.length) throw new Error(errors.join('\n'));
+    console.log('PASS: 40 embedded frames, idle animation, map clicks, move-to-idle transition, neighbour/building restrictions, rotation, auto walk, day/night, reset, mobile layout; no browser errors.');
+  } finally {await browser.close();}
+})().catch(error => {console.error(error);process.exit(1);});

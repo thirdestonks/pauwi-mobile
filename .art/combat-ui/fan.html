@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Thumb fan, refined</title>
+<style>
+:root{--sodium:#f0a63c;--red:#d94b3b;--green:#5aa17a;--teal:#2e86ab;--bone:#ece4d5;--muted:#828b90;--s:3.2;--mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{padding:16px}
+header{max-width:980px;margin:0 auto 14px}
+h1{margin:0;font:400 30px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 10px;color:#b9c3c8;font:13px/1.5 var(--mono)}
+.tog{display:flex;gap:6px;flex-wrap:wrap}
+.tog button{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:6px 10px;font:700 12px var(--mono);letter-spacing:.06em;cursor:pointer}
+.tog button[aria-pressed=true]{border-color:var(--sodium);color:var(--sodium)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{width:calc(110px * var(--s));flex:none}
+.col h2{margin:0 0 2px;font:400 22px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.col .sub{margin:0 0 8px;color:var(--muted);font:12px/1.4 var(--mono)}
+.notes{width:320px;font:12px/1.55 var(--mono);color:#b9c3c8}
+.notes h3{margin:0 0 6px;font:400 20px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.notes ol{margin:0;padding-left:18px}.notes li{margin:0 0 6px}.notes b{color:var(--bone)}
+.scr{position:relative;width:calc(110px * var(--s));height:calc(225px * var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.scr>.bg{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.abs{position:absolute}
+.px{image-rendering:pixelated}
+[hidden]{display:none!important}
+button{font-family:var(--mono)}
+/* g(n) = n game pixels */
+.turn{left:calc(3px*var(--s));top:calc(3px*var(--s));padding:calc(1.4px*var(--s)) calc(2px*var(--s));font:700 calc(3.2px*var(--s))/1 var(--mono);letter-spacing:.16em;background:#080a0bb8;border:1px solid #2b2f31;color:var(--sodium)}
+.turn.enemy{color:var(--red)}
+.hud{right:calc(3px*var(--s));top:calc(3px*var(--s));width:42%;display:flex;flex-direction:column;gap:calc(1.2px*var(--s));font:700 calc(2.6px*var(--s))/1 var(--mono);letter-spacing:.1em}
+.hud div{display:flex;align-items:center;gap:calc(1.5px*var(--s))}
+.hud span{width:calc(11px*var(--s));color:#828b90}
+.bar{flex:1;height:calc(1.8px*var(--s));background:#0b0d0e;border:1px solid #3b3f41;display:block;position:relative;overflow:hidden}
+.bar b{position:absolute;inset:0;transform-origin:left;transition:transform .25s steps(4)}
+.log{left:calc(3px*var(--s));right:calc(3px*var(--s));top:calc(15px*var(--s));margin:0;font:calc(3.2px*var(--s))/1.35 var(--mono);color:var(--bone);text-shadow:1px 1px 0 #000}
+.floater{transform:translate(-50%,-100%);font:800 calc(5px*var(--s))/1 var(--mono);color:#ff8a6a;text-shadow:2px 2px 0 #000;pointer-events:none;animation:fl .8s ease-out forwards;white-space:nowrap;z-index:9}
+.floater.heal{color:#7ee0a0}.floater.miss{color:#c9d1d5}
+@keyframes fl{from{opacity:1;margin-top:0}to{opacity:0;margin-top:calc(-7px*var(--s))}}
+.hit{animation:hit .25s steps(2) 2}
+@keyframes hit{50%{filter:brightness(2.2) sepia(1) hue-rotate(-30deg)}}
+.toast{left:8%;right:8%;top:44%;text-align:center;font:700 calc(3.4px*var(--s)) var(--mono);padding:calc(2px*var(--s));background:#0e1214ee;border:1px solid #3a4851;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30}
+.toast.on{opacity:1}
+
+/* ---------- first draft (unchanged from the comparison page) ---------- */
+.d-fan{right:calc(3px*var(--s));bottom:calc(3px*var(--s));width:calc(58px*var(--s));height:calc(58px*var(--s))}
+.d-atk{position:absolute;right:0;bottom:0;width:calc(30px*var(--s));height:calc(30px*var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#f6b85a,#d98a22);border:calc(1px*var(--s)) solid #000;color:#1c1408;border-radius:50%}
+.d-atk img{height:calc(13px*var(--s));transform:rotate(-20deg)}.d-atk b{font:400 calc(4.6px*var(--s))/1 var(--disp)}.d-atk small{font:700 calc(2.6px*var(--s)) var(--mono);color:#5a3d12}
+.d-sm{position:absolute;width:calc(13px*var(--s));height:calc(13px*var(--s));display:flex;align-items:center;justify-content:center;background:#0c1418e8;border:calc(.7px*var(--s)) solid #000;box-shadow:inset 0 0 0 calc(.6px*var(--s)) #4a3a26;border-radius:50%}
+.d-sm canvas{width:calc(7px*var(--s));height:calc(7px*var(--s));image-rendering:pixelated}
+.d-sm small{position:absolute;bottom:calc(-3.4px*var(--s));left:50%;transform:translateX(-50%);font:700 calc(2.4px*var(--s)) var(--mono);color:#e6d2ad;white-space:nowrap}
+
+/* ---------- refined ---------- */
+.fan{right:calc(2px*var(--s));bottom:calc(2px*var(--s));width:calc(64px*var(--s));height:calc(64px*var(--s));transition:opacity .2s}
+.lefty .fan{right:auto;left:calc(2px*var(--s))}
+.fan.wait{opacity:.45;pointer-events:none}
+/* the big one: a hard-edged octagon, outline then fill then a darker lip, like the game's pixel UI */
+.oct{clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
+.atk{position:absolute;right:0;bottom:0;width:calc(34px*var(--s));height:calc(34px*var(--s));padding:0;border:0;background:#000;cursor:pointer}
+.lefty .atk{right:auto;left:0}
+.atk .in{position:absolute;inset:calc(1px*var(--s));background:var(--sodium);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(.6px*var(--s))}
+.atk .in::after{content:'';position:absolute;left:0;right:0;bottom:0;height:calc(4px*var(--s));background:#c9821f;z-index:0}
+.atk img{position:relative;z-index:1;height:calc(15px*var(--s));transform:rotate(-24deg);filter:drop-shadow(calc(.7px*var(--s)) calc(.7px*var(--s)) 0 #0007)}
+.atk b{position:relative;z-index:1;font:400 calc(5.4px*var(--s))/1 var(--disp);letter-spacing:.06em;color:#1c1408}
+.atk .dmg{position:relative;z-index:1;font:700 calc(2.8px*var(--s))/1 var(--mono);color:#1c1408;letter-spacing:.06em}
+.atk .wear{position:absolute;z-index:2;left:50%;bottom:calc(1.6px*var(--s));transform:translateX(-50%);display:flex;gap:calc(.4px*var(--s))}
+.atk .wear i{width:calc(1.4px*var(--s));height:calc(1.4px*var(--s));background:#1c1408}
+.atk .wear i.off{background:#1c140840}
+.atk:active .in{transform:translateY(calc(.8px*var(--s)))}
+.atk.crack .in{background:#e0584a}.atk.crack .in::after{background:#9c2f24}.atk.crack{animation:sh .45s steps(2) infinite}
+@keyframes sh{50%{transform:translateX(calc(.6px*var(--s)))}}
+.atk.pulse::before{content:'';position:absolute;inset:0;background:#fff;opacity:0;animation:pl 1.6s ease-in-out infinite;z-index:3;pointer-events:none}
+@keyframes pl{50%{opacity:.14}}
+/* the four small tiles */
+.tile{position:absolute;width:calc(16px*var(--s));height:calc(16px*var(--s));padding:0;border:0;background:#000;cursor:pointer}
+.tile .in{position:absolute;inset:calc(1px*var(--s));display:flex;align-items:center;justify-content:center;background:#141c22;box-shadow:inset 0 0 0 calc(1px*var(--s)) var(--c)}
+.tile .in::after{content:'';position:absolute;left:calc(1px*var(--s));right:calc(1px*var(--s));bottom:calc(1px*var(--s));height:calc(2px*var(--s));background:#0007}
+.tile canvas{width:calc(9px*var(--s));height:calc(9px*var(--s));image-rendering:pixelated;position:relative;z-index:1}
+.tile .badge{position:absolute;right:calc(-1px*var(--s));top:calc(-1px*var(--s));z-index:2;min-width:calc(5px*var(--s));height:calc(5px*var(--s));padding:0 calc(.6px*var(--s));background:#000;color:var(--c);font:700 calc(3px*var(--s))/calc(5px*var(--s)) var(--mono);text-align:center}
+.tile .lab{position:absolute;left:50%;top:calc(15.5px*var(--s));transform:translateX(-50%);z-index:2;padding:0 calc(.8px*var(--s));background:#000c;color:var(--c);font:700 calc(2.5px*var(--s))/calc(3.6px*var(--s)) var(--mono);letter-spacing:.08em;white-space:nowrap}
+.tile:active .in{transform:translateY(calc(.6px*var(--s)))}
+.tile.on .in{background:#22303a;box-shadow:inset 0 0 0 calc(1px*var(--s)) #fff,inset 0 0 0 calc(2px*var(--s)) var(--c)}
+.tile:disabled{cursor:default}.tile:disabled .in{filter:grayscale(1) brightness(.5)}
+.fan.belted .tile:not(.on){opacity:.25}
+/* the belt: along the bottom edge, beside the fan, never over the zombie */
+.belt{bottom:calc(2px*var(--s));left:calc(2px*var(--s));right:calc(61px*var(--s));height:calc(26px*var(--s));display:flex;gap:calc(1px*var(--s));padding:calc(1px*var(--s));background:#000;z-index:12;animation:bin .16s steps(3)}
+.lefty .belt{left:calc(61px*var(--s));right:calc(2px*var(--s))}
+@keyframes bin{from{transform:translateY(calc(8px*var(--s)));opacity:0}}
+.belt .cards{flex:1;display:flex;gap:calc(1px*var(--s));overflow-x:auto;scrollbar-width:none}
+.belt button.card{flex:0 0 calc(14px*var(--s));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(.6px*var(--s));padding:calc(1px*var(--s)) 0;background:#141c22;border:0;box-shadow:inset 0 0 0 calc(.6px*var(--s)) var(--c);color:var(--bone);font:700 calc(2.3px*var(--s))/1.15 var(--mono);cursor:pointer;position:relative}
+.belt img{height:calc(8px*var(--s));image-rendering:pixelated}
+.belt em{font-style:normal;color:var(--c)}
+.belt .q{position:absolute;right:calc(.8px*var(--s));top:calc(.6px*var(--s));color:#f6ecd8;font-size:calc(2.4px*var(--s))}
+.belt .x{flex:0 0 calc(8px*var(--s));background:#141c22;border:0;color:var(--muted);font:700 calc(4px*var(--s)) var(--mono);cursor:pointer}
+.belt .none{align-self:center;padding:0 calc(2px*var(--s));color:var(--muted);font:calc(2.8px*var(--s)) var(--mono)}
+/* targets on the street */
+.tgt{position:absolute;background:none;border:0;padding:0;cursor:pointer}
+.tgt::before,.tgt::after{content:'';position:absolute;width:calc(3px*var(--s));height:calc(3px*var(--s));border:calc(.8px*var(--s)) solid #f0a63c00}
+.tgt::before{left:calc(-1px*var(--s));top:calc(-1px*var(--s));border-right:0;border-bottom:0}
+.tgt::after{right:calc(-1px*var(--s));bottom:calc(-1px*var(--s));border-left:0;border-top:0}
+.tgt.sel::before,.tgt.sel::after{border-color:#f0a63c}
+.tgt .rw{position:absolute;left:50%;bottom:calc(-4.5px*var(--s));transform:translateX(-50%);font:700 calc(2.3px*var(--s))/1 var(--mono);color:#ffd08a;text-shadow:1px 1px 0 #000;white-space:nowrap;opacity:0}
+.tgt.sel .rw{opacity:1}
+.tip{z-index:40;padding:calc(1.5px*var(--s)) calc(2.5px*var(--s));background:#0c1418f6;border:calc(.6px*var(--s)) solid #526169;color:var(--bone);font:calc(3px*var(--s))/1.35 var(--mono);width:calc(52px*var(--s));pointer-events:none}
+.tip b{color:var(--sodium)}
+.guardtag{left:50%;top:calc(100px*var(--s));transform:translateX(-50%);font:700 calc(3.2px*var(--s)) var(--mono);color:#9fd6ee;text-shadow:1px 1px 0 #000;letter-spacing:.15em;pointer-events:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Thumb fan, refined</h1>
+  <p>Left: the first draft. Right: the refined fan. The fight underneath is a stand-in that plays a pretend turn so the states show. <b>Long-press</b> any button on the right to see what it does.</p>
+  <div class="tog">
+    <button id="tStreet" aria-pressed="true">STREET · 2</button><button id="tRoom" aria-pressed="false">INSIDE A HOUSE</button>
+    <button id="tWpn" aria-pressed="false">WEAPON: BAT</button>
+    <button id="tCrack" aria-pressed="false">CRACKING</button>
+    <button id="tLeft" aria-pressed="false">LEFT-HANDED</button>
+  </div>
+</header>
+
+<div class="row">
+  <section class="col">
+    <h2>First draft</h2>
+    <p class="sub">As it was.</p>
+    <div class="scr" id="D"></div>
+  </section>
+  <section class="col">
+    <h2>Refined</h2>
+    <p class="sub">Same idea, sharpened.</p>
+    <div class="scr" id="R"></div>
+  </section>
+  <aside class="notes">
+    <h3>What changed</h3>
+    <ol>
+      <li><b>Pixel, not gradient.</b> Hard-edged octagon and tiles with a black outline and a darker lip, like the rest of the pixel UI. Press = it sinks one pixel.</li>
+      <li><b>The verb follows the weapon:</b> SWING (bat, pipe), CHOP (itak), PUNCH (fists), SHOOT (9mm). Under it: the damage at the target's row, and the swings left as pips (rounds for the gun).</li>
+      <li><b>Bigger, readable tiles:</b> 16 px with a 9 px icon at the game's own scale, one colour per action (Guard teal, Item green, Swap amber, Run red), counts as corner badges, Run's odds on its plate.</li>
+      <li><b>Pick a target on the street:</b> tap a Shambler and the bracket moves; the damage on the button changes with its row (FAR hits for less). Inside a house there is one, already picked.</li>
+      <li><b>The belt sits on the bottom edge</b> beside the fan, never over the zombie. The other tiles dim while it is open; ✕ or the same tile closes it.</li>
+      <li><b>States you can see:</b> enemy turn dims the whole fan; Guard stays lit while raised; a weapon at 2 swings or less turns the button red and shakes (CRACKING); Attack breathes softly on your turn.</li>
+      <li><b>Long-press = explain.</b> Hold any button for a one-line description, so the icons can stay icon-only.</li>
+      <li><b>Left-handed</b> mirrors the fan to the left thumb (a setting in the game).</li>
+    </ol>
+  </aside>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let scene = 'street', wpn = 0, crack = false, lefty = false, sel = 'z1', turn = 'player', guarding = false;
+const SC = {
+  street: { bg: 'cap-street.png', z: [{ id: 'z1', x: 38, y: 133, w: 13, h: 30, row: 'FAR', m: .3 }, { id: 'z2', x: 57, y: 133, w: 13, h: 30, row: 'MID', m: .6 }], run: 35 },
+  room: { bg: 'cap-room.png', z: [{ id: 'z1', x: 36, y: 100, w: 37, h: 100, row: 'CLOSE', m: 1 }], run: 35 },
+};
+const WPNS = [
+  { img: 'w-makeshift.png', name: 'Makeshift bat', verb: 'SWING', dmg: [2, 3], dur: 12 },
+  { img: 'w-itak.png', name: 'Itak', verb: 'CHOP', dmg: [3, 3], dur: 8 },
+  { img: 'w-pipe.png', name: 'Lead pipe', verb: 'SWING', dmg: [2, 3], dur: 20 },
+  { img: 'w-fist.png', name: 'Fists', verb: 'PUNCH', dmg: [1, 1], dur: Infinity },
+];
+const ITEMS = [['bandage.png', 'Bandage', '+12', 2], ['noodles.png', 'Noodles', '+10', 1], ['water.png', 'Water', '+4', 1]];
+const C = { guard: '#7cc4e6', item: '#7fd08f', swap: '#f0a63c', run: '#ff8a7a' };
+const TIP = { attack: 'Hit the bracketed Shambler. Damage drops with distance: CLOSE full, MID ×0.6, FAR ×0.3.', guard: 'Raise the weapon: the next bite does half.', item: 'Use something from the bag. Costs the turn.', swap: 'Change weapon. Costs the turn.', run: 'Try to break away. Better when nothing is CLOSE.' };
+const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+// 9x9 icons, drawn at the game's own scale
+const ICON = {
+  guard(c, k) { const o = '#000'; rect(c, 1, 0, 7, 1, o); rect(c, 0, 1, 9, 4, o); rect(c, 1, 5, 7, 1, o); rect(c, 2, 6, 5, 1, o); rect(c, 3, 7, 3, 1, o); rect(c, 4, 8, 1, 1, o);
+    rect(c, 1, 1, 7, 4, k); rect(c, 2, 5, 5, 1, k); rect(c, 3, 6, 3, 1, k); rect(c, 4, 7, 1, 1, k); rect(c, 4, 1, 1, 6, '#2e6a86'); rect(c, 1, 1, 3, 1, '#d6f0ff'); },
+  item(c, k) { rect(c, 1, 1, 7, 7, '#000'); rect(c, 2, 2, 5, 5, '#ece4d5'); rect(c, 4, 2, 1, 5, '#d94b3b'); rect(c, 2, 4, 5, 1, '#d94b3b'); rect(c, 2, 2, 1, 1, '#fff'); },
+  swap(c, k) { rect(c, 0, 1, 7, 2, '#000'); rect(c, 0, 1, 6, 1, k); rect(c, 5, 0, 1, 4, k); rect(c, 6, 1, 1, 2, k); rect(c, 2, 6, 7, 2, '#000'); rect(c, 3, 6, 6, 1, k); rect(c, 3, 5, 1, 4, k); rect(c, 2, 6, 1, 2, k); },
+  run(c, k) { rect(c, 0, 3, 6, 3, '#000'); rect(c, 0, 4, 6, 1, k); rect(c, 5, 1, 2, 7, '#000'); rect(c, 5, 2, 1, 5, k); rect(c, 6, 3, 1, 3, k); rect(c, 7, 4, 1, 1, k); rect(c, 7, 3, 1, 3, '#000'); },
+};
+const W = () => WPNS[wpn], Z = () => SC[scene].z.find(z => z.id === sel) || SC[scene].z[0];
+function dmgText() { const z = Z(), [lo, hi] = W().dmg.map(d => Math.max(1, Math.round(d * z.m))); return (scene === 'street' ? z.row + ' · ' : '') + (lo === hi ? lo : lo + '–' + hi); }
+const swingsLeft = () => (crack ? 2 : W().dur);
+
+function hud(scr) {
+  return '<div class="abs turn" data-turn>PLAYER TURN</div><div class="abs hud"><div><span>HP</span><i class="bar"><b style="transform:scaleX(.72);background:#d94b3b"></b></i></div><div><span>DREAD</span><i class="bar"><b style="transform:scaleX(.12);background:#8a5cc2"></b></i></div><div style="justify-content:flex-end;color:#f0a63c" data-wl></div></div><p class="abs log" data-log>' + (scene === 'room' ? 'A Shambler is already in front of you, right at the edge of your light.' : 'Two of them, shuffling out of the fog.') + '</p>';
+}
+function floater(scr, x, y, txt, cls) { const f = document.createElement('div'); f.className = 'abs floater ' + (cls || ''); f.textContent = txt; f.style.left = 'calc(' + x + 'px*var(--s))'; f.style.top = 'calc(' + y + 'px*var(--s))'; scr.appendChild(f); setTimeout(() => f.remove(), 800); }
+function toast(scr, m) { let t = $('.toast', scr); if (!t) { t = document.createElement('div'); t.className = 'abs toast'; scr.appendChild(t); } t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1500); }
+
+/* ---------- first draft ---------- */
+function buildD() {
+  const D = $('#D'), sc = SC[scene];
+  D.innerHTML = '<img class="bg px" src="' + sc.bg + '" alt="">' + hud(D) +
+    '<div class="abs d-fan"><div class="d-atk"><img class="px" src="w-makeshift.png" alt=""><b>ATTACK</b><small>1–2 DMG</small></div>' +
+    [['guard', 'GUARD', 6.5, 36.5], ['item', 'ITEM · 3', 10.5, 21.5], ['swap', 'SWAP · 3', 21.5, 10.5], ['run', 'RUN 35%', 36.5, 6.5]]
+      .map(([k, l, x, y]) => '<div class="d-sm" style="left:calc(' + x + 'px*var(--s));top:calc(' + y + 'px*var(--s))"><canvas width="9" height="9" data-dic="' + k + '"></canvas><small>' + l + '</small></div>').join('') + '</div>';
+  $('[data-wl]', D).textContent = 'Makeshift Bat · 12';
+  for (const cv of $$('[data-dic]', D)) ICON[cv.dataset.dic](cv.getContext('2d'), C[cv.dataset.dic]);
+}
+
+/* ---------- refined ---------- */
+function buildR() {
+  const R = $('#R'), sc = SC[scene];
+  R.classList.toggle('lefty', lefty);
+  if (!sc.z.find(z => z.id === sel)) sel = sc.z[0].id;
+  // arc of tiles around the attack button's centre (game px inside the 64x64 fan box)
+  const cx = 47, cy = 47, rad = 33, ang = [180, 207, 243, 270];
+  const pos = ang.map(a => { const r = a * Math.PI / 180; let x = cx + Math.cos(r) * rad - 8, y = cy + Math.sin(r) * rad - 8; if (lefty) x = 64 - 16 - x; return [x, y]; });
+  const w = W(), sl = swingsLeft(), pips = Number.isFinite(sl) ? Math.min(8, sl) : 0;
+  R.innerHTML = '<img class="bg px" src="' + sc.bg + '" alt="">' + hud(R) +
+    (scene === 'street' ? sc.z.map(z => '<button class="tgt' + (z.id === sel ? ' sel' : '') + '" data-z="' + z.id + '" aria-label="Target this Shambler" style="left:calc(' + z.x + 'px*var(--s));top:calc(' + z.y + 'px*var(--s));width:calc(' + z.w + 'px*var(--s));height:calc(' + z.h + 'px*var(--s))"><span class="rw">' + z.row + '</span></button>').join('') : '') +
+    (guarding ? '<div class="abs guardtag">GUARDING</div>' : '') +
+    '<div class="abs fan' + (turn === 'enemy' ? ' wait' : '') + '">' +
+    '<button class="atk oct' + (crack ? ' crack' : '') + (turn === 'player' ? ' pulse' : '') + '" data-a="attack" aria-label="' + w.verb + '"><span class="in oct"><img class="px" src="' + w.img + '" alt=""><b>' + w.verb + '</b><span class="dmg">' + (crack ? 'CRACKING' : dmgText()) + '</span></span>' +
+    (pips ? '<span class="wear">' + Array.from({ length: Math.min(8, Math.max(pips, 1)) }, (_, i) => '<i class="' + (i < sl ? '' : 'off') + '"></i>').join('') + '</span>' : '') + '</button>' +
+    [['guard', 'GUARD', ''], ['item', 'ITEM', '3'], ['swap', 'SWAP', '3'], ['run', 'RUN ' + sc.run + '%', '']].map(([k, l, b], i) =>
+      '<button class="tile' + (k === 'guard' && guarding ? ' on' : '') + '" data-a="' + k + '" aria-label="' + l + '" style="--c:' + C[k] + ';left:calc(' + pos[i][0] + 'px*var(--s));top:calc(' + pos[i][1] + 'px*var(--s))"><span class="in"><canvas width="9" height="9" data-ic="' + k + '"></canvas></span>' + (b ? '<span class="badge">' + b + '</span>' : '') + '<span class="lab">' + l + '</span></button>').join('') +
+    '</div>';
+  $('[data-wl]', R).textContent = w.name + ' · ' + (Number.isFinite(sl) ? sl : '∞');
+  for (const cv of $$('[data-ic]', R)) ICON[cv.dataset.ic](cv.getContext('2d'), C[cv.dataset.ic]);
+}
+function closeBelt(R) { const b = $('.belt', R); if (b) b.remove(); $('.fan', R).classList.remove('belted'); for (const t of $$('.tile.on', R)) if (t.dataset.a !== 'guard' || !guarding) t.classList.remove('on'); }
+function openBelt(R, kind) {
+  closeBelt(R);
+  const tile = $('.tile[data-a=' + kind + ']', R); tile.classList.add('on'); $('.fan', R).classList.add('belted');
+  const c = C[kind];
+  const cards = kind === 'item'
+    ? ITEMS.map((it, i) => '<button class="card" data-use="' + i + '" style="--c:' + c + '"><span class="q">×' + it[3] + '</span><img src="' + it[0] + '" alt="">' + it[1] + '<em>' + it[2] + ' HP</em></button>').join('')
+    : WPNS.map((x, i) => i === wpn ? '' : '<button class="card" data-swap="' + i + '" style="--c:' + c + '"><img src="' + x.img + '" alt="">' + x.name.split(' ').pop() + '<em>' + x.dmg.join('–').replace(/^(\d)–\1$/, '$1') + ' dmg</em></button>').join('');
+  R.insertAdjacentHTML('beforeend', '<div class="abs belt"><button class="x" data-close aria-label="Close">✕</button><div class="cards">' + cards + '</div></div>');
+}
+function enemyTurn(R) {
+  turn = 'enemy'; buildR(); const t = $('[data-turn]', R); t.textContent = 'ENEMY TURN'; t.classList.add('enemy');
+  setTimeout(() => {
+    floater(R, 55, 175, guarding ? '−4' : '−8'); $('[data-log]', R).textContent = guarding ? 'It bites into your raised arm. Half of it.' : 'It lunges and bites. −8.';
+    guarding = false; turn = 'player'; buildR();
+  }, 900);
+}
+const R = $('#R');
+R.addEventListener('click', e => {
+  if (R._lp) { R._lp = false; return; }                                     // a long-press already showed its tip
+  if (turn !== 'player') return;
+  const z = e.target.closest('[data-z]'); if (z) { sel = z.dataset.z; buildR(); return; }
+  if (e.target.closest('[data-close]')) return closeBelt(R);
+  const use = e.target.closest('[data-use]'), sw = e.target.closest('[data-swap]');
+  if (use) { const it = ITEMS[use.dataset.use]; closeBelt(R); floater(R, 55, 178, it[2], 'heal'); $('[data-log]', R).textContent = 'You use the ' + it[1].toLowerCase() + '.'; return enemyTurn(R); }
+  if (sw) { wpn = +sw.dataset.swap; syncWpn(); closeBelt(R); $('[data-log]', R).textContent = 'You switch to the ' + W().name.toLowerCase() + '.'; return enemyTurn(R); }
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const a = b.dataset.a;
+  if (a === 'item' || a === 'swap') { if (b.classList.contains('on')) closeBelt(R); else openBelt(R, a); return; }
+  closeBelt(R);
+  if (a === 'attack') { const bg = $('.bg', R); bg.classList.remove('hit'); void bg.offsetWidth; bg.classList.add('hit'); const zz = Z(); floater(R, zz.x + zz.w / 2, zz.y, '−' + dmgText().split(' · ').pop().split('–')[0]); $('[data-log]', R).textContent = 'You ' + W().verb.toLowerCase() + ' at it.'; return enemyTurn(R); }
+  if (a === 'guard') { guarding = true; $('[data-log]', R).textContent = 'You raise the weapon and brace.'; return enemyTurn(R); }
+  if (a === 'run') { if (Math.random() < .35) toast(R, 'You break away. Got away.'); else { $('[data-log]', R).textContent = 'You turn to run, and they cut you off.'; enemyTurn(R); } }
+});
+// long-press: explain the button
+let lpT = null;
+R.addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  clearTimeout(lpT);
+  lpT = setTimeout(() => {
+    R._lp = true; for (const t of $$('.tip', R)) t.remove();
+    const r = b.getBoundingClientRect(), sr = R.getBoundingClientRect(), s = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--s'));
+    const tip = document.createElement('div'); tip.className = 'abs tip'; tip.innerHTML = '<b>' + (b.getAttribute('aria-label') || '').toUpperCase() + '</b> · ' + TIP[b.dataset.a];
+    tip.style.left = Math.max(4, Math.min(sr.width - 52 * s - 4, r.left - sr.left - 30 * s)) + 'px'; tip.style.top = (r.top - sr.top - 20 * s) + 'px';
+    R.appendChild(tip); setTimeout(() => tip.remove(), 2200);
+  }, 420);
+});
+for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) R.addEventListener(ev, () => clearTimeout(lpT));
+R.addEventListener('contextmenu', e => e.preventDefault());
+
+function syncWpn() { $('#tWpn').textContent = 'WEAPON: ' + W().name.split(' ').pop().toUpperCase(); }
+function build() { buildD(); buildR(); }
+const press = (id, on) => $(id).setAttribute('aria-pressed', String(on));
+$('#tStreet').onclick = () => { scene = 'street'; press('#tStreet', true); press('#tRoom', false); build(); };
+$('#tRoom').onclick = () => { scene = 'room'; press('#tRoom', true); press('#tStreet', false); build(); };
+$('#tWpn').onclick = () => { wpn = (wpn + 1) % WPNS.length; syncWpn(); buildR(); };
+$('#tCrack').onclick = () => { crack = !crack; press('#tCrack', crack); buildR(); };
+$('#tLeft').onclick = () => { lefty = !lefty; press('#tLeft', lefty); buildR(); };
+function fit() { document.documentElement.style.setProperty('--s', Math.max(2, Math.min(3.4, (innerHeight - 150) / 225, (innerWidth - 40) / 110)).toFixed(2)); }
+addEventListener('resize', fit); fit(); build();
+})();
+</script>
+</body>
+</html>

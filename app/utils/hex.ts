@@ -41,22 +41,3 @@ export function hexesInRange(center: AxialCoord, radius: number): AxialCoord[] {
   return results
 }
 
-// Flat-top hex layout (flat edge at top/bottom, points on the left/right) — matches
-// the tile art style, which comes out flat-top from image generation.
-export function axialToPixel(coord: AxialCoord, size: number): { x: number; y: number } {
-  const x = size * (1.5 * coord.q)
-  const y = size * ((Math.sqrt(3) / 2) * coord.q + Math.sqrt(3) * coord.r)
-  return { x, y }
-}
-
-export function hexCorners(center: { x: number; y: number }, size: number): string {
-  const points: string[] = []
-  for (let i = 0; i < 6; i++) {
-    const angleDeg = 60 * i
-    const angleRad = (Math.PI / 180) * angleDeg
-    const x = center.x + size * Math.cos(angleRad)
-    const y = center.y + size * Math.sin(angleRad)
-    points.push(`${x.toFixed(2)},${y.toFixed(2)}`)
-  }
-  return points.join(' ')
-}

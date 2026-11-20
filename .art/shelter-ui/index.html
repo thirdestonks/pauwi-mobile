@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Shelter screen concepts</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--dread:#b78be6;--s:3;--mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{padding:16px}
+header{max-width:900px;margin:0 auto 14px}
+h1{margin:0;font:400 30px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 10px;color:#b9c3c8;font:13px/1.5 var(--mono)}
+.tog{display:flex;gap:6px;flex-wrap:wrap}
+.tog button{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:6px 10px;font:700 12px var(--mono);letter-spacing:.06em;cursor:pointer}
+.tog button[aria-pressed=true]{border-color:var(--sodium);color:var(--sodium)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.col{width:calc(110px * var(--s));flex:none}
+.col h2{margin:0 0 2px;font:400 22px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.col .sub{margin:0 0 8px;color:var(--muted);font:12px/1.4 var(--mono)}
+.col ul{margin:10px 0 0;padding-left:16px;font:12px/1.5 var(--mono);color:#b9c3c8}
+.col li b{color:var(--bone)}
+.scr{position:relative;width:calc(110px * var(--s));height:calc(225px * var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none}
+.abs{position:absolute}
+.u{--k:calc(1px*var(--s))}
+.px{image-rendering:pixelated}
+[hidden]{display:none!important}
+.toast{left:8%;right:8%;top:40%;text-align:center;font:700 calc(3.6px*var(--s)) var(--mono);padding:calc(2px*var(--s));background:#0e1214ee;border:1px solid #3a4851;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40}
+.toast.on{opacity:1}
+
+/* ================= 1 · signage ================= */
+.s1 .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%}
+.s1 .shade{position:absolute;inset:0;background:linear-gradient(#0000 35%,#0e1214d0 72%,#0e1214 100%)}
+.s1.night .bg{filter:brightness(.62) saturate(.85) hue-rotate(-8deg)}
+.sign{left:calc(3px*var(--s));top:calc(4px*var(--s));max-width:64%;padding:calc(2.5px*var(--s)) calc(3.5px*var(--s)) calc(2px*var(--s));background:linear-gradient(180deg,#c23a2c,#a82e22);border:calc(.7px*var(--s)) solid #7c2018;box-shadow:0 calc(1.3px*var(--s)) 0 #0007;transform:rotate(-1.5deg)}
+.sign::before{content:'';position:absolute;top:0;left:0;right:0;height:calc(1.3px*var(--s));background:repeating-linear-gradient(90deg,#f2c230 0 calc(3px*var(--s)),#7c2018 calc(3px*var(--s)) calc(6px*var(--s)))}
+.sign b{display:block;margin-top:calc(.8px*var(--s));font:400 calc(7px*var(--s))/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:#fff5e0;text-shadow:calc(.6px*var(--s)) calc(.6px*var(--s)) 0 #0006}
+.sign span{display:block;margin-top:calc(.8px*var(--s));font:calc(2.6px*var(--s)) var(--mono);letter-spacing:.15em;color:#ffe9c4}
+.chip{right:calc(3px*var(--s));top:calc(4px*var(--s));padding:calc(1.2px*var(--s)) calc(2.5px*var(--s));background:#0e1214db;border:1px solid #2a3338;font:700 calc(3.3px*var(--s)) var(--mono);letter-spacing:.15em;color:var(--sodium)}
+.gear{right:calc(3px*var(--s));top:calc(12px*var(--s));width:calc(9px*var(--s));height:calc(9px*var(--s));background:#0e1214cc;border:1px solid #2a3338;color:var(--muted);font:calc(5px*var(--s)) var(--mono);cursor:pointer}
+.board{right:calc(3px*var(--s));top:calc(36px*var(--s));width:calc(40px*var(--s));padding:calc(2.5px*var(--s));background:#203226;border:calc(1.5px*var(--s)) solid #6b4a2b;box-shadow:calc(.8px*var(--s)) calc(.8px*var(--s)) 0 #0008;font-family:'Segoe Print','Bradley Hand','Comic Sans MS',cursive;color:#e8efe6;transform:rotate(1.5deg)}
+.board h4{margin:0 0 calc(1px*var(--s));font:400 calc(3.4px*var(--s))/1 var(--disp);letter-spacing:.12em;color:#f2e6c4;text-align:center}
+.board .m{display:flex;justify-content:space-between;font-size:calc(3.3px*var(--s));line-height:1.35}
+.board .m i{display:block;height:calc(.8px*var(--s));margin:0 0 calc(.6px*var(--s));background:#e8efe666}
+.board .m i b{display:block;height:100%}
+.board .dr{margin-top:calc(1px*var(--s));font-size:calc(3px*var(--s));color:#d8b8ff}
+.route{left:calc(3px*var(--s));right:calc(3px*var(--s));bottom:calc(68px*var(--s));padding:calc(2px*var(--s)) calc(3px*var(--s));background:#0f1a1fd8;border:1px solid #234049;font:calc(3px*var(--s)) var(--mono);color:#8cc7dd;letter-spacing:.08em}
+.route .ln{display:flex;align-items:center;margin-top:calc(1.5px*var(--s))}
+.route .dot{width:calc(3px*var(--s));height:calc(3px*var(--s));border-radius:50%;border:calc(.6px*var(--s)) solid #8cc7dd;flex:none}
+.route .dot.on{background:#f0a63c;border-color:#f0a63c}
+.route .dot.end{border-radius:0;transform:rotate(45deg);background:#2e86ab}
+.route .seg{flex:1;height:calc(.6px*var(--s));background:repeating-linear-gradient(90deg,#8cc7dd 0 calc(1.2px*var(--s)),transparent calc(1.2px*var(--s)) calc(2.4px*var(--s)))}
+.note{left:calc(5px*var(--s));right:calc(5px*var(--s));bottom:calc(52px*var(--s));padding:calc(2px*var(--s)) calc(3px*var(--s));background:#efe4c8;color:#2a241c;font:calc(3.3px*var(--s))/1.4 var(--mono);transform:rotate(-.8deg);box-shadow:calc(.6px*var(--s)) calc(.6px*var(--s)) 0 #0006}
+.note::before{content:'';position:absolute;left:44%;top:calc(-1.5px*var(--s));width:calc(10px*var(--s));height:calc(3px*var(--s));background:#d9cfa8b0;transform:rotate(3deg)}
+.planks{left:calc(3px*var(--s));right:calc(3px*var(--s));bottom:calc(4px*var(--s));display:grid;grid-template-columns:1fr 1fr;gap:calc(2px*var(--s))}
+.plank{position:relative;padding:calc(3px*var(--s)) calc(3px*var(--s)) calc(2.5px*var(--s));text-align:left;background:linear-gradient(180deg,#7a5532,#5e3f24);border:calc(.7px*var(--s)) solid #2e1d10;box-shadow:0 calc(1px*var(--s)) 0 #0008;color:#f6ead2;cursor:pointer}
+.plank::before,.plank::after{content:'';position:absolute;top:calc(1px*var(--s));width:calc(1.2px*var(--s));height:calc(1.2px*var(--s));border-radius:50%;background:#2e1d10}
+.plank::before{left:calc(1.5px*var(--s))}.plank::after{right:calc(1.5px*var(--s))}
+.plank b{display:block;font:400 calc(7px*var(--s))/1 var(--disp);letter-spacing:.06em}
+.plank span{display:block;margin-top:calc(.8px*var(--s));font:calc(2.8px*var(--s)) var(--mono);color:#e6d2ad}
+.plank:disabled{filter:grayscale(.7) brightness(.6);cursor:default}
+.plank.go{grid-column:1/-1;background:linear-gradient(180deg,#f2b04a,#d9902a);border-color:#8a5a14;color:#1c1408}
+.plank.go span{color:#5a3d12}
+.plank.go b{font-size:calc(8.5px*var(--s))}
+
+/* ================= 2 · Juan's room ================= */
+.s2 .room{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.s2 .dark{position:absolute;inset:0;pointer-events:none;transition:opacity .4s;background:radial-gradient(circle at 63% 55%,#0000 0 14%,#000a 46%,#000e 100%)}
+.s2:not(.night) .dark{opacity:.35;background:linear-gradient(#ffd9a018,#0000 40%,#0006)}
+.hot{position:absolute;padding:0;background:none;border:0;cursor:pointer;outline:none}
+.hot::after{content:'';position:absolute;inset:0;border:calc(.7px*var(--s)) dashed #f0a63c00;transition:border-color .15s}
+.hot:hover::after,.hot.sel::after,.hot:focus-visible::after{border-color:#f0a63cd0}
+.glint{position:absolute;width:calc(1.4px*var(--s));height:calc(1.4px*var(--s));background:#f0a63c;animation:gl 1.4s ease-in-out infinite;pointer-events:none}
+@keyframes gl{0%,100%{opacity:.25}50%{opacity:1}}
+.watch{left:calc(2px*var(--s));top:calc(2px*var(--s));width:calc(38px*var(--s));height:calc(22px*var(--s))}
+.vit{left:calc(2px*var(--s));right:calc(2px*var(--s));bottom:calc(2px*var(--s));display:grid;grid-template-columns:repeat(4,1fr);gap:calc(1.5px*var(--s));padding:calc(1.5px*var(--s)) calc(2px*var(--s));background:#0c1418e0;border:calc(.6px*var(--s)) solid #000;box-shadow:inset 0 0 0 calc(.5px*var(--s)) #3a4851}
+.vit div{display:flex;align-items:center;gap:calc(1px*var(--s));font:700 calc(2.8px*var(--s)) var(--mono);color:#cfe8dc}
+.vit img{height:calc(5px*var(--s));image-rendering:pixelated}
+.vit i{flex:1;height:calc(1.4px*var(--s));background:#0b1013;border:calc(.3px*var(--s)) solid #526169;position:relative}
+.vit i b{position:absolute;left:0;top:0;bottom:0}
+.vit .dr{grid-column:1/-1;justify-content:center;color:var(--dread);font-size:calc(2.6px*var(--s))}
+.prompt{left:calc(3px*var(--s));right:calc(3px*var(--s));bottom:calc(18px*var(--s));padding:calc(3px*var(--s));background:#0c1418f2;border:calc(.7px*var(--s)) solid #526169;box-shadow:calc(.7px*var(--s)) calc(.7px*var(--s)) 0 #000;font:calc(3.3px*var(--s))/1.4 var(--mono);z-index:20}
+.prompt small{display:block;color:var(--muted);font-size:calc(2.6px*var(--s));letter-spacing:.1em;text-transform:uppercase}
+.prompt h3{margin:0 0 calc(1px*var(--s));font:400 calc(7px*var(--s))/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.prompt p{margin:0 0 calc(2.5px*var(--s));color:#c9c3b6}
+.prompt .acts{display:flex;gap:calc(1.5px*var(--s))}
+.prompt .acts button{flex:1;padding:calc(2px*var(--s));font:700 calc(3.3px*var(--s)) var(--mono);letter-spacing:.06em;text-transform:uppercase;background:#16212a;color:var(--bone);border:calc(.6px*var(--s)) solid #3a4851;cursor:pointer}
+.prompt .acts button.go{background:var(--sodium);color:#0e1214;border-color:var(--sodium)}
+.prompt .acts button:disabled{opacity:.4;cursor:default}
+.prompt .list{display:flex;flex-direction:column;gap:calc(1px*var(--s));margin-bottom:calc(2px*var(--s))}
+.prompt .list button{display:flex;justify-content:space-between;padding:calc(1.5px*var(--s)) calc(2px*var(--s));background:#16212a;color:var(--bone);border:calc(.5px*var(--s)) solid #3a4851;font:calc(3px*var(--s)) var(--mono);cursor:pointer}
+.prompt .list em{font-style:normal;color:var(--sodium)}
+.routemap{display:flex;align-items:center;margin:calc(2px*var(--s)) 0 calc(3px*var(--s))}
+.routemap .d{width:calc(3px*var(--s));height:calc(3px*var(--s));border:calc(.6px*var(--s)) solid #8cc7dd;flex:none}
+.routemap .d.on{background:#f0a63c;border-color:#f0a63c}
+.routemap .d.end{background:#2e86ab}
+.routemap .sg{flex:1;height:calc(.6px*var(--s));background:repeating-linear-gradient(90deg,#8cc7dd 0 calc(1.2px*var(--s)),transparent calc(1.2px*var(--s)) calc(2.4px*var(--s)))}
+.hint{left:calc(42px*var(--s));right:calc(2px*var(--s));top:calc(5px*var(--s));font:700 calc(2.8px*var(--s))/1.35 var(--mono);color:#f6ecd8;text-shadow:1px 1px 0 #000;text-align:right;transition:opacity .4s}
+</style>
+</head>
+<body>
+<header>
+  <h1>Shelter screen: two overhauls</h1>
+  <p>Today the shelter crops its painted room into a band and stacks cards under it, so you scroll. Both concepts fit on one screen with no scrolling, and the room <b>is</b> the screen. 1 keeps the flat sari-sari signage style the design rules ask for; 2 breaks that rule on purpose to match the map's B (Juan's kit). Everything below is clickable.</p>
+  <div class="tog" role="group" aria-label="Time">
+    <button id="tDay" aria-pressed="false">DAY</button><button id="tNight" aria-pressed="true">NIGHT</button>
+    <button id="tDread" aria-pressed="true">DREAD 12</button>
+  </div>
+</header>
+
+<div class="row">
+  <!-- ================= 1 ================= -->
+  <section class="col">
+    <h2>1 · Signage, rebuilt</h2>
+    <p class="sub">Flat sari-sari signage on the painted room. Everything painted, nothing pixel.</p>
+    <div class="scr s1 night" id="S1">
+      <img class="bg" src="painted-nida.jpg" alt="Inside Nida's Sari-Sari Store">
+      <div class="shade"></div>
+      <div class="abs sign"><b>Nida's Sari-Sari</b><span>HOME · MERCADO ST.</span></div>
+      <div class="abs chip" data-daychip>NIGHT 01</div>
+      <button class="abs gear" data-act="settings" aria-label="Settings and save">≡</button>
+      <div class="abs board" aria-label="Juan's meters">
+        <h4>TODAY</h4>
+        <div class="m"><span>Health</span><span>72</span></div><div class="m"><i><b style="width:72%;background:#ff9a8a"></b></i></div>
+        <div class="m"><span>Energy</span><span>40</span></div><div class="m"><i><b style="width:40%;background:#9fd6ee"></b></i></div>
+        <div class="m"><span>Food</span><span>55</span></div><div class="m"><i><b style="width:55%;background:#d5e88a"></b></i></div>
+        <div class="m"><span>Hope</span><span>60</span></div><div class="m"><i><b style="width:60%;background:#ffd08a"></b></i></div>
+        <div class="dr" data-dread>Dread 12 · −1 Hope tonight</div>
+      </div>
+      <div class="abs route" aria-label="The way out">
+        <div style="display:flex;justify-content:space-between"><span>THE WAY OUT</span><span>TUTUBAN · 43 TILES</span></div>
+        <div class="ln"><i class="dot on"></i><i class="seg"></i><i class="dot"></i><i class="seg"></i><i class="dot"></i><i class="seg"></i><i class="dot"></i><i class="seg"></i><i class="dot end"></i></div>
+      </div>
+      <div class="abs note" data-note>The door is shut. Eat something, then sleep.</div>
+      <div class="abs planks">
+        <button class="plank" data-act="eat"><b>EAT</b><span>3 kinds of food</span></button>
+        <button class="plank" data-act="sleep" data-sleep><b>SLEEP</b><span>−15 food · +30 energy</span></button>
+        <button class="plank go" data-act="out"><b>HEAD OUT →</b><span>pack the bag first · 5 moves</span></button>
+      </div>
+    </div>
+    <ul>
+      <li><b>Keeps the design rule:</b> Shelter stays flat signage, the "safe" screen that feels different from the pixel street.</li>
+      <li>Meters on a chalk price board, the route as a dotted strip, the status on a taped note, actions as hanging planks.</li>
+      <li>One screen, no scroll. Settings and save behind <b>≡</b>.</li>
+      <li>Still reads as menus over a picture.</li>
+    </ul>
+  </section>
+
+  <!-- ================= 2 ================= -->
+  <section class="col">
+    <h2>2 · Juan's room</h2>
+    <p class="sub">The pixel room is the screen. Tap things in it. Matches the map's B.</p>
+    <div class="scr s2 night" id="S2">
+      <img class="room" src="shelter-nida-110.png" alt="Juan's room at Nida's: a mat, shelves, a counter, water jugs">
+      <div class="dark"></div>
+      <!-- hotspots, in the room's own 110x225 pixels -->
+      <button class="hot" data-act="way"    style="left:calc(4px*var(--s));top:calc(42px*var(--s));width:calc(30px*var(--s));height:calc(68px*var(--s))" aria-label="The boarded window: the way out"></button>
+      <button class="hot" data-act="stash"  style="left:calc(40px*var(--s));top:calc(30px*var(--s));width:calc(70px*var(--s));height:calc(80px*var(--s))" aria-label="The shelves: your stash"></button>
+      <button class="hot" data-act="eat"    style="left:calc(56px*var(--s));top:calc(114px*var(--s));width:calc(34px*var(--s));height:calc(46px*var(--s))" aria-label="The counter: eat"></button>
+      <button class="hot" data-act="settings" style="left:calc(91px*var(--s));top:calc(114px*var(--s));width:calc(18px*var(--s));height:calc(18px*var(--s))" aria-label="The radio: settings and save"></button>
+      <button class="hot" data-act="sleep"  style="left:calc(2px*var(--s));top:calc(128px*var(--s));width:calc(46px*var(--s));height:calc(56px*var(--s))" aria-label="The mat: sleep"></button>
+      <button class="hot" data-act="out"    style="left:calc(54px*var(--s));top:calc(194px*var(--s));width:calc(56px*var(--s));height:calc(14px*var(--s))" aria-label="The doorstep: head out"></button>
+      <i class="glint" style="left:calc(30px*var(--s));top:calc(46px*var(--s))"></i>
+      <i class="glint" style="left:calc(104px*var(--s));top:calc(34px*var(--s));animation-delay:.3s"></i>
+      <i class="glint" style="left:calc(86px*var(--s));top:calc(118px*var(--s));animation-delay:.6s"></i>
+      <i class="glint" style="left:calc(105px*var(--s));top:calc(117px*var(--s));animation-delay:.9s"></i>
+      <i class="glint" style="left:calc(42px*var(--s));top:calc(132px*var(--s));animation-delay:.45s"></i>
+      <i class="glint" style="left:calc(105px*var(--s));top:calc(196px*var(--s));animation-delay:.75s"></i>
+      <canvas class="abs watch px" width="38" height="22" aria-label="Wristwatch"></canvas>
+      <div class="abs hint" data-hint>TAP THINGS IN THE ROOM</div>
+      <div class="abs vit">
+        <div><img src="icon-health.png" alt="Health"><i><b style="width:72%;background:#d94b3b"></b></i></div>
+        <div><img src="icon-energy.png" alt="Energy"><i><b style="width:40%;background:#2e86ab"></b></i></div>
+        <div><img src="icon-food.png" alt="Food"><i><b style="width:55%;background:#9cb840"></b></i></div>
+        <div><img src="icon-hope.png" alt="Hope"><i><b style="width:60%;background:#f0a63c"></b></i></div>
+        <div class="dr" data-dread>DREAD 12 · −1 HOPE TONIGHT</div>
+      </div>
+    </div>
+    <ul>
+      <li><b>Most of a piece with the game:</b> the map (B), the houses and the shelter all become places you are in.</li>
+      <li>Mat = Sleep, counter = Eat, shelves = stash, window = the way out (he looks out toward Tutuban), doorstep = head out, radio = settings and save.</li>
+      <li>Glints (like the house cupboards) show what can be tapped; the meters sit in one small strip.</li>
+      <li>Every shelter needs its own hotspot map (4 rooms), and it breaks the "Shelter stays flat" rule.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+let night = true, dread = true, slept = false;
+const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+const FOOD = [['Instant noodles', '+10 HP · +8 EN', 3], ['Sardines', '+25 Food', 1], ['Bottled water', '+4 HP · +6 EN', 2]];
+
+function watch(cv) {
+  const c = cv.getContext('2d'); c.clearRect(0, 0, 38, 22);
+  rect(c, 4, 0, 30, 3, '#2b2420'); rect(c, 4, 19, 30, 3, '#2b2420');
+  rect(c, 1, 2, 36, 18, '#000'); rect(c, 2, 3, 34, 16, '#3a4148'); rect(c, 3, 4, 32, 14, '#1a1f1c');
+  rect(c, 4, 5, 30, 12, night ? '#24361f' : '#8fa98a');
+  const ink = night ? '#a8e08a' : '#1a2318';
+  const G = { D: ['110', '101', '101', '101', '110'], '1': ['01', '11', '01', '01', '11'], '0': ['111', '101', '101', '101', '111'], '6': ['111', '100', '111', '101', '111'], '4': ['101', '101', '111', '001', '001'], ':': ['0', '1', '0', '1', '0'], '2': ['111', '001', '111', '100', '111'], '9': ['111', '101', '111', '001', '111'] };
+  let x = 6;
+  for (const ch of (night ? 'D1 21:40' : 'D2 06:10').replace('D2', 'D1')) {
+    if (ch === ' ') { x += 2; continue; }
+    const g = G[ch] || G['0']; g.forEach((row, j) => [...row].forEach((b, i) => { if (b === '1') rect(c, x + i, 6 + j, 1, 1, ink); })); x += g[0].length + 1;
+  }
+  for (let k = 0; k < 5; k++) rect(c, 6 + k * 4, 13, 3, 2, ink);
+  rect(c, 27, 13, 6, 2, night ? '#33492c' : '#7d9578'); rect(c, 27, 13, 3, 2, '#d9b33a');
+}
+function toast(scr, msg) {
+  let t = $('.toast', scr); if (!t) { t = document.createElement('div'); t.className = 'abs toast'; scr.appendChild(t); }
+  t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1700);
+}
+function refresh() {
+  for (const s of $$('.scr')) s.classList.toggle('night', night);
+  $('[data-daychip]').textContent = night ? 'NIGHT 01' : 'DAY 02';
+  for (const d of $$('[data-dread]')) d.hidden = !dread;
+  const sl = $('[data-sleep]'); sl.disabled = !night; sl.querySelector('span').textContent = night ? '−15 food · +30 energy' : 'at night';
+  $('[data-note]').textContent = slept ? 'You slept. Energy 70, Food 40. The fights stay with you: Hope −1.' : night ? 'The door is shut. Eat something, then sleep.' : 'Light through the gaps. Pack the bag and head out.';
+  watch($('.watch'));
+}
+
+/* ---------- 1: sheet-style prompts on the plank board ---------- */
+function prompt(scr, html, acts, cls = 'prompt') {
+  for (const p of $$('.' + cls, scr)) p.remove();
+  const d = document.createElement('div'); d.className = 'abs ' + cls; d.innerHTML = html;
+  if (acts) { const row = document.createElement('div'); row.className = 'acts'; for (const a of acts) { const b = document.createElement('button'); b.textContent = a.t; if (a.go) b.className = 'go'; if (a.dis) b.disabled = true; b.onclick = e => { e.stopPropagation(); d.remove(); for (const h of $$('.hot.sel', scr)) h.classList.remove('sel'); a.fn && a.fn(); }; row.appendChild(b); } d.appendChild(row); }
+  d.addEventListener('click', e => e.stopPropagation());
+  scr.appendChild(d); return d;
+}
+const S1 = $('#S1'), S2 = $('#S2');
+S1.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a || a.disabled) return;
+  const act = a.dataset.act;
+  if (act === 'eat') {
+    const p = prompt(S1, '<h3>Eat something</h3><div class="list">' + FOOD.map(([n, f, q]) => '<button><span>' + n + '</span><em>' + f + ' · ×' + q + '</em></button>').join('') + '</div>', [{ t: 'Done' }]);
+    p.style.bottom = 'calc(4px*var(--s))';
+    for (const b of $$('.list button', p)) b.onclick = () => { toast(S1, b.firstChild.textContent + '. Food 65.'); p.remove(); };
+  } else if (act === 'sleep') { slept = true; night = false; syncTog(); refresh(); toast(S1, 'Morning.'); }
+  else if (act === 'out') toast(S1, 'To the Pack screen →');
+  else if (act === 'settings') { const p = prompt(S1, '<h3>Settings &amp; save</h3><p>Sound ON · Shake ON · Vibrate OFF<br>Export save · Import save</p>', [{ t: 'Close', go: true }]); p.style.bottom = 'calc(4px*var(--s))'; }
+});
+
+/* ---------- 2: tap things in the room ---------- */
+const OBJ = {
+  sleep: () => ({ small: 'The mat', h: night ? 'Sleep' : 'Not yet', p: night ? 'Sleep until morning. −15 food, +30 energy, +5 health.' + (dread ? ' The fights will cost 1 Hope.' : '') : 'You can sleep once it is dark. Out there is the day.', acts: [{ t: night ? 'Sleep' : 'Later', go: night, dis: !night, fn: () => { slept = true; night = false; syncTog(); refresh(); toast(S2, 'Morning. Energy 70, Food 40.'); } }, { t: 'Back' }] }),
+  eat: () => ({ small: 'The counter', h: 'Eat', list: true, acts: [{ t: 'Back' }] }),
+  stash: () => ({ small: 'The shelves', h: 'The stash', p: 'Everything kept at Nida\'s: 3 canned food, 2 water, 4 noodles, 1 medicine, 2 batteries. Pack the bag from here.', acts: [{ t: 'Pack the bag', go: true, fn: () => toast(S2, 'To the Pack screen →') }, { t: 'Back' }] }),
+  way: () => ({ small: 'The boarded window', h: 'The way out', route: true, p: 'Tutuban, 43 tiles. Next shelter: Mang Mel\'s Bike Shop, 6 tiles.', acts: [{ t: 'Back', go: true }] }),
+  out: () => ({ small: 'The door', h: 'Head out', p: 'Five moves this ' + (night ? 'night' : 'day') + '. Pack the bag first.', acts: [{ t: 'Head out', go: true, fn: () => toast(S2, 'To the Pack screen →') }, { t: 'Stay' }] }),
+  settings: () => ({ small: 'The radio', h: 'Settings & save', p: 'Sound ON · Shake ON · Vibrate OFF. Export or import the run.', acts: [{ t: 'Close', go: true }] }),
+};
+S2.addEventListener('click', e => {
+  const h = e.target.closest('.hot'); if (!h) return;
+  for (const x of $$('.hot.sel', S2)) x.classList.remove('sel'); h.classList.add('sel');
+  $('[data-hint]').style.opacity = 0;
+  const o = OBJ[h.dataset.act]();
+  let html = '<small>' + o.small + '</small><h3>' + o.h + '</h3>';
+  if (o.route) html += '<div class="routemap"><i class="d on"></i><i class="sg"></i><i class="d"></i><i class="sg"></i><i class="d"></i><i class="sg"></i><i class="d"></i><i class="sg"></i><i class="d end"></i></div>';
+  if (o.p) html += '<p>' + o.p + '</p>';
+  if (o.list) html += '<div class="list">' + FOOD.map(([n, f, q]) => '<button><span>' + n + '</span><em>' + f + ' · ×' + q + '</em></button>').join('') + '</div>';
+  const p = prompt(S2, html, o.acts);
+  for (const b of $$('.list button', p)) b.onclick = () => { toast(S2, b.firstChild.textContent + '. Food 65.'); p.remove(); h.classList.remove('sel'); };
+});
+
+function syncTog() { $('#tDay').setAttribute('aria-pressed', String(!night)); $('#tNight').setAttribute('aria-pressed', String(night)); }
+$('#tDay').onclick = () => { night = false; slept = false; syncTog(); refresh(); };
+$('#tNight').onclick = () => { night = true; slept = false; syncTog(); refresh(); };
+$('#tDread').onclick = () => { dread = !dread; $('#tDread').setAttribute('aria-pressed', String(dread)); refresh(); };
+function fit() { document.documentElement.style.setProperty('--s', Math.max(2, Math.min(3.4, (innerHeight - 150) / 225, (innerWidth - 40) / 110)).toFixed(2)); }
+addEventListener('resize', fit); fit(); refresh();
+})();
+</script>
+</body>
+</html>

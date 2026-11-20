@@ -1,0 +1,142 @@
+{
+ "bag-light": {
+  "w": 25,
+  "h": 30
+ },
+ "bag-half": {
+  "w": 29,
+  "h": 30
+ },
+ "bag-loaded": {
+  "w": 22,
+  "h": 30
+ },
+ "use-bandage": {
+  "w": 110,
+  "h": 61
+ },
+ "use-pills": {
+  "w": 110,
+  "h": 61
+ },
+ "use-water": {
+  "w": 110,
+  "h": 61
+ },
+ "use-food": {
+  "w": 110,
+  "h": 61
+ },
+ "meal-rice": {
+  "w": 22,
+  "h": 18
+ },
+ "meal-noodles": {
+  "w": 11,
+  "h": 18
+ },
+ "meal-sardines": {
+  "w": 17,
+  "h": 18
+ },
+ "meal-coffee": {
+  "w": 14,
+  "h": 18
+ },
+ "cigarettes": {
+  "w": 14,
+  "h": 22
+ },
+ "gold": {
+  "w": 29,
+  "h": 22
+ },
+ "old-phone": {
+  "w": 13,
+  "h": 22
+ },
+ "gin": {
+  "w": 9,
+  "h": 22
+ },
+ "copper-wire": {
+  "w": 21,
+  "h": 22
+ },
+ "coffee": {
+  "w": 23,
+  "h": 22
+ },
+ "hard-hat": {
+  "w": 29,
+  "h": 22
+ },
+ "leather-jacket": {
+  "w": 22,
+  "h": 22
+ },
+ "scrap-vest": {
+  "w": 18,
+  "h": 22
+ },
+ "work-boots": {
+  "w": 27,
+  "h": 22
+ },
+ "sv-mother": {
+  "w": 30,
+  "h": 64
+ },
+ "sv-oldman": {
+  "w": 29,
+  "h": 64
+ },
+ "sv-boy": {
+  "w": 27,
+  "h": 64
+ },
+ "sv-pregnant": {
+  "w": 30,
+  "h": 64
+ },
+ "isko-big": {
+  "w": 36,
+  "h": 40
+ },
+ "prop-hasa": {
+  "w": 35,
+  "h": 26
+ },
+ "sv-cop": {
+  "w": 30,
+  "h": 64
+ },
+ "sv-remy": {
+  "w": 31,
+  "h": 64
+ },
+ "sv-thug": {
+  "w": 30,
+  "h": 64
+ },
+ "sv-tanod": {
+  "w": 30,
+  "h": 64
+ },
+ "scene-mother": {
+  "w": 110,
+  "h": 225
+ },
+ "scene-cop": {
+  "w": 110,
+  "h": 225
+ },
+ "scene-tanod": {
+  "w": 110,
+  "h": 225
+ },
+ "scene-hasa": {
+  "w": 110,
+  "h": 225
+ }
+}

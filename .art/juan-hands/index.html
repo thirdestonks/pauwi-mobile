@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juan Combat Hands</title>
+<style>
+  :root { --ink:#0E1214; --amber:#F0A63C; --bone:#ECE4D5; --slate:#828B90; --red:#D94B3B; --teal:#2E86AB; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--ink); color:var(--bone); font:13px/1.4 ui-monospace, Consolas, monospace;
+         display:flex; gap:28px; align-items:flex-start; justify-content:center; padding:24px 16px; flex-wrap:wrap; }
+  .stage { position:relative; height:min(86vh, 900px); aspect-ratio:110/225; background:#000; outline:1px solid #2b2f31; overflow:hidden; }
+  .stage iframe, .stage canvas { position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .stage canvas { image-rendering:pixelated; pointer-events:none; }
+  .stage canvas#grid { pointer-events:auto; cursor:crosshair; }
+  .cell { color:var(--amber); }
+  .stage .flash { position:absolute; inset:0; background:var(--red); opacity:0; pointer-events:none; }
+  .turn { position:absolute; left:10px; top:10px; font:700 13px/1 ui-monospace, Consolas, monospace; letter-spacing:.18em; pointer-events:none;
+          padding:6px 8px; background:rgba(8,10,11,.72); border:1px solid #2b2f31; }
+  .turn.won { color:#5AA17A; } .turn.player { color:var(--amber); } .turn.enemy { color:var(--red); } .turn.down { color:var(--bone); background:rgba(90,16,12,.85); }
+  .hp { height:6px; background:#1a1d1e; border:1px solid #2b2f31; } .hp i { display:block; height:100%; background:var(--red); transition:width .2s steps(4); }
+  .panel { display:flex; flex-direction:column; gap:16px; width:300px; }
+  h1 { margin:0; font:800 24px/1 "Arial Narrow", Impact, sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--amber); }
+  h2 { margin:0 0 6px; font:700 11px/1 ui-monospace, Consolas, monospace; letter-spacing:.3em; text-transform:uppercase; color:var(--slate); }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  button { background:#141819; color:var(--bone); border:1px solid #2b3335; padding:8px 10px; font:inherit; cursor:pointer; letter-spacing:.06em; text-align:left; }
+  button:hover { border-color:var(--amber); }
+  button[aria-pressed="true"] { border-color:var(--amber); color:var(--amber); }
+  button.act { border-color:#4a3a26; }
+  .portrait { display:flex; gap:12px; align-items:flex-end; }
+  .portrait canvas { width:144px; height:168px; image-rendering:pixelated; background:#000; border:2px solid #2b2f31; }
+  .dur { height:6px; background:#1a1d1e; border:1px solid #2b2f31; }
+  .dur i { display:block; height:100%; background:var(--amber); }
+  p.note { color:var(--slate); margin:0; }
+  /* in the screen: Juan's bars top-right, the action menu along the bottom, a pick list for Item / Swap */
+  .hud { position:absolute; right:8px; top:8px; width:42%; display:flex; flex-direction:column; gap:4px; font:700 9px/1 ui-monospace, Consolas, monospace; letter-spacing:.12em; pointer-events:none; }
+  .hud div { display:flex; align-items:center; gap:5px; } .hud span { width:38px; color:var(--slate); }
+  .hud .bar { flex:1; height:6px; background:#0b0d0e; border:1px solid #3b3f41; display:block; } .hud .bar b { display:block; height:100%; transition:width .2s steps(4); }
+  #hpBar { background:var(--red); } #dreadBar { background:#8a5cc2; } .hud .shaken span { color:#b78be6; }
+  #wHud { justify-content:flex-end; color:var(--amber); }
+  .acts { position:absolute; left:6px; right:6px; bottom:6px; display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; }
+  .acts button, .menu button { padding:7px 2px; text-align:center; font:700 10px/1 ui-monospace, Consolas, monospace; letter-spacing:.08em; text-transform:uppercase;
+          background:rgba(10,12,13,.88); border:2px solid #4a3a26; color:var(--bone); box-shadow:2px 2px 0 #000; }
+  .acts button:disabled { opacity:.35; cursor:default; } .acts button:not(:disabled):hover { border-color:var(--amber); color:var(--amber); }
+  .menu { position:absolute; left:10px; right:10px; bottom:46px; padding:10px; background:rgba(10,12,13,.95); border:2px solid #4a3a26; box-shadow:3px 3px 0 #000; display:flex; flex-direction:column; gap:5px; }
+  .menu[hidden] { display:none; }
+  .menu h4 { margin:0 0 2px; font:800 13px/1 "Arial Narrow", Impact, sans-serif; letter-spacing:.1em; color:var(--amber); text-transform:uppercase; }
+  .menu button { text-align:left; padding:7px 8px; }
+  .pop { position:absolute; left:0; right:0; top:42%; text-align:center; font:800 18px/1 "Arial Narrow", Impact, sans-serif; letter-spacing:.12em; color:var(--bone); text-shadow:2px 2px 0 #000; pointer-events:none; opacity:0; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <iframe id="bg" title="Combat background"></iframe>
+  <canvas id="grid" width="110" height="225"></canvas>
+  <canvas id="hand" width="110" height="225"></canvas>
+  <div class="flash" id="flash"></div>
+  <div class="turn player" id="turn">PLAYER TURN</div>
+  <div class="hud"><div><span>HP</span><i class="bar"><b id="hpBar" style="width:100%"></b></i></div><div id="dreadRow"><span>DREAD</span><i class="bar"><b id="dreadBar" style="width:0%"></b></i></div><div id="wHud"></div></div>
+  <div class="acts" id="acts"><button data-a="attack">Attack</button><button data-a="guard">Guard</button><button data-a="item">Item</button><button data-a="swap">Swap</button><button data-a="run">Run</button></div>
+  <div class="menu" id="menu" hidden><h4 id="menuT"></h4><div id="menuL" style="display:flex;flex-direction:column;gap:5px"></div><button id="menuX">Back</button></div>
+  <div class="pop" id="pop"></div>
+</div>
+<div class="panel">
+  <h1>Juan · Hands</h1>
+  <div class="portrait"><canvas id="face" width="48" height="56"></canvas>
+    <div style="flex:1"><h2>Weapon</h2><div id="wname">Makeshift bat</div><h2 style="margin-top:10px">Durability</h2><div class="dur"><i id="dur" style="width:100%"></i></div>
+    <h2 style="margin-top:10px">Health</h2><div class="hp"><i id="hp" style="width:100%"></i></div></div></div>
+  <section><h2>Weapon</h2><div class="grid" id="weapons"></div></section>
+  <section><h2>Action</h2><div class="grid">
+    <button class="act" id="attack">Attack</button><button class="act" id="break">Break weapon</button>
+    <button class="act" id="hurt">Juan gets hit</button><button class="act" id="auto" aria-pressed="false">Auto demo</button>
+    <button class="act" id="reset">Reset fight</button>
+  </div></section>
+  <section><h2>Scene</h2><div class="grid" id="scenes"></div></section>
+  <section><h2>Combat grid</h2><div class="grid">
+    <button id="gridOn" aria-pressed="true">Grid</button><button id="foesOn" aria-pressed="true">Shamblers</button>
+  </div><p class="note" style="margin-top:8px">Rows FAR · MID · CLOSE × 3 lanes. Hover or tap a cell: <span class="cell" id="cellName">—</span></p></section>
+  <p class="note">Turn-based: Juan swings once, then every Shambler acts. The ones in the CLOSE row lunge at him, and the rest shuffle a row closer. Tap a cell to choose your target. A fight is 1–2 Shamblers entering at FAR (force it with ?foes=N). The dead stay down, and when the last one falls the street is cleared. Three hits kill a Shambler, and weapons wear down until they break and leave you with fists.</p>
+</div>
+<script src="../sfx/sfx.js"></script>
+<script>
+// each weapon's swing: bat and arnis whoosh, the pipe is heavier, the itak cuts, fists are a quick whoosh
+const SWING = { pistol: ['pistol-shot', 0.9], makeshift: ['weapon-swing', 0.8], arnis: ['weapon-swing', 0.7], pipe: ['iron-pipe-swing', 0.85], itak: ['knife-slice', 0.8], fist: ['weapon-swing', 0.5] };
+const WEAPONS = { makeshift: 'Makeshift bat', itak: 'Itak (machete)', arnis: 'Arnis stick', pipe: 'Lead pipe', fist: 'Fists' };   // weapons with first-person hand art
+// ---------- the rules (CLAUDE.md "Combat") ----------
+// damage per swing at CLOSE, swings before it breaks, and whose hand art it borrows (sledge and knife have none of their own yet)
+const W = {
+  makeshift: { name: 'Makeshift bat', dmg: 2, swings: 12, art: 'makeshift' }, itak: { name: 'Itak', dmg: 3, swings: 8, art: 'itak' },
+  arnis: { name: 'Arnis stick', dmg: 2, swings: 16, art: 'arnis' }, pipe: { name: 'Lead pipe', dmg: 3, swings: 12, art: 'pipe' },
+  sledge: { name: 'Sledgehammer', dmg: 5, swings: 6, art: 'pipe' }, knife: { name: 'Kitchen knife', dmg: 2, swings: Infinity, art: 'itak' },
+  fist: { name: 'Fists', dmg: 1, swings: Infinity, art: 'fist' },
+  pistol: { name: '9mm pistol', dmg: 4, swings: Infinity, art: 'pistol', gun: true },   // any distance, but it eats rounds and it's loud
+};
+const ROW_MULT = [1, 0.6, 0.3];                                        // CLOSE, MID, FAR: reaching far is weak, so you let them come
+const MEDICINE = { bandage: 25, gauze: 25, firstaid: 25, antibiotics: 25, meds: 25, painkillers: 25 }, FOOD = { noodles: 10, tuna: 10, crackers: 10, sardines: 10, beef: 10, rice: 10, tuyo: 10, eggs: 10 };
+const DREAD_HIT = 4, DREAD_CLOSE = 2, SHAKEN = 60, SHAKEN_MISS = 0.25;  // Dread climbs when he's hit or one reaches him; Shaken, his swings miss
+// Juan's loadout from the map (?hp=&weapon=&swings=&bag=a,b,c); standalone, a sample pack to play with
+const Q = new URLSearchParams(location.search);
+let held = Q.get('weapon') && W[Q.get('weapon')] ? Q.get('weapon') : 'makeshift';
+let swingsLeft = Q.has('swings') ? +Q.get('swings') : W[held].swings;
+const bag = Q.has('bag') ? Q.get('bag').split(',').filter(Boolean) : ['bandage', 'tuna', 'pipe', 'sledge', 'pistol', 'ammo'];
+// the pistol: a 6-round magazine; an ammo box refills it, loose rounds top it up by 3. A shot is loud: a little Dread.
+const MAG = 6, AMMO = { ammo: MAG, rounds: 3 }, DREAD_SHOT = 1;
+let rounds = Q.has('rounds') ? +Q.get('rounds') : 0;
+let dread = Q.has('dread') ? Math.min(100, +Q.get('dread')) : 0, guarding = false;   // Dread comes in from the map: it lasts between fights
+// grid: each scene's own ground perspective (horizon hy, vanishing x vx, eye*focal e, focal f, lane centre cx, lane width)
+const SCENES = [
+  ['Fog road · day', '../combat-bg-day/index.html?embed', { hy: 150, vx: 54, e: 88, f: 55, cx: 0, lane: 1.0 }],
+  ['Alley · night', '../combat-bg-night/index.html?embed', { hy: 150, vx: 55, e: 88, f: 55, cx: 0.1, lane: 1.15 }],
+  ['Urban · day', '../combat-bg-urban/index.html?embed&v=2&mode=day', { hy: 128, vx: 55, e: 92.8, f: 58, cx: 0, lane: 1.3 }],
+  ['Urban · night', '../combat-bg-urban/index.html?embed&v=2&mode=night#rain', { hy: 128, vx: 55, e: 92.8, f: 58, cx: 0, lane: 1.3 }],
+];
+const ROWS = [1.5, 2.5, 4.2, 7.5];                 // depth edges, near → far: CLOSE | MID | FAR
+const ROW_NAMES = ['CLOSE', 'MID', 'FAR'], LANE_NAMES = ['left', 'centre', 'right'];
+let G = SCENES[3][2], gridOn = true, foesOn = true, hover = null, picked = null;
+const gctx = document.getElementById('grid').getContext('2d'), gimg = gctx.createImageData(110, 225);
+// a fight is 1–2 Shamblers (?foes=N to force it), all entering at FAR; the dead stay down, so the fight can be won
+// ?boss=brute: the Brute at Tutuban, alone, huge, eight hits to drop, and he hits hard (his own sprites in ../enemies/brute)
+const BOSS = new URLSearchParams(location.search).get('boss') === 'brute';
+const FOE = BOSS ? { hp: 16, bite: 20 } : { hp: 5, bite: 8 };          // Shambler 5 HP, bites for 8; the Brute 16 HP, smashes for 20 (tuned in balance-sim.cjs)
+const FOE_N = BOSS ? 1 : Math.max(1, Math.min(3, +new URLSearchParams(location.search).get('foes') || 1 + (Math.random() < 0.5)));
+const FOES = [];
+function spawn() {
+  const lanes = [[1], [0, 2], [0, 1, 2]][FOE_N - 1];
+  FOES.splice(0, FOES.length, ...(BOSS ? [1] : lanes).map(l => ({ r: 2, l, pos: 2, hp: FOE.hp, anim: 'idle', fi: 0, ft: 0 })));
+}
+spawn();
+function proj(X, z) { return [G.vx + G.f * X / z, G.hy + G.e / z]; }
+function laneX(i) { return G.cx + (i - 1.5) * G.lane; }
+function drawGrid() {
+  const d = gimg.data; d.fill(0);
+  const blend = (x, y, c, a) => {
+    x = Math.round(x); y = Math.round(y); if (x < 0 || y < 0 || x >= 110 || y >= 225) return;
+    const i = (y * 110 + x) * 4, k = d[i + 3] / 255, na = a + k * (1 - a);
+    for (let j = 0; j < 3; j++) d[i + j] = (c[j] * a + d[i + j] * k * (1 - a)) / na;
+    d[i + 3] = na * 255;
+  };
+  const line = (x0, y0, x1, y1, c, a) => {
+    x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy;
+    for (;;) { blend(x0, y0, c, a); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+  };
+  const cellFill = (r, l, c, a, solid) => {
+    const z0 = ROWS[r], z1 = ROWS[r + 1], [, ya] = proj(0, z0), [, yb] = proj(0, z1);
+    for (let y = Math.ceil(yb); y <= Math.floor(ya); y++) {
+      const z = G.e / (y - G.hy), xa = proj(laneX(l), z)[0], xb = proj(laneX(l + 1), z)[0];
+      for (let x = Math.ceil(xa); x <= Math.floor(xb); x++) if (solid || ((x + y) & 1)) blend(x, y, c, a);
+    }
+  };
+  if (gridOn) {
+    const AMBER = [240, 166, 60], BONE = [236, 228, 213];
+    if (hover) cellFill(hover[0], hover[1], AMBER, 0.28, false);
+    if (picked) cellFill(picked[0], picked[1], AMBER, 0.42, false);
+    for (const z of ROWS) { const [xa, y] = proj(laneX(0), z), [xb] = proj(laneX(3), z); line(xa, y, xb, y, BONE, 0.6); }
+    for (let i = 0; i <= 3; i++) { const [xa, ya] = proj(laneX(i), ROWS[0]), [xb, yb] = proj(laneX(i), ROWS[3]); line(xa, ya, xb, yb, BONE, 0.6); }
+  }
+  gctx.putImageData(gimg, 0, 0);
+  if (!foesOn) return;
+  // Shamblers, far ones first, at the baked height closest to their depth; feet on the cell centre
+  if (!EMETA) return;
+  [...FOES].sort((a, b) => b.pos - a.pos).forEach(f => {
+    const i0 = Math.floor(f.pos), i1 = Math.min(2, i0 + 1), q = f.pos - i0;
+    const z = rowC(i0) + (rowC(i1) - rowC(i0)) * q, X = (laneX(f.l) + laneX(f.l + 1)) / 2, [fx, fy] = proj(X, z), h = 1.65 * G.f / z * (BOSS ? 1.5 : 1);   // the Brute stands half again as tall
+    const H = E_SIZES.reduce((a, b) => Math.abs(b - h) < Math.abs(a - h) ? b : a), m = EMETA.sizes[H], im = ESHEET[H + f.anim];
+    if (!im || !im.complete) return;
+    gctx.drawImage(im, f.fi * m.w, 0, m.w, m.h, Math.round(fx - m.px), Math.round(fy - m.py), m.w, m.h);
+  });
+}
+// the Shambler, or (?boss=brute) the Brute: same sprite format, his sizes 1.5x
+const KIND = BOSS ? 'brute' : 'shambler', E_SIZES = BOSS ? [24, 33, 44, 57, 72, 90] : [16, 22, 29, 38, 48, 60], ESHEET = {}, EV = Date.now(); let EMETA = null;
+fetch(`../enemies/${KIND}/${KIND}-anim.json?v=${EV}`).then(r => r.json()).then(m => {
+  EMETA = m;
+  for (const H of E_SIZES) for (const an of Object.keys(m.anims)) { const im = new Image(); im.src = `../enemies/${KIND}/${KIND}-h${H}-${an}.png?v=${EV}`; ESHEET[H + an] = im; }
+});
+function foePlay(f, an) { f.anim = an; f.fi = 0; f.ft = 0; }
+let lastE = performance.now();
+setInterval(() => {                                   // advance enemy animations
+  const now = performance.now(), dt = now - lastE; lastE = now;
+  if (!EMETA) return;
+  for (const f of FOES) {
+    const ms = EMETA.anims[f.anim]; f.ft += dt;
+    if (f.ft < ms[f.fi]) continue;
+    f.ft = 0;
+    if (f.fi < ms.length - 1) f.fi++;
+    else if (f.anim === 'idle') f.fi = 0;
+    else if (f.anim === 'hit') foePlay(f, 'idle');
+    else if (f.anim === 'attack') foePlay(f, 'idle');
+    // death: holds on the last frame until the enemy turn gets him back up
+  }
+  if (foesOn) drawGrid();
+}, 40);
+const rowC = i => (ROWS[i] + ROWS[i + 1]) / 2;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let turn = 'player', juanHP = Q.has('hp') ? Math.max(1, +Q.get('hp')) : 100, juanDown = false, pendingEnemy = false;
+function setTurn(t, label) {
+  turn = t; const el = document.getElementById('turn');
+  if (t === 'player') guarding = false;                                // a guard lasts through one enemy turn
+  document.querySelectorAll('#acts button').forEach(b => b.disabled = t !== 'player' || (b.dataset.a === 'run' && BOSS));   // there is no running from the Brute
+  el.textContent = label || (t === 'player' ? 'PLAYER TURN' : 'ENEMY TURN'); el.className = 'turn ' + t;
+}
+function juanHit(dmg) {
+  const t = performance.now(); flashUntil = t + 90; hurtUntil = t + 900; shake(5);
+  document.getElementById('flash').animate([{ opacity: .35 }, { opacity: 0 }], { duration: 260, easing: 'steps(3)' });
+  if (guarding) { dmg = Math.round(dmg / 2); guarding = false; pop('BLOCKED'); }
+  juanHP = Math.max(0, juanHP - dmg); addDread(DREAD_HIT); updHud();
+  if (juanHP === 0) { juanDown = true; setTurn('down', 'JUAN IS DOWN'); report('lost'); }
+}
+async function enemyTurn() {
+  setTurn('enemy'); await sleep(450);
+  for (const f of [...FOES].sort((a, b) => a.r - b.r)) {
+    if (juanDown) break;
+    if (f.hp <= 0) continue;                                         // the dead stay down
+    if (f.r === 0) {                                                 // in reach: lunge at Juan
+      foePlay(f, 'attack');
+      const ms = EMETA.anims.attack, imp = EMETA.impact.attack, sum = a => a.reduce((x, y) => x + y, 0);
+      await sleep(sum(ms.slice(0, imp))); SFX.play('zombie-bite'); juanHit(FOE.bite); await sleep(sum(ms.slice(imp)));
+    } else {                                                         // otherwise shuffle one row closer
+      const to = f.r - 1;
+      if (FOES.some(o => o !== f && o.hp > 0 && o.r === to && o.l === f.l)) { await sleep(150); continue; }
+      const from = f.pos, t0 = performance.now();
+      await new Promise(res => { const st = () => { const q = Math.min(1, (performance.now() - t0) / 700); f.pos = from + (to - from) * q; q < 1 ? requestAnimationFrame(st) : res(); }; st(); });
+      f.r = to; f.pos = to; if (to === 0) addDread(DREAD_CLOSE);           // it's in his face now
+    }
+    await sleep(220);
+  }
+  if (!juanDown) setTurn('player');
+}
+function strike() {                                   // Juan's impact lands on the picked Shambler, else the nearest one standing
+  const alive = FOES.filter(f => f.hp > 0);
+  const t = (picked && alive.find(f => f.r === picked[0] && f.l === picked[1])) || alive.sort((a, b) => a.r - b.r)[0];
+  if (!t) return;
+  if (dread >= SHAKEN && Math.random() < SHAKEN_MISS) { pop('MISS'); return; }   // Shaken: the swing goes wide
+  // a bullet doesn't care how far; melee falls off with distance
+  t.hp = Math.max(0, +(t.hp - W[held].dmg * (W[held].gun ? 1 : ROW_MULT[t.r])).toFixed(2)); foePlay(t, t.hp > 0 ? 'hit' : 'death');
+  SFX.play('punch-impact', weapon === 'fist' ? 1 : 0.7); if (t.hp > 0) SFX.play('zombie-hurt', 0.75); else SFX.play('zombie-dead');   // the thud, then it groans (loudest when it drops)
+  if (FOES.every(f => f.hp <= 0)) { pendingEnemy = false; setTurn('won', BOSS ? 'THE BRUTE IS DOWN' : 'STREET CLEARED'); report('won'); }
+}
+// opened from the hex map: tell it how the fight went, then hand the player back to the street
+function report(result) {
+  if (!window.opener) return;
+  window.opener.postMessage({ pauwi: 'combat', result, hp: juanHP, weapon: held, swings: Number.isFinite(swingsLeft) ? swingsLeft : null, rounds, bag, dread }, '*');
+  setTimeout(() => window.close(), 1800);
+}
+function cellAt(ev) {
+  const r = ev.target.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * 110, y = (ev.clientY - r.top) / r.height * 225;
+  if (y <= G.hy) return null;
+  const z = G.e / (y - G.hy), X = (x - G.vx) * z / G.f;
+  const row = ROWS.findIndex((e, i) => i < 3 && z >= e && z < ROWS[i + 1]), lane = Math.floor((X - laneX(0)) / G.lane);
+  return row >= 0 && lane >= 0 && lane < 3 ? [row, lane] : null;
+}
+const gridEl = document.getElementById('grid');
+const nameOf = c => c ? ROW_NAMES[c[0]] + ' · ' + LANE_NAMES[c[1]] : '—';
+gridEl.onpointermove = e => { hover = cellAt(e); document.getElementById('cellName').textContent = nameOf(hover || picked); drawGrid(); };
+gridEl.onpointerleave = () => { hover = null; drawGrid(); };
+gridEl.onclick = e => { picked = cellAt(e); document.getElementById('cellName').textContent = nameOf(picked); drawGrid(); };
+const bg = document.getElementById('bg'), ctx = document.getElementById('hand').getContext('2d');
+const face = document.getElementById('face').getContext('2d'), sheet = new Image();
+sheet.src = '../juan-portrait/juan-portrait-sheet.png';
+let MAN = null; const SHEETS = {};
+const animOf = (w, a) => MAN.anims[w + '-' + a];
+let weapon = 'makeshift', anim = 'idle', fi = 0, fT = 0, queue = [], dur = 1, hurtUntil = 0, flashUntil = 0, nextBlink = 2000;
+function play(a, then) { anim = a; fi = 0; fT = 0; queue = then || []; }
+function setWeapon(w, swings) {                                       // w: what Juan holds; the hand art follows from it
+  held = w; weapon = W[w].art; swingsLeft = swings ?? W[w].swings; play(weapon === 'fist' || weapon === 'pistol' ? 'raise' : 'idle', weapon === 'fist' || weapon === 'pistol' ? ['idle'] : []);
+  document.getElementById('wname').textContent = W[w].name;
+  document.querySelectorAll('#weapons button').forEach(b => b.setAttribute('aria-pressed', b.dataset.w === w));
+  updDur();
+}
+function updDur() { document.getElementById('dur').style.width = (Number.isFinite(W[held].swings) ? swingsLeft / W[held].swings * 100 : 100) + '%'; updHud(); }
+function updHud() {
+  document.getElementById('hp').style.width = juanHP + '%'; document.getElementById('hpBar').style.width = juanHP + '%';
+  document.getElementById('dreadBar').style.width = dread + '%'; document.getElementById('dreadRow').classList.toggle('shaken', dread >= SHAKEN);
+  document.querySelector('#dreadRow span').textContent = dread >= SHAKEN ? 'SHAKEN' : 'DREAD';
+  const spare = bag.reduce((n, id) => n + (AMMO[id] || 0), 0);
+  document.getElementById('wHud').textContent = W[held].name + (W[held].gun ? ` · ${rounds}/${MAG}${spare ? ' +' + spare : ''}` : Number.isFinite(swingsLeft) ? ' · ' + swingsLeft : '');
+}
+function addDread(n) { dread = Math.min(100, dread + n); updHud(); }
+function pop(text) { const el = document.getElementById('pop'); el.textContent = text; el.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-14px)' }], { duration: 700, easing: 'steps(6)' }); }
+function attack() {
+  if (anim !== 'idle' || turn !== 'player') return;
+  if (W[held].gun && rounds <= 0) {                                    // empty: reload from the bag if he can, else just a click
+    const box = ['ammo', 'rounds'].find(id => bag.includes(id));
+    if (box) { bag.splice(bag.indexOf(box), 1); rounds = Math.min(MAG, rounds + AMMO[box]); SFX.play('gun-reload'); pop('RELOAD'); }
+    else { SFX.play('pistol-shot-empty'); pop('CLICK'); }
+    updHud(); return endTurn();
+  }
+  pendingEnemy = true; setTurn('busy', 'PLAYER TURN');
+  if (W[held].gun) { rounds--; addDread(DREAD_SHOT); document.getElementById('flash').animate([{ opacity: .22, background: '#ffb347' }, { opacity: 0 }], { duration: 120, easing: 'steps(2)' }); }
+  if (Number.isFinite(swingsLeft)) { swingsLeft--; updDur(); if (swingsLeft <= 0) return breakIt(); }   // the last swing: it breaks mid-swing
+  SFX.play(...SWING[weapon]);
+  play('attack', ['idle']);
+}
+function breakIt() {
+  if (anim !== 'idle' || (turn !== 'player' && turn !== 'busy')) return;
+  pendingEnemy = true; pop('IT BREAKS');
+  if (weapon === 'fist') return play('attack', ['idle']);
+  dur = 0; updDur();
+  SFX.play(...SWING[weapon]);
+  play('break', ['__fists']);
+}
+function shake(px) {
+  const st = document.getElementById('stage');
+  st.animate([{ transform: `translate(${-px}px, ${px / 2}px)` }, { transform: `translate(${px}px, ${-px / 2}px)` }, { transform: 'none' }], { duration: 140, easing: 'steps(3)' });
+}
+
+let last = performance.now();
+function tick(now) {
+  const dt = now - last; last = now; fT += dt;
+  if (!MAN) return requestAnimationFrame(tick);
+  const frames = animOf(weapon, anim);
+  let f = frames[fi];
+  if (fT >= f.ms) {
+    fT = 0; fi++;
+    if (fi >= frames.length) {
+      const next = queue.shift();
+      if (next === '__fists') { setWeapon('fist'); }   // broken: gone from his hands for good
+      else if (next) { anim = next; fi = 0; }
+      else fi = 0;                                    // loop idle
+    }
+    f = animOf(weapon, anim)[fi];
+    if (pendingEnemy && anim === 'idle') { pendingEnemy = false; setTimeout(enemyTurn, 300); }   // Juan's swing is done: their move
+    if (f.shake) { shake(f.shake * 2); if (anim === 'attack' || anim === 'break') strike(); }
+  }
+  ctx.clearRect(0, 0, 110, 225);
+  const sh = SHEETS[weapon + '-' + anim];
+  if (sh && sh.complete) ctx.drawImage(sh, fi * 110, 0, 110, 225, 0, 0, 110, 225);
+  // portrait
+  if (sheet.complete) {
+    let p = Math.floor(now / 1300) % 2;
+    if (now > nextBlink) { p = 2; if (now > nextBlink + 130) nextBlink = now + 2200 + Math.random() * 3000; }
+    if (now < hurtUntil) p = 3;
+    if (now < flashUntil) p = 4;
+    if (juanDown) p = 5;
+    face.drawImage(sheet, p * 48, 0, 48, 56, 0, 0, 48, 56);
+  }
+  requestAnimationFrame(tick);
+}
+
+const wbox = document.getElementById('weapons');
+for (const [k, label] of Object.entries(WEAPONS)) {
+  const b = document.createElement('button'); b.textContent = label; b.dataset.w = k; b.onclick = () => setWeapon(k); wbox.append(b);
+}
+const sbox = document.getElementById('scenes');
+SCENES.forEach(([n, url, g], i) => {
+  const b = document.createElement('button'); b.textContent = n;
+  b.onclick = () => { bg.src = url; G = g; SFX.bed('rain-1', url.includes('rain'), 0.25); /* the rainy night scene gets its rain */ drawGrid(); sbox.querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', o === b)); };
+  sbox.append(b); if (i === 3) b.click();
+});
+// ---------- the action menu ----------
+const endTurn = () => { setTurn('busy', 'PLAYER TURN'); setTimeout(enemyTurn, 450); };
+function menu(title, options) {                                        // options: [label, onPick]; empty -> a note
+  const m = document.getElementById('menu'), l = document.getElementById('menuL');
+  document.getElementById('menuT').textContent = title; l.innerHTML = '';
+  if (!options.length) l.innerHTML = '<span style="color:var(--slate)">Nothing in the pack for this.</span>';
+  for (const [label, fn] of options) { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { m.hidden = true; fn(); }; l.append(b); }
+  m.hidden = false;
+}
+document.getElementById('menuX').onclick = () => { document.getElementById('menu').hidden = true; };
+const ACTS = {
+  attack,
+  guard() { guarding = true; pop('GUARD'); SFX.play('put-item', 0.6); endTurn(); },
+  item() {
+    const usable = [...new Set(bag.filter(id => MEDICINE[id] || FOOD[id]))];
+    menu('Use an item', usable.map(id => [`${id} (+${MEDICINE[id] || FOOD[id]} HP)`, () => {
+      bag.splice(bag.indexOf(id), 1); juanHP = Math.min(100, juanHP + (MEDICINE[id] || FOOD[id]));
+      SFX.play(MEDICINE[id] ? 'bandage' : 'paper-grab'); pop('+' + (MEDICINE[id] || FOOD[id]) + ' HP'); updHud(); endTurn();
+    }]));
+  },
+  swap() {
+    const ws = [...new Set(bag.filter(id => W[id] && id !== held))];
+    menu('Swap weapon', ws.map(id => [`${W[id].name} (${W[id].dmg} dmg${Number.isFinite(W[id].swings) ? ', ' + W[id].swings + ' swings' : ''})`, () => {
+      bag.splice(bag.indexOf(id), 1); if (held !== 'fist') bag.push(held);   // the old one goes back in the pack (fresh again: wear isn't tracked per weapon yet)
+      setWeapon(id); SFX.play(W[id].gun ? 'gun-equip' : 'equip-sound'); endTurn();
+    }]));
+  },
+  run() {
+    const odds = FOES.some(f => f.hp > 0 && f.r === 0) ? 0.35 : 0.6;    // better when nothing is in his face
+    if (Math.random() < odds) { setTurn('won', 'GOT AWAY'); pop('YOU RUN'); report('fled'); }
+    else { pop('CORNERED'); endTurn(); }
+  },
+};
+document.querySelectorAll('#acts button').forEach(b => b.onclick = () => { if (turn === 'player' && anim === 'idle') ACTS[b.dataset.a](); });
+document.getElementById('attack').onclick = attack;
+document.getElementById('break').onclick = breakIt;
+document.getElementById('hurt').onclick = () => juanHit(10);
+document.getElementById('reset').onclick = () => {
+  juanHP = 100; juanDown = false; dread = 0; guarding = false;
+  spawn();
+  setWeapon('makeshift'); setTurn('player'); updHud();
+};
+for (const [id, set] of [['gridOn', v => gridOn = v], ['foesOn', v => foesOn = v]])
+  document.getElementById(id).onclick = e => { const on = e.target.getAttribute('aria-pressed') !== 'true'; e.target.setAttribute('aria-pressed', on); set(on); drawGrid(); };
+let demo = null;
+document.getElementById('auto').onclick = e => {
+  const on = e.target.getAttribute('aria-pressed') !== 'true'; e.target.setAttribute('aria-pressed', on);
+  clearInterval(demo);
+  if (on) demo = setInterval(() => {
+    if (anim !== 'idle' || turn !== 'player') return;
+    if (juanDown || turn === 'won') return document.getElementById('reset').click();
+    if (weapon === 'fist' && Math.random() < 0.35) return setWeapon(['makeshift', 'itak', 'arnis', 'pipe'][Math.floor(Math.random() * 3)]);
+    attack();
+  }, 1100);
+};
+fetch('out/manifest.json?v=' + EV).then(r => r.json()).then(m => {                      // ?v: always the fresh frames after a rebuild
+  MAN = m;
+  for (const k of Object.keys(m.anims)) { const im = new Image(); im.src = 'out/' + k + '.png?v=' + EV; SHEETS[k] = im; }
+  setWeapon(held, swingsLeft); updHud(); setTurn('player');
+});
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

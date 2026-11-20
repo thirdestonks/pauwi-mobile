@@ -4,30 +4,16 @@ import {
   BEAT_IMPACT,
   BEAT_OUTCOME,
   BEAT_STEP,
-  BEAT_WINDUP,
+  FAST_BEATS,
   CONSUMABLE_EFFECTS,
   DEFAULT_ENEMY_TYPE,
-  DREAD_ON_ATTACK,
-  DREAD_ON_HIT,
-  DREAD_RELIEF_ON_GUARD,
   ENEMY_TYPES,
   GUARD_DAMAGE_MULTIPLIER,
   JUAN_ID,
   JUAN_SPEED,
-  PHASE_BOTH_ACC_NIGHT,
-  PHASE_ENEMY_ACC,
-  PHASE_PLAYER_DMG,
-  RETREAT_BASE,
-  RETREAT_BONUS_PER_DEAD_ENEMY,
-  RETREAT_FAILURE_BONUS,
-  RETREAT_MAX,
-  RETREAT_MIN,
-  RETREAT_SHAKEN_PENALTY,
-  SHAKEN_ACCURACY_PENALTY,
-  accuracyWithPenalty,
-  rollDamage,
-  rollEnemyDamage,
   rollLoot,
+  rowMultOf,
+  PIXEL_COMBAT,
   type EnemySpec,
 } from '~/data/combat'
 import { useBoardStore, type DayPhase } from './board'
@@ -64,6 +50,9 @@ export interface Enemy {
   speed: number
   /** Playing the die frame — already at 0 HP, but still staged for a beat. */
   dying: boolean
+  /** On the 3x3 grid: row 0 CLOSE, 1 MID, 2 FAR; lane 0..2 left to right. */
+  row: number
+  lane: number
 }
 
 /**
@@ -94,13 +83,30 @@ export interface DamageFloater {
   /** Which enemy sprite to float over, when the floater is on an enemy. */
   id: string | null
   amount: number
-  kind: 'damage' | 'heal'
+  kind: 'damage' | 'heal' | 'miss' | 'crit'
+}
+
+/** A weapon's damage range at CLOSE: dmg−1 … dmg+1, never below 1. Fists always hit for 1. */
+export function damageRange(dmg: number): [number, number] {
+  return dmg <= 1 ? [1, 1] : [Math.max(1, dmg - 1), dmg + 1]
 }
 
 const LOG_LINES = 3
+// the sound of each weapon's swing (the hand art decides): bat and arnis whoosh, the pipe is heavier, blades cut, the 9mm fires
+const SWING_SFX: Record<string, [string, number]> = {
+  makeshift: ['weapon-swing', 0.8], arnis: ['weapon-swing', 0.7], pipe: ['iron-pipe-swing', 0.85],
+  itak: ['knife-slice', 0.8], fist: ['weapon-swing', 0.5], pistol: ['pistol-shot', 0.9],
+}
+/** Juan's hand animation reaches its impact frame about here. */
+const SWING_WINDUP = 400
+/** When each enemy's attack animation connects (its anim json's impact frame). */
+const BITE_MS: Record<string, number> = { shambler: 320, brute: 520 }
+/** How long a step forward takes on screen (the screen eases `row` changes over this). */
+const STEP_MS = 700
 
 export const useCombatStore = defineStore('combat', () => {
   const player = usePlayerStore()
+  const sfx = useSfx()
 
   const active = ref(false)
   const phase = ref<CombatPhase>('idle')
@@ -108,6 +114,10 @@ export const useCombatStore = defineStore('combat', () => {
   const round = ref(1)
   /** Day/Night snapshot from the board at fight start — modifiers don't flip mid-fight. */
   const fightPhase = ref<DayPhase>('day')
+  /** Where the fight is: the street, or inside a house (one weaker Shambler, a dark room lit only by the flashlight, no floor grid drawn). */
+  const fightScene = ref<'street' | 'interior'>('street')
+  /** The interior's floor, which picks the painted room: wooden or tiled. */
+  const interiorFloor = ref<'wood' | 'tile'>('wood')
 
   const allies = ref<AllyActor[]>([])
   const enemies = ref<Enemy[]>([])
@@ -130,6 +140,8 @@ export const useCombatStore = defineStore('combat', () => {
   const damageFloater = ref<DamageFloater | null>(null)
   const guarding = ref(false)
   const busy = ref(false)
+  /** A bandage or medicine still working: Health at the start of each of Juan's next turns. */
+  const regen = ref<{ amount: number; turns: number } | null>(null)
 
   const enemiesDefeated = ref(0)
   const lootGained = ref<string[]>([])
@@ -145,11 +157,12 @@ export const useCombatStore = defineStore('combat', () => {
     () => active.value && !outcome.value && !busy.value && phase.value === 'player-turn',
   )
 
+  /** Running: low odds, better with nothing in Juan's face. There's no running from the gate (the Brute). */
   const retreatOdds = computed(() => {
-    const putDown = Math.max(0, initialEnemyCount.value - livingEnemies.value.length)
-    const penalty = player.shaken ? RETREAT_SHAKEN_PENALTY : 0
-    const chance = RETREAT_BASE + putDown * RETREAT_BONUS_PER_DEAD_ENEMY - penalty
-    return Math.min(RETREAT_MAX, Math.max(RETREAT_MIN, chance))
+    if (gateFight.value) return 0
+    // what he carries matters: light +10%, loaded −15%, overloaded −30% (data/weight.ts), never below 5%
+    const base = livingEnemies.value.some((e) => e.row === 0) ? PIXEL_COMBAT.runOdds : PIXEL_COMBAT.runOddsClear
+    return Math.max(0.05, Math.min(0.95, base + useInventoryStore().load.run))
   })
 
   /** For the screen's phase chip — what the light is doing to the fight. */
@@ -167,6 +180,7 @@ export const useCombatStore = defineStore('combat', () => {
   )
 
   function schedule(fn: () => void, delay: number) {
+    if (useSettings().settings.fastFights) delay *= FAST_BEATS
     const timer = setTimeout(() => {
       timers = timers.filter((t) => t !== timer)
       fn()
@@ -195,14 +209,14 @@ export const useCombatStore = defineStore('combat', () => {
         side: 'ally' as const,
         speed: a.speed,
       })),
-      ...livingEnemies.value.map((e) => ({
+      ...[...livingEnemies.value].sort((a, b) => a.row - b.row).map((e) => ({
         id: e.id,
         name: e.name,
         icon: '🧟',
         side: 'enemy' as const,
         speed: e.speed,
       })),
-    ].sort((a, b) => b.speed - a.speed || sideRank(a.side) - sideRank(b.side))
+    ].sort((a, b) => sideRank(a.side) - sideRank(b.side))       // the player side first, then every enemy, nearest first
   }
 
   function dropFromQueue(id: string) {
@@ -212,26 +226,35 @@ export const useCombatStore = defineStore('combat', () => {
     if (index < turnIndex.value) turnIndex.value = Math.max(0, turnIndex.value - 1)
   }
 
-  function start(encounter: EnemySpec[], options: { gate?: boolean } = {}) {
+  function start(encounter: EnemySpec[], options: { gate?: boolean; interior?: boolean | 'wood' | 'tile' } = {}) {
     clearTimers()
 
     gateFight.value = options.gate ?? false
+    fightScene.value = options.interior ? 'interior' : 'street'
+    if (options.interior) interiorFloor.value = options.interior === 'wood' || options.interior === 'tile' ? options.interior : (Math.random() < 0.5 ? 'wood' : 'tile')
+    // Inside a house it is always one zombie, whatever the tile rolled.
+    if (options.interior) encounter = encounter.slice(0, 1)
     fightPhase.value = useBoardStore().phase
     allies.value = [{ id: JUAN_ID, name: player.name, icon: '🧍', speed: JUAN_SPEED }]
     // The tile says which archetype and how tough; this resolves it into the stats the
     // fight actually uses, so a new enemy type needs no change here.
-    enemies.value = encounter.map((spec, index) => {
+    // Everyone enters at FAR, spread across the lanes (inside a house the one Shambler starts at CLOSE); HP is the pixel combat's (5 a Shambler, 16 the Brute).
+    const LANES = [[1], [0, 2], [0, 1, 2]][Math.min(3, encounter.length) - 1] ?? [1]
+    enemies.value = encounter.slice(0, 3).map((spec, index) => {
       const type = ENEMY_TYPES[spec.archetype] ?? ENEMY_TYPES[DEFAULT_ENEMY_TYPE]
+      const hp = type.id === 'brute' ? PIXEL_COMBAT.brute.hp : options.interior ? PIXEL_COMBAT.interior.hp : PIXEL_COMBAT.shambler.hp
       return {
         id: `enemy-${index}`,
         archetype: type.id,
         name: type.name,
-        hp: spec.hp,
-        maxHp: spec.hp,
+        hp,
+        maxHp: hp,
         damageTable: type.damageTable,
         accuracy: type.accuracy,
         speed: type.speed,
         dying: false,
+        row: options.interior ? 0 : 2,                                // inside a house it is already in front of Juan
+        lane: LANES[index] ?? 1,
       }
     })
     initialEnemyCount.value = enemies.value.length
@@ -242,6 +265,7 @@ export const useCombatStore = defineStore('combat', () => {
     round.value = 1
     guarding.value = false
     busy.value = false
+    regen.value = null
     pose.value = 'idle'
     hitEnemyId.value = null
     swingingEnemyId.value = null
@@ -252,7 +276,9 @@ export const useCombatStore = defineStore('combat', () => {
     const count = enemies.value.length
     const type = ENEMY_TYPES[enemies.value[0]?.archetype ?? DEFAULT_ENEMY_TYPE]
     log.value = [
-      count === 1
+      options.interior
+        ? `A ${type.name} is already in front of you, right at the edge of your light.`
+        : count === 1
         ? `One ${type.name} between you and the street — it hasn't seen you yet.`
         : count === 2
           ? `Two ${type.plural} in the fog, and the alley mouth is behind them.`
@@ -275,6 +301,15 @@ export const useCombatStore = defineStore('combat', () => {
     if (entry.side === 'ally') {
       // Guard only ever buys you one round — it lapses when Juan's turn comes back around.
       guarding.value = false
+      // Healing over time ticks in as his turn starts.
+      const r = regen.value
+      if (r && r.turns > 0) {
+        player.heal(r.amount)
+        damageFloater.value = { target: 'juan', id: null, amount: r.amount, kind: 'heal' }
+        schedule(() => { if (damageFloater.value?.kind === 'heal') damageFloater.value = null }, BEAT_STEP * 2)
+        regen.value = r.turns > 1 ? { amount: r.amount, turns: r.turns - 1 } : null
+        pushLog(`The dressing holds. +${r.amount} Health.`)
+      }
       phase.value = 'player-turn'
       busy.value = false
       return
@@ -307,20 +342,28 @@ export const useCombatStore = defineStore('combat', () => {
    * ended the run. All three enemy damage routes (swing, retreat grab) go through here.
    */
   function landOnJuan(raw: number, attackerName: string): boolean {
-    const afterArmor = Math.max(1, raw - player.armorTotal)
+    // Armor soaks its flat share, never more than half the hit, and wears down by what it soaked.
+    const blocked = Math.min(player.armorTotal, Math.floor(raw * PIXEL_COMBAT.armorCap))
+    const afterArmor = Math.max(1, raw - blocked)
+    const broke = blocked > 0 ? player.wearArmor(blocked) : []
     const damage = guarding.value
       ? Math.max(1, Math.round(afterArmor * GUARD_DAMAGE_MULTIPLIER))
       : afterArmor
 
     const finished = player.applyDamage(damage)
-    player.raiseDread(DREAD_ON_HIT)
+    useSettings().buzz(finished ? [60, 40, 120] : 40)
+    player.raiseDread(PIXEL_COMBAT.dreadHit)
+    sfx.play('zombie-bite')
     pose.value = 'hurt'
     damageFloater.value = { target: 'juan', id: null, amount: damage, kind: 'damage' }
     pushLog(
       guarding.value
         ? `${attackerName} slams into your guard — ${damage} Health, and it lands soft.`
-        : `${attackerName} connects. −${damage} Health.`,
+        : blocked
+          ? `${attackerName} connects. −${damage} Health; your gear ate ${blocked}.`
+          : `${attackerName} connects. −${damage} Health.`,
     )
+    for (const name of broke) pushLog(`The ${name.toLowerCase()} tears apart and falls away.`)
 
     schedule(() => {
       damageFloater.value = null
@@ -344,96 +387,148 @@ export const useCombatStore = defineStore('combat', () => {
       return
     }
 
-    // Day makes them sloppy; night makes EVERYONE blind. Floor keeps it possible, not certain.
-    const nightBlindness = fightPhase.value === 'night' ? PHASE_BOTH_ACC_NIGHT : 0
-    const enemyAccuracy = Math.max(
-      0.05,
-      enemy.accuracy + PHASE_ENEMY_ACC[fightPhase.value] - nightBlindness,
-    )
-    // Wind-up shows whether the blow lands or not — a swipe you sidestep still lunges.
-    swingingEnemyId.value = id
-    if (Math.random() >= enemyAccuracy) {
-      pushLog(
-        fightPhase.value === 'night'
-          ? `${enemy.name} claws at the dark — and the dark is winning.`
-          : `${enemy.name} swipes through the space where you were — you feel the air move.`,
-      )
+    if (enemy.row === 0) {                                          // in reach: it lunges, and sometimes it misses
+      swingingEnemyId.value = id
+      const stats = enemy.archetype === 'brute' ? PIXEL_COMBAT.brute : fightScene.value === 'interior' ? PIXEL_COMBAT.interior : PIXEL_COMBAT.shambler
+      const missed = Math.random() < stats.miss
       schedule(() => {
-        swingingEnemyId.value = null
-      }, BEAT_IMPACT)
-      advance()
+        if (!active.value || outcome.value) return
+        if (missed) return missOnJuan(enemy.name)
+        if (landOnJuan(stats.bite, enemy.name)) finish('lost')
+      }, BITE_MS[enemy.archetype] ?? 320)
       return
     }
 
-    const raw = rollEnemyDamage(enemy.damageTable)
-    if (landOnJuan(raw, enemy.name)) {
-      finish('lost')
+    const to = enemy.row - 1                                        // otherwise one row closer, unless its lane is blocked
+    if (livingEnemies.value.some((o) => o !== enemy && o.row === to && o.lane === enemy.lane)) {
+      schedule(advance, 150)
       return
     }
+    enemy.row = to
+    if (to === 0) {
+      player.raiseDread(PIXEL_COMBAT.dreadClose)                   // it's in his face now
+      pushLog(`The ${enemy.name.toLowerCase()} is on you.`)
+    }
+    schedule(advance, STEP_MS)
+  }
 
-    schedule(() => {
-      if (!outcome.value) pose.value = 'idle'
-    }, BEAT_IMPACT)
-
+  /** The lunge goes wide: a whoosh past Juan's ear, no damage, no Dread. */
+  function missOnJuan(attackerName: string) {
+    sfx.play('weapon-swing', 0.6)
+    damageFloater.value = { target: 'juan', id: null, amount: 0, kind: 'miss' }
+    pushLog(`${attackerName} lunges — and grabs nothing but fog.`)
+    schedule(() => { damageFloater.value = null; swingingEnemyId.value = null }, BEAT_IMPACT)
     advance()
+  }
+
+  /** What an enemy does on its next turn: bite (in reach), wait (its lane is blocked), or step closer. */
+  function intentOf(e: Enemy): 'bite' | 'wait' | 'advance' {
+    if (e.row === 0) return 'bite'
+    return livingEnemies.value.some((o) => o !== e && o.row === e.row - 1 && o.lane === e.lane) ? 'wait' : 'advance'
   }
 
   function canAct(): boolean {
     return active.value && !outcome.value && !busy.value && phase.value === 'player-turn'
   }
 
-  function attack() {
+  /**
+   * A gun is empty: reload from what is loose in Juan's pockets, else the smallest pack in the bag (the 9mm: a small pack of 6, else a
+   * box of 12 that loads 6 and leaves 6 loose; the sumpak: a box of 4 shells, one goes in), else just a click. Both cost the turn.
+   */
+  function reloadOrClick() {
+    const inventory = useInventoryStore()
+    const id = player.weapon.id, gun = PIXEL_COMBAT.guns[id] ?? PIXEL_COMBAT.guns.pistol!
+    const source = Object.keys(gun.packs).find((p) => inventory.hasInBag(p))
+    let loaded = player.loadedOf(id), spare = player.spareOf(id)
+    if (spare > 0 || source) {
+      if (spare <= 0 && source) {
+        inventory.removeFromBag(source)
+        spare += gun.packs[source] ?? 0
+      }
+      const load = Math.min(gun.mag - loaded, spare)
+      loaded += load
+      spare -= load
+      player.setGun(id, loaded, spare)
+      sfx.play(id === 'sumpak' ? 'shotgun-reload' : '9mm-reload')
+      pushLog(id === 'sumpak'
+        ? `You break the pipes apart and slide a shell in.${spare ? ` ${spare} loose in your pocket.` : ''}`
+        : `You thumb fresh rounds into the magazine. ${loaded} loaded${spare ? `, ${spare} loose in your pocket` : ''}.`)
+    } else {
+      sfx.play('pistol-shot-empty')
+      pushLog(`Click. It's empty, and there's nothing left in the bag to load.`)
+    }
+    busy.value = true
+    phase.value = 'resolving'
+    schedule(advance, BEAT_IMPACT)
+  }
+
+  /** Attacks the picked enemy (by id), or the nearest one standing. */
+  function attack(targetId?: string) {
     if (!canAct()) return
-    const target = frontEnemy.value
+    const target = livingEnemies.value.find((e) => e.id === targetId)
+      ?? [...livingEnemies.value].sort((a, b) => a.row - b.row)[0]
     if (!target) return
+
+    const weapon = player.weapon
+    if (weapon.combat.gun && player.loadedOf(weapon.id) <= 0) return reloadOrClick()
 
     busy.value = true
     phase.value = 'resolving'
 
-    const weapon = player.weapon
-    const nightBlindness = fightPhase.value === 'night' ? PHASE_BOTH_ACC_NIGHT : 0
-    const accuracy = accuracyWithPenalty(
-      weapon.accuracy,
-      (player.shaken ? SHAKEN_ACCURACY_PENALTY : 0) + nightBlindness,
-    )
-    const hit = Math.random() < accuracy
+    if (weapon.combat.gun) {
+      player.setGun(weapon.id, player.loadedOf(weapon.id) - 1, player.spareOf(weapon.id))
+      player.raiseDread(PIXEL_COMBAT.dreadShot * (weapon.combat.lane ? 2 : 1))   // it's loud, and the sumpak is louder
+    }
     const brokeThisSwing = player.spendDurability()
+    const hit = !(player.dread >= PIXEL_COMBAT.shakenAt && Math.random() < PIXEL_COMBAT.shakenMiss)
 
     let damage = 0
     let killed = false
+    let crit = false
+    /** The sumpak's spread: everything else standing in the target's lane takes its own roll. */
+    const others: Enemy[] = []
+    const roll = (e: Enemy, isCrit: boolean) => {
+      const [lo, hi] = damageRange(weapon.combat.dmg)
+      const dmg = +((lo + Math.floor(Math.random() * (hi - lo + 1))) * (isCrit ? PIXEL_COMBAT.critMult : 1) * rowMultOf(weapon.combat, e.row)).toFixed(1)
+      e.hp = Math.max(0, +(e.hp - dmg).toFixed(1))
+      return dmg
+    }
     if (hit) {
-      // Daylight: Juan can see what he's swinging at. Night: he's guessing.
-      damage = Math.max(1, Math.round(rollDamage(weapon.damage, weapon.variance) * PHASE_PLAYER_DMG[fightPhase.value]))
-      target.hp = Math.max(0, target.hp - damage)
+      crit = Math.random() < (weapon.combat.crit ?? PIXEL_COMBAT.critChance)
+      damage = roll(target, crit)
       killed = target.hp <= 0
+      if (weapon.combat.lane) for (const e of livingEnemies.value) if (e !== target && e.lane === target.lane) { roll(e, false); others.push(e) }
     } else {
-      pushLog(`You swing ${weapon.name} and catch nothing but fog.`)
+      pushLog('Your hands are shaking. The swing goes wide.')
+      damageFloater.value = { target: 'enemy', id: target.id, amount: 0, kind: 'miss' }
     }
 
     pose.value = 'attack'
-    player.raiseDread(DREAD_ON_ATTACK)
-
+    sfx.play(...(SWING_SFX[weapon.combat.hands] ?? SWING_SFX.makeshift))
     schedule(
-      () => swingImpact(target, { hit, damage, killed, broke: brokeThisSwing, weaponName: weapon.name }),
-      BEAT_WINDUP,
+      () => swingImpact(target, { hit, damage, killed, crit, broke: brokeThisSwing, weaponName: weapon.name, others, knock: !!weapon.combat.knock }),
+      SWING_WINDUP,
     )
   }
 
   function swingImpact(
     target: Enemy,
-    result: { hit: boolean; damage: number; killed: boolean; broke: boolean; weaponName: string },
+    result: { hit: boolean; damage: number; killed: boolean; crit: boolean; broke: boolean; weaponName: string; others: Enemy[]; knock: boolean },
   ) {
     if (!active.value || outcome.value) return
     pose.value = 'swoosh'
 
     if (result.hit) {
+      sfx.play('punch-impact', player.weapon.combat.hands === 'fist' ? 1 : 0.7)
+      sfx.play(result.killed ? 'zombie-dead' : 'zombie-hurt', result.killed ? 1 : 0.75)
       hitEnemyId.value = target.id
       damageFloater.value = {
         target: 'enemy',
         id: target.id,
         amount: result.damage,
-        kind: 'damage',
+        kind: result.crit ? 'crit' : 'damage',
       }
+      if (result.crit) pushLog('A clean, heavy hit — it lands twice as hard.')
       pushLog(
         result.killed
           ? livingEnemies.value.length > 1
@@ -441,37 +536,44 @@ export const useCombatStore = defineStore('combat', () => {
             : `The ${target.name.toLowerCase()} drops. The alley ahead is clear — for now.`
           : `You put ${result.weaponName} into the front ${target.name.toLowerCase()} — it staggers, snarling.`,
       )
-      if (result.broke) pushLog('The plank splits along the grain. You\'re down to your fists.')
+      if (result.others.length) pushLog(`The blast carries down the lane: ${result.others.length + 1} of them take it.`)
+      // The hammer's knock-back: a Shambler it hits (and doesn't drop) goes back a row, if there's room behind it.
+      if (result.knock && !result.killed && target.row < 2 && !livingEnemies.value.some((o) => o !== target && o.lane === target.lane && o.row === target.row + 1)) {
+        target.row += 1
+        pushLog(`The blow knocks the ${target.name.toLowerCase()} back a step.`)
+      }
+      if (result.broke) pushLog(`The ${result.weaponName.toLowerCase()} gives out. You're down to your fists.`)
     }
 
+    const dead = [target, ...result.others].filter((e) => e.hp <= 0)
     schedule(() => {
       hitEnemyId.value = null
       damageFloater.value = null
-      if (result.broke) player.breakWeapon()
+      if (result.broke) { player.breakWeapon(); useSettings().buzz([30, 30, 60]) }
 
       schedule(
         () => {
           if (!active.value || outcome.value) return
-          if (result.killed) sweepKill(target)
+          if (dead.length) sweepKill(dead)
           else {
             pose.value = 'idle'
             advance()
           }
         },
-        result.killed ? BEAT_DEATH : BEAT_IMPACT,
+        dead.length ? BEAT_DEATH : BEAT_IMPACT,
       )
     }, BEAT_IMPACT)
   }
 
-  /** The die frame holds, then the rank restages — defeat-and-advance. */
-  function sweepKill(target: Enemy) {
-    target.dying = true
-    enemiesDefeated.value += 1
+  /** The die frame holds, then the rank restages — defeat-and-advance. A sumpak blast can drop several at once. */
+  function sweepKill(targets: Enemy[]) {
+    for (const t of targets) t.dying = true
+    enemiesDefeated.value += targets.length
     pose.value = 'idle'
 
     schedule(() => {
-      dropFromQueue(target.id)
-      enemies.value = enemies.value.filter((e) => e.id !== target.id)
+      for (const t of targets) dropFromQueue(t.id)
+      enemies.value = enemies.value.filter((e) => !targets.includes(e))
 
       if (livingEnemies.value.length === 0) {
         finish('won')
@@ -486,7 +588,6 @@ export const useCombatStore = defineStore('combat', () => {
     busy.value = true
     phase.value = 'resolving'
     guarding.value = true
-    player.relieveDread(DREAD_RELIEF_ON_GUARD)
     pushLog('You brace against the wall, weapon up — the next hit will land soft.')
     schedule(advance, BEAT_IMPACT)
   }
@@ -498,7 +599,7 @@ export const useCombatStore = defineStore('combat', () => {
   function useItem(slotIndex: number): boolean {
     if (!canAct()) return false
     const inventory = useInventoryStore()
-    const id = inventory.bag[slotIndex]
+    const id = inventory.bag[slotIndex]?.id
     if (!id) return false
     if (!inventory.consumeBagSlot(slotIndex)) return false
 
@@ -508,11 +609,35 @@ export const useCombatStore = defineStore('combat', () => {
     const effect = CONSUMABLE_EFFECTS[id]
     const name = inventory.findStashItem(id)?.name ?? id
 
+    // The molotov: every Shambler standing burns, and any it finishes go down together.
+    if (effect?.fire) {
+      const burned = livingEnemies.value.slice()
+      for (const e of burned) e.hp = Math.max(0, +(e.hp - effect.fire).toFixed(1))
+      sfx.play('zombie-hurt')
+      damageFloater.value = { target: 'enemy', id: burned[0]?.id ?? null, amount: effect.fire, kind: 'damage' }
+      pushLog(`The bottle bursts into a sheet of fire. Everything in front of you burns: −${effect.fire} each.`)
+      const dead = burned.filter((e) => e.hp <= 0)
+      schedule(() => {
+        damageFloater.value = null
+        if (!dead.length) { advance(); return }
+        for (const e of dead) { e.dying = true; enemiesDefeated.value += 1 }
+        schedule(() => {
+          for (const e of dead) dropFromQueue(e.id)
+          enemies.value = enemies.value.filter((e) => !dead.includes(e))
+          if (livingEnemies.value.length === 0) finish('won')
+          else advance()
+        }, BEAT_DEATH)
+      }, BEAT_IMPACT)
+      return true
+    }
+
     if (effect) {
+      sfx.play(effect.food || id.includes('food') || id.includes('noodles') ? 'paper-grab' : 'bandage')
       if (effect.heal) {
         player.heal(effect.heal)
         damageFloater.value = { target: 'juan', id: null, amount: effect.heal, kind: 'heal' }
       }
+      if (effect.regen) regen.value = { ...effect.regen }
       if (effect.energy) player.restoreEnergy(effect.energy)
       if (effect.hope) player.raiseHope(effect.hope)
       if (effect.dreadRelief) player.relieveDread(effect.dreadRelief)
@@ -529,6 +654,18 @@ export const useCombatStore = defineStore('combat', () => {
     return true
   }
 
+  function swapWeapon(id: string): boolean {
+    if (!canAct()) return false
+    const inventory = useInventoryStore()
+    if (!inventory.equipItem(id)) return false
+    busy.value = true
+    phase.value = 'resolving'
+    sfx.play(player.weapon.id === 'pistol' ? 'pistol-cock' : player.weapon.combat.gun ? 'gun-equip' : 'equip-sound')
+    pushLog(`You switch to the ${player.weapon.name.toLowerCase()}.`)
+    schedule(advance, BEAT_IMPACT)
+    return true
+  }
+
   function retreat() {
     if (!canAct()) return
     busy.value = true
@@ -540,25 +677,7 @@ export const useCombatStore = defineStore('combat', () => {
       return
     }
 
-    pushLog('You break for the alley mouth — it drags you back by the collar.')
-    const enemy = frontEnemy.value
-    if (!enemy) {
-      advance()
-      return
-    }
-
-    // The grab reads as a swing too — same pose, same beat.
-    swingingEnemyId.value = enemy.id
-    const raw = rollEnemyDamage(enemy.damageTable) + RETREAT_FAILURE_BONUS
-    if (landOnJuan(raw, enemy.name)) {
-      finish('lost')
-      return
-    }
-
-    schedule(() => {
-      if (!outcome.value) pose.value = 'idle'
-    }, BEAT_IMPACT)
-
+    pushLog('You break for the alley mouth, and they cut you off.')
     advance()
   }
 
@@ -593,9 +712,10 @@ export const useCombatStore = defineStore('combat', () => {
 
     if (result === 'won') {
       pose.value = 'idle'
-      rollVictoryLoot()
+      if (fightScene.value !== 'interior') rollVictoryLoot()                // inside a house the cupboards are the reward
       // Victory is the only thing that resolves a zombie tile. Walking away leaves it live.
-      useBoardStore().resolveEncounter()
+      // A fight inside a house is not the tile: the house goes on being explored, and resolves when it has been searched.
+      if (fightScene.value !== 'interior') useBoardStore().resolveEncounter()
     } else if (result === 'lost') {
       pose.value = 'die'
     } else {
@@ -642,6 +762,7 @@ export const useCombatStore = defineStore('combat', () => {
     outcome.value = null
     round.value = 1
     fightPhase.value = 'day'
+    fightScene.value = 'street'
     allies.value = []
     enemies.value = []
     initialEnemyCount.value = 0
@@ -663,6 +784,8 @@ export const useCombatStore = defineStore('combat', () => {
     active,
     phase,
     fightPhase,
+    fightScene,
+    interiorFloor,
     outcome,
     round,
     allies,
@@ -676,6 +799,8 @@ export const useCombatStore = defineStore('combat', () => {
     damageFloater,
     guarding,
     busy,
+    regen,
+    intentOf,
     enemiesDefeated,
     lootGained,
     lootLost,
@@ -691,6 +816,7 @@ export const useCombatStore = defineStore('combat', () => {
     attack,
     guardAction,
     useItem,
+    swapWeapon,
     retreat,
     stop,
     reset,

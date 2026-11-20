@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAUWI Combat Backgrounds</title>
+<style>
+  :root { --ink:#0E1214; --amber:#F0A63C; --bone:#ECE4D5; --slate:#828B90; --teal:#2E86AB; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--ink); color:var(--bone); font:13px/1.4 ui-monospace, Consolas, monospace;
+         display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:20px 16px; overflow:hidden; }
+  header { text-align:center; }
+  h1 { margin:0; font:800 30px/1 "Arial Narrow", "Roboto Condensed", Impact, sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--amber); }
+  header p { margin:6px 0 0; color:var(--slate); letter-spacing:.18em; text-transform:uppercase; font-size:11px; }
+  .row { display:flex; gap:22px; align-items:flex-start; justify-content:center; }
+  .set { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .set h2 { margin:0; font:700 11px/1 ui-monospace, Consolas, monospace; letter-spacing:.35em; text-transform:uppercase; color:var(--slate); }
+  .pair { display:flex; gap:12px; }
+  figure { margin:0; display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .phone { height:min(74vh, 900px, calc((100vw - 140px) / 4 * 2.045)); aspect-ratio:110/225; padding:5px; background:#050607;
+           border:1px solid #232a2d; box-shadow:0 0 0 1px #000, 0 24px 60px rgba(0,0,0,.55); }
+  iframe { display:block; width:100%; height:100%; border:0; background:#000; }
+  figcaption { height:26px; display:flex; align-items:center; gap:6px; font:700 12px/1 ui-monospace, Consolas, monospace; letter-spacing:.3em; text-transform:uppercase; }
+  button { background:#15171f; color:var(--bone); border:1px solid #2c3040; padding:5px 9px; font:inherit; font-size:10px; cursor:pointer; letter-spacing:.1em; }
+  button[aria-pressed="true"] { border-color:var(--teal); color:#8fc6dd; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pauwi · Combat Backgrounds</h1>
+  <p>Tondo, Manila · 4 live pixel-art scenes · picked at random each fight</p>
+</header>
+<div class="row">
+  <section class="set">
+    <h2>Fog road · Alley</h2>
+    <div class="pair">
+      <figure><div class="phone"><iframe src="../combat-bg-day/index.html?embed" title="Fog road, day"></iframe></div><figcaption>Day</figcaption></figure>
+      <figure><div class="phone"><iframe data-base="../combat-bg-night/index.html?embed" title="Alley, night"></iframe></div>
+        <figcaption>Night <button aria-pressed="false">Rain</button></figcaption></figure>
+    </div>
+  </section>
+  <section class="set">
+    <h2>Urban street</h2>
+    <div class="pair">
+      <figure><div class="phone"><iframe src="../combat-bg-urban/index.html?embed&v=2&mode=day" title="Urban street, day"></iframe></div><figcaption>Day</figcaption></figure>
+      <figure><div class="phone"><iframe data-base="../combat-bg-urban/index.html?embed&v=2&mode=night" title="Urban street, night"></iframe></div>
+        <figcaption>Night <button aria-pressed="false">Rain</button></figcaption></figure>
+    </div>
+  </section>
+</div>
+<script>
+document.querySelectorAll('iframe[data-base]').forEach(f => {
+  f.src = f.dataset.base;
+  const btn = f.closest('figure').querySelector('button');
+  btn.onclick = () => {
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', on);
+    f.src = f.dataset.base + '&v=' + Date.now() + (on ? '#rain' : '');
+  };
+});
+</script>
+</body>
+</html>

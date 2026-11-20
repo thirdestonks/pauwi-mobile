@@ -1,0 +1,151 @@
+{
+ "shotgun-rest": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 1.0
+  }
+ },
+ "shotgun-fire": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.873
+  }
+ },
+ "shotgun-pump1": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.92
+  }
+ },
+ "shotgun-pump2": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.918
+  }
+ },
+ "shotgun-load": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 0.9,
+   "dx": 50,
+   "dy": 121,
+   "match": 0.847
+  }
+ },
+ "shotgun-fireup": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.873,
+   "tilt": 8
+  }
+ },
+ "shotgun-restup5": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 1.0,
+   "tilt": 5
+  }
+ },
+ "shotgun-restup2": {
+  "w": 110,
+  "h": 112,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 1.0,
+   "tilt": 2
+  }
+ },
+ "m4-rest": {
+  "w": 110,
+  "h": 82,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 1.0
+  }
+ },
+ "m4-fire": {
+  "w": 110,
+  "h": 82,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.883
+  }
+ },
+ "m4-reload1": {
+  "w": 110,
+  "h": 82,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.88
+  }
+ },
+ "m4-reload2": {
+  "w": 110,
+  "h": 82,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.862
+  }
+ },
+ "m4-reload3": {
+  "w": 110,
+  "h": 82,
+  "fit": {
+   "scale": 1.0,
+   "dx": 0,
+   "dy": 0,
+   "match": 0.907
+  }
+ },
+ "shotgun-icon": {
+  "w": 44,
+  "h": 24
+ },
+ "stars-1": {
+  "w": 16,
+  "h": 16
+ },
+ "stars-2": {
+  "w": 16,
+  "h": 16
+ },
+ "stars-3": {
+  "w": 16,
+  "h": 16
+ }
+}

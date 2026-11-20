@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat BG — Night</title>
+<style>
+  :root { --ink:#0E1214; --amber:#F0A63C; --bone:#ECE4D5; --slate:#828B90; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--ink); color:var(--bone);
+         font:13px/1.4 ui-monospace, Consolas, monospace; display:flex; flex-direction:column; align-items:center; gap:14px; padding:16px; }
+  h1 { margin:0; font:700 15px/1 ui-monospace, Consolas, monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--amber); }
+  .frame { height:min(900px, calc(100vh - 150px)); aspect-ratio:110/225; background:#000; outline:1px solid #23263a; }
+  .frame.native { height:auto; aspect-ratio:auto; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .frame.native canvas { width:110px; height:225px; }
+  .frame.x2 canvas { width:220px; height:450px; }
+  .controls { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:480px; }
+  button { background:#15171f; color:var(--bone); border:1px solid #2c3040; padding:6px 10px; font:inherit; cursor:pointer; }
+  button[aria-pressed="true"] { border-color:var(--amber); color:var(--amber); }
+  p.note { color:var(--slate); max-width:460px; margin:0; text-align:center; }
+  .embed { padding:0; gap:0; justify-content:center; overflow:hidden; }
+  .embed h1, .embed .controls, .embed p.note { display:none; }
+  .embed .frame { height:100vh; outline:none; }
+</style>
+</head>
+<body>
+<h1>Combat BG · Night</h1>
+<div class="controls">
+  <button id="play" aria-pressed="true">Playing</button>
+  <button data-speed="1" aria-pressed="true">Speed 1×</button>
+  <button data-speed="4" aria-pressed="false">Speed 4×</button>
+  <button id="rain" aria-pressed="false">Rain</button>
+  <button data-scale="fit" aria-pressed="true">Fit (4×)</button>
+  <button data-scale="x2" aria-pressed="false">2×</button>
+  <button data-scale="native" aria-pressed="false">Native 1×</button>
+</div>
+<div class="frame" id="frame"><canvas id="c" width="110" height="225"></canvas></div>
+<p class="note">Native 110×225 at 4×, with a fixed 31-colour palette. A tiny raycast alley lit by the flickering wall lamp. Use Rain to switch to the wet variant.</p>
+
+<script>
+if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed');
+(() => {
+const W = 110, H = 225, CX = 55, CY = 150, F = 55;
+const EYE = 1.6, XL = -2.0, XR = 2.2, ZEND = 13;            // metres; camera at origin looking down +Z
+const topL = z => z < 9 ? 18.4 : 16.4;
+const topR = z => z < 8 ? 14.4 : 12.4;
+const TOPEND = 6.4;
+const LAMP = [1.1, 5.0, 5.0];
+
+const PAL = ['010103','05040b','0b0b1c','14172e','191d3f','21244a','2a2f5a','363c6c','4a5080','6670a0',
+  '1f1a2c','27223f','372c42','403953','57434c','6f4f49','8a5f50','976e59','b8875f','d6a466','f0c67a','ffe4a6','fff6dc',
+  '5a7bb0','9fb8e0','c9cbe6','2f3a26','4b5a32','7a3b34','a24a3c','3a2a2a'].map(h => [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)));
+const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]].map(r => r.map(v => (v + .5) / 16 - .5));
+
+// ---------- noise ----------
+function hash(x, y, s = 0) {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s = 0) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const fr = v => v - Math.floor(v);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+let seed = 11;
+const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) | 0, (seed >>> 0) / 4294967296);
+
+// ---------- static scene (camera never moves, so geometry + albedo are baked once) ----------
+const NP = W * H;
+const kind = new Uint8Array(NP);          // 0 sky, 1 left wall, 2 right wall, 3 ground, 4 end wall, 5 far skyline
+const PX = new Float32Array(NP), PY = new Float32Array(NP), PZ = new Float32Array(NP), DIST = new Float32Array(NP);
+const AR = new Float32Array(NP), AG = new Float32Array(NP), AB = new Float32Array(NP);
+const ER = new Float32Array(NP), EG = new Float32Array(NP), EB = new Float32Array(NP), EK = new Uint8Array(NP); // emissive + flicker group
+const WET = new Float32Array(NP);
+
+// emissive groups: 1..n windows, each with its own flicker personality
+const groups = [null];
+function group(type) { groups.push({ type, ph: rnd() * 50 }); return groups.length - 1; }
+
+const windowsL = [], windowsR = [], windowsE = [];
+for (let f = 1; f <= 5; f++) for (const [z0, z1] of [[2.2, 3.4], [9.8, 11.0]]) {
+  const r = rnd();
+  windowsL.push({ z0, z1, v0: 3.2 * f + 1.0, v1: 3.2 * f + 2.4, g: r > 0.8 ? group('warm') : r > 0.72 ? group('tv') : 0 });
+}
+for (let f = 1; f <= 4; f++) for (const [z0, z1] of [[2.6, 3.6], [8.6, 9.6], [11.0, 12.0]]) {
+  if (f === 1 && z0 > 8) continue;
+  const r = rnd();
+  windowsR.push({ z0, z1, v0: 3.2 * f + 1.0, v1: 3.2 * f + 2.3, g: r > 0.82 ? group('warm') : 0 });
+}
+windowsE.push({ x0: -1.6, x1: -0.8, v0: 3.6, v1: 5.0, g: group('warm') }, { x0: -1.6, x1: -0.8, v0: 6.0, v1: 7.2, g: 0 });
+const doorGroup = group('door');
+const shopSign = group('sign');
+
+function setA(i, r, g, b) { AR[i] = r; AG[i] = g; AB[i] = b; }
+function setE(i, r, g, b, k) { ER[i] = r; EG[i] = g; EB[i] = b; EK[i] = k; }
+
+function windowPx(i, u, v, w, lit) {
+  // grille bars over a dark (or lit) pane
+  const bar = fr(u / 0.24) < 0.22 || fr((v - w.v0) / 0.32) < 0.18 || v - w.v0 < 0.12 || w.v1 - v < 0.1;
+  if (bar) { setA(i, 0.22, 0.2, 0.24); return; }
+  setA(i, 0.03, 0.03, 0.05);
+  if (!w.g) return;
+  const t = groups[w.g].type;
+  if (t === 'warm') setE(i, 0.75, 0.5, 0.26, w.g);
+  else setE(i, 0.25, 0.4, 0.75, w.g);
+}
+
+function wallTex(i, side, u, v, dist) {
+  // concrete hollow blocks with stains, rising damp and floor ledges
+  const bw = 0.4, bh = 0.2, row = Math.floor(v / bh), col = Math.floor((u + (row & 1) * bw / 2) / bw);
+  let a = side === 1 ? 0.5 : 0.6;
+  a *= 0.88 + 0.22 * hash(col, row, side);
+  a *= 0.72 + 0.38 * vnoise(u * 0.7, v * 0.45, side + 3);
+  if (dist < 6 && (fr(v / bh) < 0.16 || fr((u + (row & 1) * bw / 2) / bw) < 0.08)) a *= 0.72;
+  if (v < 0.9) a *= 0.7;
+  const lv = v % 3.2;
+  if (v > 1 && lv < 0.16) a *= 1.35; else if (v > 1 && lv > 3.0) a *= 0.55;
+  let r = a * 0.96, g = a * 0.9, b = a * 1.02;
+  if (side === 2) { r = a * 1.04; g = a * 0.92; b = a * 0.9; }   // warmer plaster on the lamp wall
+  setA(i, r, g, b);
+
+  if (side === 1) {
+    if (u > 3.5 && u < 7.5 && v < 2.6) {                         // rolling steel shutter of a closed store
+      const rib = fr(v / 0.13) < 0.5 ? 0.5 : 0.36;
+      setA(i, rib * 0.9, rib * 0.92, rib);
+      if (v < 0.15) setA(i, 0.15, 0.14, 0.16);
+      return;
+    }
+    if (u > 3.4 && u < 7.6 && v >= 2.6 && v < 3.15) {             // faded painted sign
+      const txt = v > 2.72 && v < 3.02 && hash(Math.floor(u / 0.18), Math.floor(v / 0.1), 4) > 0.55 && u > 3.8 && u < 7.2;
+      if (txt) setA(i, 0.75, 0.65, 0.45); else setA(i, 0.55, 0.22, 0.2);
+      return;
+    }
+    if (Math.abs(u - 8.4) < 0.09) { setA(i, 0.26, 0.24, 0.3); return; }       // drain pipe
+    for (const w of windowsL) if (u > w.z0 && u < w.z1 && v > w.v0 && v < w.v1) return windowPx(i, u, v, w);
+  } else {
+    if (u > 9.6 && u < 10.7 && v < 2.2) { setA(i, 0.24, 0.16, 0.13); if (fr(u / 0.27) < 0.15) setA(i, 0.16, 0.11, 0.1); return; }
+    if (u > 3.9 && u < 4.9 && v > 2.8 && v < 3.4) {               // aircon unit
+      const grille = fr(u / 0.1) < 0.4 && v > 2.9 && v < 3.3;
+      setA(i, grille ? 0.35 : 0.72, grille ? 0.35 : 0.72, grille ? 0.38 : 0.7); return;
+    }
+    if (Math.abs(u - 2.0) < 0.08) { setA(i, 0.28, 0.25, 0.3); return; }
+    for (const w of windowsR) if (u > w.z0 && u < w.z1 && v > w.v0 && v < w.v1) return windowPx(i, u, v, w);
+  }
+}
+
+function endTex(i, x, v) {
+  let a = 0.48 * (0.85 + 0.25 * hash(Math.floor(x / 0.4), Math.floor(v / 0.2), 7)) * (0.75 + 0.35 * vnoise(x, v * 0.6, 9));
+  if (v < 0.8) a *= 0.7;
+  setA(i, a * 0.95, a * 0.9, a * 1.05);
+  // arched doorway with warm light inside
+  const inArch = x > -0.5 && x < 0.5 && (v < 2.0 || (x * x) / 0.25 + ((v - 2.0) ** 2) / 0.3 < 1);
+  const frame = x > -0.62 && x < 0.62 && (v < 2.12 || (x * x) / 0.38 + ((v - 2.0) ** 2) / 0.45 < 1);
+  if (inArch) { setA(i, 0.1, 0.08, 0.06); setE(i, 0.95, 0.66, 0.33, doorGroup); if (Math.abs(x) < 0.08 && v > 0.4 && v < 1.8) setE(i, 0.55, 0.36, 0.18, doorGroup); return; }
+  if (frame) { setA(i, 0.62, 0.56, 0.5); return; }
+  for (const w of windowsE) if (x > w.x0 && x < w.x1 && v > w.v0 && v < w.v1) return windowPx(i, x, v, w);
+  // fire escape on the right half
+  if (x > 0.7) {
+    const stair = Math.abs(v - (x - 0.7) * (3.2 / 1.4)) < 0.16 && v < 3.2;
+    const platform = v > 3.15 && v < 3.32;
+    const rail = (v > 4.08 && v < 4.2) || (v > 3.32 && v < 4.2 && fr(x / 0.28) < 0.25);
+    const step = stair && fr(v / 0.3) < 0.4;
+    if (platform || rail || stair || step) { setA(i, 0.16, 0.14, 0.17); return; }
+  }
+}
+
+function groundTex(i, x, z, dist) {
+  const tx = Math.floor(x / 0.5), tz = Math.floor(z / 0.5);
+  let a = 0.4 * (0.84 + 0.3 * hash(tx, tz, 5));
+  if (dist < 7 && (fr(x / 0.5) < 0.07 || fr(z / 0.5) < 0.07)) a *= 0.65;
+  const crack = Math.abs(vnoise(x * 1.6, z * 0.9, 12) - 0.5) < 0.012 && dist < 6;
+  if (crack) a *= 0.72;
+  let r = a, g = a * 0.95, b = a * 1.05;
+  const edge = Math.min(x - XL, XR - x);
+  if (edge < 0.3) { r *= 0.6; g *= 0.6; b *= 0.6; }
+  if (edge < 0.45 && hash(Math.floor(x * 9), Math.floor(z * 6), 3) > 0.84) { r = 0.22; g = 0.27; b = 0.14; }  // weeds at the wall base
+  setA(i, r, g, b);
+  WET[i] = clamp((vnoise(x * 0.7, z * 0.35, 21) - 0.56) * 6, 0, 1);
+}
+
+for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const i = y * W + x;
+  const dx = (x + 0.5 - CX) / F, dy = -(y + 0.5 - CY) / F;
+  let best = Infinity, k = 0, P = null;
+  if (dx < 0) { const t = XL / dx, Y = dy * t; if (t < ZEND && Y > -EYE && Y < topL(t)) { best = t; k = 1; P = [XL, Y, t]; } }
+  if (dx > 0) { const t = XR / dx, Y = dy * t; if (t < ZEND && t < best && Y > -EYE && Y < topR(t)) { best = t; k = 2; P = [XR, Y, t]; } }
+  if (dy < 0) { const t = -EYE / dy, X = dx * t; if (t < best && t <= ZEND && X >= XL && X <= XR) { best = t; k = 3; P = [X, -EYE, t]; } }
+  { const t = ZEND, X = dx * t, Y = dy * t; if (t < best && X >= XL && X <= XR && Y < TOPEND && Y >= -EYE) { best = t; k = 4; P = [X, Y, t]; } }
+  if (!k) {
+    const t = 60, X = dx * t, Y = dy * t, c = Math.floor(X / 5);
+    const h = 9 + hash(c, 0, 13) * 16 + (hash(c, 1, 13) > 0.8 ? 8 : 0);
+    if (Y < h) { k = 5; best = t; P = [X, Y, t]; }
+  }
+  kind[i] = k;
+  if (!k) continue;
+  PX[i] = P[0]; PY[i] = P[1]; PZ[i] = P[2];
+  const dist = Math.hypot(P[0], P[1], P[2]); DIST[i] = dist;
+  if (k === 1 || k === 2) wallTex(i, k, P[2], P[1] + EYE, dist);
+  else if (k === 3) groundTex(i, P[0], P[2], dist);
+  else if (k === 4) endTex(i, P[0], P[1] + EYE);
+  else {
+    setA(i, 0, 0, 0);
+    if (hash(Math.floor(P[0] / 1.3), Math.floor(P[1] / 1.6), 17) > 0.955) setE(i, 0.36, 0.22, 0.16, 0);
+  }
+}
+
+// ---------- dynamic layer ----------
+const R = new Float32Array(NP), G = new Float32Array(NP), B = new Float32Array(NP);
+function project(x, y, z) { return [CX + x * F / z - 0.5, CY - y * F / z - 0.5]; }
+const LS = project(...LAMP);
+
+function lampI(T) {
+  let I = 1 + 0.05 * Math.sin(T * 13) + 0.03 * Math.sin(T * 31.7);
+  const b = Math.floor(T * 12);
+  if (hash(b, 0, 40) > 0.975) I *= 0.45;                       // brief brownout dips
+  else if (hash(Math.floor(T * 1.5), 0, 41) > 0.93 && hash(b, 1, 42) > 0.5) I *= 0.7;
+  return I;
+}
+function groupFlicker(g, T) {
+  const gr = groups[g];
+  if (!gr) return 1;
+  if (gr.type === 'tv') {
+    const s = Math.floor(T * 5 + gr.ph);
+    return 0.45 + 0.55 * hash(s, 0, 50);
+  }
+  if (gr.type === 'door') return 0.9 + 0.08 * Math.sin(T * 3.1) + (hash(Math.floor(T * 10), 2, 51) > 0.96 ? -0.3 : 0);
+  return 0.85 + 0.12 * Math.sin(T * 0.6 + gr.ph) + (hash(Math.floor(T * 8 + gr.ph), 3, 52) > 0.985 ? -0.5 : 0);
+}
+
+function lightAt(x, y, z, nx, ny, nz, I) {
+  const lx = LAMP[0] - x, ly = LAMP[1] - y, lz = LAMP[2] - z;
+  const d2 = lx * lx + ly * ly + lz * lz, d = Math.sqrt(d2);
+  let ndl = (lx * nx + ly * ny + lz * nz) / d;
+  if (ndl <= 0) return 0;
+  let s = ndl * I * 3.0 / (1 + d2 / 13);
+  if (y > LAMP[1] - 0.2) s *= 0.18;                            // shade blocks light going up
+  return s;
+}
+const NORM = { 1: [1, 0, 0], 2: [-1, 0, 0], 3: [0, 1, 0], 4: [0, 0, -1] };
+
+// moving bits
+const laundry = [-1.2, -0.45, 0.4, 1.2].map((x, j) => ({ x, w: 0.45 + rnd() * 0.25, h: 0.55 + rnd() * 0.45, ph: rnd() * 6,
+  col: [[0.62, 0.22, 0.2], [0.55, 0.6, 0.7], [0.75, 0.68, 0.5], [0.3, 0.35, 0.55], [0.7, 0.7, 0.68]][j] }));
+const wires = [
+  { a: [XL, 8.0, 3.0], b: [XR, 7.0, 6.2], sag: 0.9 }, { a: [XL, 9.6, 6.5], b: [XR, 9.0, 4.4], sag: 0.7 },
+  { a: [XL, 6.2, 9.0], b: [XR, 6.8, 10.5], sag: 0.6 }, { a: [XL, 11.5, 4.8], b: [XR, 10.6, 7.5], sag: 1.1 },
+];
+const moths = Array.from({ length: 3 }, () => ({ r: 2 + rnd() * 4, sp: 1.5 + rnd() * 2, ph: rnd() * 6 }));
+const rain = Array.from({ length: 150 }, () => ({ x: rnd() * (W + 30), y: rnd() * H, v: 150 + rnd() * 70, z: rnd() }));
+const drips = [];
+
+function plot(x, y, r, g, b, depth = 0) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const i = y * W + x;
+  if (depth && kind[i] && kind[i] !== 5 && DIST[i] < depth) return;
+  R[i] = r; G[i] = g; B[i] = b;
+}
+function add(x, y, r, g, b) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const i = y * W + x; R[i] += r; G[i] += g; B[i] += b;
+}
+
+function draw(T, wet) {
+  const I = lampI(T);
+  const amb = wet ? [0.075, 0.085, 0.2] : [0.09, 0.1, 0.24];
+  const fogC = [0.07, 0.08, 0.18];
+  const fogK = wet ? 26 : 40;
+  const V = [0, 0, 0];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, k = kind[i];
+    let r, g, b;
+    if (k === 0) {
+      const t = y / CY;
+      r = 0.03 + 0.1 * t; g = 0.03 + 0.11 * t; b = 0.09 + 0.2 * t;
+      const cl = vnoise(x * 0.06 - T * 0.05, y * 0.12, 30);
+      const cloud = wet ? 0.5 : clamp((cl - 0.55) * 2.5, 0, 0.6);
+      r += 0.03 * cloud; g += 0.035 * cloud; b += 0.07 * cloud;
+      if (!wet && y < 125 && hash(x, y, 60) > 0.985) {
+        const tw = 0.5 + 0.5 * Math.sin(T * (1.3 + hash(x, y, 61) * 3) + hash(x, y, 62) * 9);
+        const s = 0.35 + 0.45 * tw; r += s * 0.8; g += s * 0.82; b += s;
+      }
+    } else if (k === 5) {
+      r = 0.04; g = 0.04; b = 0.1;
+      if (EK[i] === 0 && ER[i] > 0) { const f = 0.7 + 0.3 * hash(Math.floor(T * 0.5), x, 63); r += ER[i] * f; g += EG[i] * f; b += EB[i] * f; }
+    } else {
+      const n = NORM[k], px = PX[i], py = PY[i], pz = PZ[i];
+      let L = lightAt(px, py, pz, n[0], n[1], n[2], I);
+      // spill from the lit doorway onto the alley floor and walls near the end
+      const dx = 0.0 - px, dy = -0.6 - py, dz = ZEND - 0.2 - pz, dd = dx * dx + dy * dy + dz * dz;
+      const door = (dx * n[0] + dy * n[1] + dz * n[2]) > 0 ? 0.9 * groupFlicker(doorGroup, T) / (1 + dd / 1.2) : 0;
+      r = AR[i] * (amb[0] + L * 1.0 + door * 0.95);
+      g = AG[i] * (amb[1] + L * 0.7 + door * 0.66);
+      b = AB[i] * (amb[2] + L * 0.42 + door * 0.36);
+      if (EK[i] || ER[i] > 0) { const f = groupFlicker(EK[i], T); r += ER[i] * f; g += EG[i] * f; b += EB[i] * f; }
+      if (k === 3) {
+        // wet ground: specular reflection of the lamp and doorway
+        const w = wet ? 0.55 + 0.45 * WET[i] : WET[i] * 0.85;
+        if (w > 0.02) {
+          const d = DIST[i];
+          let vx = px / d, vy = py / d, vz = pz / d;                      // view ray, reflect off ground
+          vy = -vy;
+          if (wet) { vx += (vnoise(px * 4, pz * 4 + T * 6, 70) - 0.5) * 0.05; vz += (vnoise(px * 4 + 9, pz * 4 - T * 5, 71) - 0.5) * 0.05; }
+          for (const [sx, sy, sz, cr, cg, cb, pw] of [[LAMP[0], LAMP[1], LAMP[2], 0.8 * I, 0.58 * I, 0.32 * I, 60],
+                                                          [0, -0.5, ZEND, 0.9, 0.6, 0.3, 140]]) {
+            const lx = sx - px, ly = sy - py, lz = sz - pz, ld = Math.hypot(lx, ly, lz);
+            const s = Math.pow(Math.max(0, (vx * lx + vy * ly + vz * lz) / ld), pw) * w;
+            r += cr * s; g += cg * s; b += cb * s;
+          }
+          r *= 1 - 0.25 * w; g *= 1 - 0.25 * w; b *= 1 - 0.15 * w;
+          b += 0.03 * w;
+        }
+      }
+      const f = 1 - Math.exp(-DIST[i] / fogK);
+      r += (fogC[0] - r) * f; g += (fogC[1] - g) * f; b += (fogC[2] - b) * f;
+    }
+    R[i] = r; G[i] = g; B[i] = b;
+  }
+
+  // electric wires, swaying a hair
+  for (const [j, w] of wires.entries()) {
+    const sway = 0.08 * Math.sin(T * 0.7 + j * 1.9);
+    for (let s = 0; s <= 1; s += 0.004) {
+      const x = w.a[0] + (w.b[0] - w.a[0]) * s, z = w.a[2] + (w.b[2] - w.a[2]) * s;
+      const y = w.a[1] + (w.b[1] - w.a[1]) * s - (w.sag + sway) * 4 * s * (1 - s);
+      const [sx, sy] = project(x, y, z);
+      plot(sx, sy, 0.02, 0.02, 0.04, Math.hypot(x, y, z));
+    }
+  }
+
+  // laundry line across the alley
+  { const z = 7.5, y0 = 8.6;
+    for (let s = 0; s <= 1; s += 0.004) {
+      const x = XL + (XR - XL) * s, y = y0 - 0.35 * 4 * s * (1 - s);
+      const [sx, sy] = project(x, y, z); plot(sx, sy, 0.05, 0.05, 0.08);
+    }
+    for (const c of laundry) {
+      const s = (c.x - XL) / (XR - XL), y = y0 - 0.35 * 4 * s * (1 - s);
+      const [x0, y0p] = project(c.x - c.w / 2, y, z), [x1, y1p] = project(c.x + c.w / 2, y - c.h, z);
+      const swing = Math.sin(T * 1.2 + c.ph) * 0.9;
+      const L = lightAt(c.x, y - c.h / 2, z, 0, 0, -1, I) * 1.2;
+      for (let py = Math.round(y0p); py <= Math.round(y1p); py++) {
+        const q = (py - y0p) / Math.max(1, y1p - y0p);
+        const off = Math.round(swing * q);
+        for (let px = Math.round(x0); px <= Math.round(x1); px++) {
+          const fold = (px - Math.round(x0)) % 3 === 2 ? 0.75 : 1;
+          const sh = fold * (1 - 0.25 * q);
+          plot(px + off, py, c.col[0] * (0.12 + L) * sh, c.col[1] * (0.13 + L * 0.7) * sh, c.col[2] * (0.26 + L * 0.42) * sh);
+        }
+      }
+    }
+  }
+
+  // the lamp: bracket, shade, bulb, halo
+  { const [wx, wy] = project(XR, LAMP[1] + 0.55, LAMP[2]), [ax, ay] = project(LAMP[0], LAMP[1] + 0.55, LAMP[2]);
+    for (let x = Math.round(ax); x <= Math.round(wx); x++) plot(x, Math.round(ay + (x - ax) * (wy - ay) / Math.max(1, wx - ax)), 0.05, 0.04, 0.05);
+    for (let y = Math.round(ay); y <= Math.round(LS[1]) - 2; y++) plot(Math.round(LS[0]), y, 0.05, 0.04, 0.05);
+    const lx = Math.round(LS[0]), ly = Math.round(LS[1]);
+    for (let i = -1; i <= 1; i++) plot(lx + i, ly - 3, 0.1, 0.08, 0.09);
+    for (let i = -2; i <= 2; i++) plot(lx + i, ly - 2, 0.12, 0.09, 0.1);
+    for (let i = -3; i <= 3; i++) plot(lx + i, ly - 1, 0.25 * I + 0.1, 0.16 * I + 0.06, 0.08);
+    const halo = wet ? 20 : 15;
+    for (let y = -halo; y <= halo; y++) for (let x = -halo; x <= halo; x++) {
+      const d = Math.hypot(x, y * 0.9);
+      if (d > halo || y < -1) continue;
+      const g = Math.pow(1 - d / halo, 2.2) * (wet ? 0.65 : 0.5) * I;
+      add(lx + x, ly + y, g * 1.0, g * 0.72, g * 0.4);
+    }
+    plot(lx, ly, 1, 0.96, 0.85); plot(lx - 1, ly, 1, 0.9, 0.66); plot(lx + 1, ly, 1, 0.9, 0.66); plot(lx, ly + 1, 1, 0.88, 0.6);
+    for (const m of moths) {
+      const a = T * m.sp + m.ph;
+      const mx = lx + Math.cos(a) * m.r + (hash(Math.floor(T * 8), m.ph * 9, 80) - 0.5) * 2;
+      const my = ly + 2 + Math.sin(a * 1.3) * m.r * 0.6;
+      plot(mx, my, 0.85 * I, 0.65 * I, 0.38 * I);
+    }
+  }
+
+  if (wet) {
+    for (const p of rain) {
+      const near = p.z > 0.6;
+      for (let s = 0; s < (near ? 4 : 2); s++) {
+        const x = p.x - s * 0.35, y = p.y - s;
+        const xi = Math.round(x), yi = Math.round(y);
+        if (xi < 0 || yi < 0 || xi >= W || yi >= H) continue;
+        const d = Math.hypot(xi - LS[0], yi - LS[1]);
+        const lit = Math.max(0, 1 - d / 34) * I;
+        const base = near ? 0.09 : 0.05;
+        add(x, y, base + lit * 0.35, base + lit * 0.26, base * 1.6 + lit * 0.15);
+      }
+    }
+    for (let n = 0; n < 22; n++) {
+      const x = Math.floor(rnd() * W), y = CY + 8 + Math.floor(rnd() * (H - CY - 8));
+      if (kind[y * W + x] !== 3) continue;
+      add(x, y, 0.12, 0.12, 0.2); add(x - 1, y - 1, 0.06, 0.06, 0.1); add(x + 1, y - 1, 0.06, 0.06, 0.1);
+    }
+    for (const d of drips) add(d.x, d.y, 0.25, 0.22, 0.3);
+  }
+}
+
+function step(dt, wet) {
+  for (const p of rain) {
+    p.y += p.v * dt * (0.6 + p.z * 0.5); p.x -= p.v * 0.35 * dt * (0.6 + p.z * 0.5);
+    if (p.y > H + 4) { p.y = -4 - rnd() * 20; p.x = rnd() * (W + 40); }
+  }
+  if (wet && drips.length < 6 && rnd() < dt * 4) {
+    const [ax, ay] = project(XR, 2.8 - EYE, 4.0 + rnd() * 0.9);
+    drips.push({ x: ax - 1 - rnd() * 3, y: ay + 1, v: 0 });
+  }
+  for (let k = drips.length - 1; k >= 0; k--) {
+    const d = drips[k]; d.v += 160 * dt; d.y += d.v * dt;
+    if (d.y > H) drips.splice(k, 1);
+  }
+}
+
+// ---------- palette quantize (5-bit LUT) ----------
+const LUT = new Int16Array(32768).fill(-1);
+function nearest(r, g, b) {
+  const key = (r >> 3) << 10 | (g >> 3) << 5 | (b >> 3);
+  if (LUT[key] >= 0) return LUT[key];
+  let best = 0, bd = Infinity;
+  for (let j = 0; j < PAL.length; j++) {
+    const p = PAL[j], rm = (r + p[0]) / 2, dr = r - p[0], dg = g - p[1], db = b - p[2];
+    const d = (2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db;
+    if (d < bd) { bd = d; best = j; }
+  }
+  return LUT[key] = best;
+}
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const img = ctx.createImageData(W, H);
+function blit() {
+  const px = img.data;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, o = i * 4, dth = BAYER[y & 3][x & 3] * 5;
+    const c = PAL[nearest(clamp(R[i] * 255 + dth, 0, 255) | 0, clamp(G[i] * 255 + dth, 0, 255) | 0, clamp(B[i] * 255 + dth, 0, 255) | 0)];
+    px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+const opts = { wet: false, speed: 1, playing: true };
+let T = 2, last = performance.now(), acc = 0;
+const FRAME = 1 / 12;
+function loop(now) {
+  const dt = Math.min(0.25, (now - last) / 1000); last = now;
+  if (opts.playing) {
+    acc += dt;
+    if (acc >= FRAME) { const s = acc * opts.speed; acc = 0; T += s; step(s, opts.wet); draw(T, opts.wet); blit(); }
+  }
+  requestAnimationFrame(loop);
+}
+const $ = s => document.querySelector(s);
+if (location.hash === '#rain') { opts.wet = true; $('#rain').setAttribute('aria-pressed', true); }
+draw(T, opts.wet); blit();
+requestAnimationFrame(loop);
+
+$('#play').onclick = e => { opts.playing = !opts.playing; e.target.setAttribute('aria-pressed', opts.playing); e.target.textContent = opts.playing ? 'Playing' : 'Paused'; };
+$('#rain').onclick = e => { opts.wet = !opts.wet; e.target.setAttribute('aria-pressed', opts.wet); };
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
+  opts.speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(o => o.setAttribute('aria-pressed', o === b));
+});
+document.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => {
+  $('#frame').className = 'frame' + (b.dataset.scale === 'fit' ? '' : ' ' + b.dataset.scale + (b.dataset.scale === 'x2' ? ' native' : ''));
+  document.querySelectorAll('[data-scale]').forEach(o => o.setAttribute('aria-pressed', o === b));
+});
+})();
+</script>
+</body>
+</html>

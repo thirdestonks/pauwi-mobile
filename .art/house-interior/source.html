@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PAUWI · House interior study</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--line:#2a3338;--s:3.6;--mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{display:flex;justify-content:center;align-items:flex-start;padding:12px;gap:18px;flex-wrap:wrap}
+[hidden]{display:none!important}
+.phone{position:relative;width:calc(110px * var(--s) + 6px);height:calc(225px * var(--s) + 6px);background:#000;border:3px solid #26313a;overflow:hidden;flex:none;touch-action:none;user-select:none;-webkit-user-select:none}
+#view{position:absolute;left:0;top:0;width:calc(110px * var(--s));height:calc(225px * var(--s));image-rendering:pixelated;display:block;cursor:pointer}
+.hud{position:absolute;left:0;right:0;pointer-events:none;font:700 10px/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#cfe8dc;text-shadow:1px 1px 0 #000}
+.hud.top{top:0;padding:6px 7px 14px;display:flex;gap:8px;background:linear-gradient(#000d,#0000)}
+.hud.sub{top:26px;padding:0 7px;display:flex;justify-content:space-between;color:var(--muted)}
+.m{flex:1;display:flex;align-items:center;gap:5px}
+.m span{color:var(--muted)}
+.m+.m{margin-left:8px}
+.bar{flex:1;height:8px;background:#0c1418;border:1px solid #526169;position:relative}
+.bar b{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--green)}
+#hpb{background:var(--red)}
+#nb.lv0{background:#5aa17a}#nb.lv1{background:var(--sodium)}#nb.lv2{background:#e0732f}#nb.lv3{background:var(--red)}
+.m em{font-style:normal;min-width:5.2em;text-align:right}
+.hud.bottom{bottom:0;padding:16px 6px 6px;background:linear-gradient(#0000,#000d);display:flex;justify-content:center;pointer-events:auto}
+.bag{display:flex;gap:4px}
+.slot{width:38px;height:38px;padding:0;background:#0c1418e6;border:2px solid #3a4851;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.slot img{width:26px;height:30px;object-fit:contain;image-rendering:pixelated}
+.slot:hover{border-color:var(--sodium)}
+.sbar{position:absolute;left:18%;right:18%;bottom:62px;height:20px;background:#0c1418;border:2px solid #526169;box-shadow:2px 2px 0 #000;font:700 10px/16px var(--mono);letter-spacing:.08em;text-align:center;color:var(--bone);overflow:hidden;z-index:4}
+.sbar b{position:absolute;left:0;top:0;bottom:0;width:0;background:#7a5a1f;z-index:0}
+.sbar span{position:relative;z-index:1}
+.toast{position:absolute;left:8px;right:8px;top:44px;text-align:center;font:11px/1.35 var(--mono);padding:5px 6px;background:#0e1214ee;border:1px solid #3a4851;color:var(--bone);opacity:0;transition:opacity .2s;pointer-events:none;z-index:6}
+.toast.on{opacity:1}
+.card{position:absolute;left:6px;right:6px;bottom:58px;max-height:calc(100% - 90px);overflow:auto;z-index:5;background:#0c1418;border:2px solid #526169;box-shadow:3px 3px 0 #000;padding:10px 10px 9px;font:12px/1.4 var(--mono)}
+.card h3{margin:0 0 2px;font:400 21px/1.05 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.card small{display:block;color:var(--muted);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.card p{margin:5px 0 7px;color:#c9c3b6;font-size:11px;line-height:1.45}
+.btn{display:flex;width:100%;gap:8px;align-items:center;margin-top:5px;padding:8px 9px;background:#16212a;color:var(--bone);border:2px solid #3a4851;font:700 12px var(--mono);text-align:left;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
+.btn:hover:not(:disabled){border-color:var(--sodium)}
+.btn.go{background:var(--sodium);color:#0e1214;border-color:var(--sodium)}
+.btn.risk{border-color:#8f3a30;color:#ffb3a8}
+.btn em{font-style:normal;margin-left:auto;font-weight:400;font-size:10px;color:var(--muted);text-transform:none;letter-spacing:0}
+.btn.go em{color:#5a3d12}
+.btn:disabled{opacity:.4;cursor:default}
+.btn img{width:22px;height:26px;object-fit:contain;image-rendering:pixelated}
+.empty{color:var(--muted);font-size:11px;padding:6px 0}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:6px 0;font-size:11px;color:#c9c3b6}
+.stats b{color:var(--bone);font-weight:700;text-align:right}
+.panel{width:280px;flex:none;font:12px/1.5 var(--mono);color:#b9c3c8;border:2px solid var(--line);padding:12px;background:#0b1013}
+.panel h2{margin:0 0 8px;font:400 22px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.panel h4{margin:14px 0 5px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.panel label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0}
+.panel select,.panel input[type=number]{background:#16212a;color:var(--bone);border:1px solid #3a4851;padding:4px 6px;font:12px var(--mono);width:140px}
+.panel button{background:#16212a;color:var(--bone);border:1px solid #3a4851;padding:5px 8px;font:12px var(--mono);cursor:pointer;margin:2px 2px 2px 0}
+.panel button:hover{border-color:var(--sodium)}
+.panel ul{margin:4px 0 0;padding-left:16px}
+.panel li{margin:2px 0}
+.panel kbd{background:#16212a;border:1px solid #3a4851;padding:0 4px}
+.dim{color:var(--muted)}
+/* ?embed: the page runs inside the app, which owns the bag, health and combat (see the host bridge below) */
+html.embed,html.embed body{height:100%;overflow:hidden;background:#000}
+html.embed body{padding:0;display:block}
+html.embed .panel{display:none}
+html.embed .phone{width:100%;height:100%;border:0}
+html.embed #view{width:100%;height:100%}
+html.embed .hud{font-size:12px}
+html.embed .hud.top{padding:8px 9px 16px}
+html.embed .hud.sub{top:32px;padding:0 9px}
+html.embed .hud.bottom{padding:18px 4px 6px}
+html.embed .bag{width:100%;gap:2px}
+html.embed .slot{flex:1;min-width:0;width:auto;height:auto;aspect-ratio:1;max-width:42px;position:relative;border-width:1px}
+html.embed .slot img{width:78%;height:78%}
+.slot i{position:absolute;right:1px;bottom:0;font:700 10px/1 var(--mono);font-style:normal;color:var(--bone);text-shadow:1px 1px 0 #000}
+.slot u{text-decoration:none;font-size:16px;line-height:1}
+html.embed .card{left:8px;right:8px;bottom:56px}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+  <canvas id="view" width="110" height="225" aria-label="Inside a house, seen from above"></canvas>
+  <div class="hud top" id="hudtop">
+    <div class="m"><span>HP</span><i class="bar"><b id="hpb"></b></i><em id="hpt">100</em></div>
+    <div class="m"><span>NOISE</span><i class="bar"><b id="nb" class="lv0"></b></i><em id="nt">QUIET</em></div>
+  </div>
+  <div class="hud sub" id="hudsub"><span id="dread">DREAD 0</span><span id="scav">SCAVENGE 6</span></div>
+  <div class="toast" id="toast"></div>
+  <div class="sbar" id="sbar" hidden><b id="sfill"></b><span id="slabel">SEARCHING</span></div>
+  <div class="card" id="card" hidden></div>
+  <div class="hud bottom"><div class="bag" id="bag"></div></div>
+</div>
+
+<aside class="panel" id="panel">
+  <h2>House study</h2>
+  <div class="dim">A throwable preview. Nothing here touches the app or its save.</div>
+  <h4>Controls</h4>
+  <ul>
+    <li><b>Tap</b> floor to walk, tap furniture to search it.</li>
+    <li><kbd>WASD</kbd> / arrows walk, <kbd>E</kbd> searches what's in front.</li>
+    <li>Walk onto the front door to leave.</li>
+    <li>Tap a bag item: use it. While looting: drop it.</li>
+  </ul>
+  <h4>House</h4>
+  <label>Type <select id="oTpl"><option value="flat">Tenement flat</option><option value="stock">Storeroom</option></select></label>
+  <label>Seed <span><button id="sPrev">&lt;</button><input type="number" id="oSeed" style="width:62px"><button id="sNext">&gt;</button></span></label>
+  <label>Front door <select id="oLock"><option value="auto">From seed</option><option value="open">Unlocked</option><option value="kick">Stuck (kick)</option><option value="crowbar">Steel (crowbar)</option><option value="boarded">Boarded up</option></select></label>
+  <label>Zombies <select id="oZ"><option value="auto">From seed</option><option value="0">None</option><option value="1">One</option><option value="2">Two</option></select></label>
+  <h4>Rules to try</h4>
+  <label>Search budget <select id="oBudget"><option value="0">Unlimited</option><option value="4">4 per house</option><option value="6">6 per house</option><option value="8">8 per house</option></select></label>
+  <label>Start with crowbar <input type="checkbox" id="oBar"></label>
+  <h4>Cheats</h4>
+  <button id="cHeal">Full HP</button><button id="cNoise">+30 noise</button><button id="cZ">Zombie at door</button><button id="cExit">Go to exit</button><button id="cNew">New run</button>
+  <h4>Ported later</h4>
+  <div class="dim">Combat here is a stub: the app would open its 3&times;3 combat. Doors would use the existing door transition. House layouts would be generated from the house's hex, and only looted containers saved.</div>
+</aside>
+
+<script>
+(() => {
+'use strict';
+const ASSETS = /* ASSETS */ {};
+const ART = ASSETS.art, MAN = ASSETS.manifest;
+/* The camera shows more than the 110x225 phone screen: ?zoom=1.27 means 27% more of the world fits on the same screen, so every sprite, Juan included,
+   is drawn smaller. The picture is still native pixel art. Use ?zoom=1 for the original framing. */
+const ZOOMOUT = clamp1(parseFloat(new URLSearchParams(location.search).get('zoom')) || 1.27, 1, 2);
+function clamp1(v, a, b) { return Math.max(a, Math.min(b, v)); }
+const VW = Math.round(110 * ZOOMOUT), VH = Math.round(VW * 225 / 110), T = 14, LV = 10;
+const OX = Math.round((VW - 110) / 2), OY = Math.round((VH - 225) / 2);          // the doorstep picture is laid out for 110x225, centred in the larger view
+const u = n => Math.max(1, Math.round(n * T / 16));                          // art-room pixel sizes were authored for a 16 px tile
+const S = (MAN._res && MAN._res.w) || 1, VWd = VW * S, VHd = VH * S;       // logical 110x225, drawn at S x device pixels
+const $ = id => document.getElementById(id);
+const EMBED = new URLSearchParams(location.search).has('embed');
+if (EMBED) document.documentElement.classList.add('embed');
+/* Inside the app the host owns Juan's bag (ten slots of {pid, qty, name, sprite, icon}), health and dread, and runs the fights.
+   The page asks it to take, drop and use things (ask), tells it what happened (post), and it answers with house-cmd messages. */
+let HOST = { bag: [], state: null };
+const pending = {};
+let askId = 0;
+const post = m => parent.postMessage(Object.assign({ pauwi: 'house' }, m), '*');
+function ask(m, cb) { const id = ++askId; pending[id] = cb; G.asking = true; post(Object.assign({ id }, m)); }
+const view = $('view'), vx = view.getContext('2d', { willReadFrequently: true });
+view.width = VWd; view.height = VHd;
+vx.imageSmoothingEnabled = false;
+const lightCv = document.createElement('canvas'); lightCv.width = VWd; lightCv.height = VHd;
+const lx = lightCv.getContext('2d', { willReadFrequently: true });
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const AMB = [5, 8, 13];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const pick = (r, arr) => arr[Math.floor(r() * arr.length)];
+function wpick(r, obj) { let t = 0; for (const k in obj) t += obj[k]; let u = r() * t; for (const k in obj) { u -= obj[k]; if (u <= 0) return k; } return Object.keys(obj)[0]; }
+const rect = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, h); };
+
+/* ---------- art ---------- */
+const IMG = {};
+function loadArt() {
+  return Promise.all(Object.keys(ART).map(k => new Promise(res => { const im = new Image(); im.onload = res; im.onerror = res; im.src = ART[k]; IMG[k] = im; })));
+}
+/* Draws sprite name with its anchor column at cx and its bottom edge at base. */
+function spr(c, name, cx, base, flip, scale) {
+  const im = IMG[name], m = MAN[name]; if (!im || !m) return;
+  const k = (scale || 1) / S, w = m.w * k, h = m.h * k, ax = m.ax * k, y = Math.round((base - h) * S) / S;
+  if (flip) { c.save(); c.translate(Math.round(cx * S) / S, 0); c.scale(-1, 1); c.drawImage(im, -ax, y, w, h); c.restore(); }
+  else c.drawImage(im, Math.round((cx - ax) * S) / S, y, w, h);
+}
+
+/* ---------- settings ---------- */
+const q = new URLSearchParams(location.search);
+const cfg = {
+  tpl: q.get('tpl') === 'stock' ? 'stock' : 'flat',
+  seed: parseInt(q.get('seed') || '3', 10) || 3,
+  lock: q.get('lock') || 'auto',
+  budget: q.has('budget') ? parseInt(q.get('budget'), 10) || 0 : 6,
+  crowbar: !EMBED && q.get('crowbar') !== '0',
+  zombies: q.get('zombies') || 'auto',
+};
+
+/* ---------- items ---------- */
+const ITEMS = {
+  bandage: { n: 'Bandage', heal: 12 }, gauze: { n: 'Gauze', heal: 12 }, painkillers: { n: 'Painkillers', heal: 10 }, firstaid: { n: 'First-aid kit', heal: 15 },
+  meds: { n: 'Medicine', heal: 14 }, antibiotics: { n: 'Antibiotics', heal: 12 }, vitamins: { n: 'Vitamins', heal: 4 }, alcohol: { n: 'Alcohol' },
+  noodles: { n: 'Instant noodles' }, crackers: { n: 'Crackers' }, sardines: { n: 'Sardines' }, tuna: { n: 'Tuna' }, tuyo: { n: 'Tuyo' }, rice: { n: 'Rice' },
+  eggs: { n: 'Eggs' }, beef: { n: 'Corned beef' }, water: { n: 'Water' },
+  batteries: { n: 'Batteries' }, matches: { n: 'Matches' }, butane: { n: 'Butane' }, straps: { n: 'Straps' }, flares: { n: 'Flares' }, jerrycan: { n: 'Jerrycan' }, kaldero: { n: 'Kaldero' },
+  knife: { n: 'Kitchen knife' }, pipe: { n: 'Lead pipe' }, sledge: { n: 'Sledgehammer' }, pistol: { n: '9mm pistol' }, rounds: { n: 'Rounds' }, ammo: { n: 'Ammo box' },
+  crowbar: { n: 'Crowbar' }, key: { n: 'Bedroom key' },
+  /* armor, the newer weapons, and things only the suki trader really wants */
+  'moto-helmet': { n: 'Motorcycle helmet' }, 'rider-jacket': { n: 'Rider jacket' }, 'denim-jacket': { n: 'Denim jacket' }, 'work-jeans': { n: 'Thick jeans' },
+  'rain-boots': { n: 'Rubber boots' }, 'elbow-pads': { n: 'Knee & elbow pads' }, 'hard-hat': { n: 'Hard hat' }, 'leather-jacket': { n: 'Leather jacket' }, 'work-boots': { n: 'Work boots' },
+  hammer: { n: 'Claw hammer' }, rebar: { n: 'Rebar' }, balisong: { n: 'Balisong' }, sibat: { n: 'Bamboo spear' }, shells: { n: 'Shotgun shells' },
+  cigarettes: { n: 'Cigarettes' }, gold: { n: 'Gold ring & chain' }, 'old-phone': { n: 'Cracked phone' }, gin: { n: 'Bottle of gin' }, 'copper-wire': { n: 'Copper wire' }, coffee: { n: 'Coffee sachets' },
+};
+const CAT = {
+  food: ['noodles', 'crackers', 'sardines', 'tuna', 'tuyo', 'rice', 'eggs', 'beef', 'water'],
+  med: ['bandage', 'gauze', 'painkillers', 'meds', 'firstaid', 'vitamins', 'antibiotics', 'alcohol'],
+  tool: ['batteries', 'matches', 'butane', 'straps', 'flares', 'jerrycan', 'kaldero', 'knife'],
+  weapon: ['knife', 'knife', 'pipe', 'pipe', 'sledge', 'hammer', 'hammer', 'rebar', 'balisong', 'sibat'],
+  ammo: ['rounds', 'ammo', 'shells'],
+  wear: ['denim-jacket', 'denim-jacket', 'work-jeans', 'work-jeans', 'rain-boots', 'elbow-pads', 'hard-hat', 'work-boots', 'leather-jacket', 'moto-helmet', 'rider-jacket'],
+  valuable: ['cigarettes', 'cigarettes', 'coffee', 'coffee', 'gin', 'old-phone', 'copper-wire', 'gold'],
+};
+const ICON = Object.assign({}, ASSETS.items);
+/* no painted sprite yet: an emoji stands in (a painted one in encounters/src/items/<id>.png replaces it on the next build) */
+const EMOJI = { 'moto-helmet': '🪖', 'rider-jacket': '🧥', 'denim-jacket': '👕', 'work-jeans': '👖', 'rain-boots': '🥾', 'elbow-pads': '🦺', 'hard-hat': '⛑️', 'leather-jacket': '🧥',
+  'work-boots': '🥾', hammer: '🔨', rebar: '🦯', balisong: '🗡️', sibat: '🎋', shells: '🧨', cigarettes: '🚬', gold: '💍', 'old-phone': '📱', gin: '🍶', 'copper-wire': '🧶', coffee: '☕' };
+for (const [id, e] of Object.entries(EMOJI)) if (!ICON[id]) ICON[id] = emojiIcon(e);
+function emojiIcon(e) { const c = document.createElement('canvas'); c.width = 26; c.height = 30; const x = c.getContext('2d'); x.font = '22px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(e || '?', 13, 16); return c.toDataURL(); }
+function learn(it) { if (it && it.pid && !ICON[it.pid]) ICON[it.pid] = it.sprite || emojiIcon(it.icon); if (it && it.pid && !ITEMS[it.pid]) ITEMS[it.pid] = { n: it.name }; }
+function mkIcon(fn) { const c = document.createElement('canvas'); c.width = 13; c.height = 15; fn(c.getContext('2d')); return c.toDataURL(); }
+ICON.crowbar = mkIcon(c => {
+  for (let i = 0; i < 9; i++) rect(c, 2 + i, 11 - i, 3, 3, '#1b2227');
+  for (let i = 0; i < 9; i++) { rect(c, 3 + i, 12 - i, 1, 1, '#b4c0c8'); rect(c, 4 + i, 12 - i, 1, 1, '#7e8d97'); }
+  rect(c, 9, 1, 3, 3, '#1b2227'); rect(c, 10, 2, 2, 1, '#b4c0c8'); rect(c, 1, 12, 3, 3, '#1b2227'); rect(c, 1, 13, 2, 1, '#b4c0c8');
+});
+ICON.key = mkIcon(c => {
+  rect(c, 2, 1, 7, 7, '#1b2227'); rect(c, 3, 2, 5, 5, '#e0b24a'); rect(c, 4, 3, 3, 3, '#1b2227'); rect(c, 5, 4, 1, 1, '#0c1418');
+  rect(c, 4, 7, 3, 7, '#1b2227'); rect(c, 5, 7, 1, 6, '#e0b24a'); rect(c, 7, 10, 3, 2, '#1b2227'); rect(c, 7, 10, 2, 1, '#e0b24a'); rect(c, 7, 12, 2, 2, '#1b2227'); rect(c, 7, 12, 1, 1, '#e0b24a');
+});
+
+/* ---------- furniture ---------- */
+/* s = sprite, o = opened sprite (oa 'r' keeps the right edge fixed), w x d = floor footprint in tiles, tall blocks light. */
+const FURN = {
+  sofa: { s: 'sofa', w: 3, d: 1 }, tv: { s: 'tv', w: 2, d: 1 },
+  dcab: { s: 'dcab1', o: 'dcab_o', w: 2, d: 1, cont: 'display', tall: 1 }, dcab2: { s: 'dcab2', o: 'dcab_o', w: 2, d: 1, cont: 'display', tall: 1 },
+  side: { s: 'side', o: 'side_o', oa: 'r', w: 2, d: 1, cont: 'cabinet' }, ward: { s: 'ward', o: 'ward_o', w: 2, d: 1, cont: 'wardrobe', tall: 1 },
+  dress: { s: 'dress', o: 'dress_o', w: 2, d: 1, cont: 'drawers' }, bed: { s: 'bed', o: 'bed_o', w: 2, d: 2, cont: 'bed' },
+  stand: { s: 'stand', w: 1, d: 1 }, lamp: { s: 'stand_lamp', w: 1, d: 1 }, table: { s: 'table', w: 2, d: 1 },
+  chairf: { s: 'chair_f', w: 1, d: 1 }, chairb: { s: 'chair_b', w: 1, d: 1 }, rug: { s: 'rug', w: 2, d: 2, floor: 1 },
+  box: { s: 'box', o: 'box_o', w: 1, d: 1, cont: 'box' }, pack: { s: 'pack', o: 'pack_o', w: 1, d: 1, cont: 'pack' },
+  trunk: { s: 'trunk', o: 'trunk_o', w: 2, d: 1, cont: 'trunk' }, crate: { s: 'crate', o: 'crate_o', w: 1, d: 1, cont: 'crate' },
+  file: { s: 'file', o: 'file_o', w: 1, d: 1, cont: 'file', tall: 1 }, locker: { s: 'locker', o: 'locker_o', w: 2, d: 1, cont: 'locker', tall: 1 },
+  cot: { s: 'cot', w: 2, d: 1 }, stool: { s: 'stool', w: 1, d: 1 },
+  fuse: { s: 'fuse', o: 'fuse_o', w: 1, d: 1, cont: 'fuse', wall: 1 },
+  /* kitchen */
+  fridge: { s: 'fridge', o: 'fridge_o', oa: 'l', w: 1, d: 1, cont: 'fridge', tall: 1 }, pantry: { s: 'pantry', o: 'pantry_o', w: 1, d: 1, cont: 'pantry', tall: 1 },
+  sinkcab: { s: 'vanity', o: 'vanity_o', w: 1, d: 1, cont: 'sinkcab' }, tower: { s: 'tower', o: 'tower_o', w: 1, d: 1, cont: 'tower' },
+  cooker: { s: 'ricecooker', o: 'ricecooker_o', oa: 'l', w: 1, d: 1, cont: 'cooker' }, tin: { s: 'tin', o: 'tin_o', w: 1, d: 1, cont: 'tin' },
+  stove: { s: 'stove', w: 2, d: 1 }, wcup: { s: 'wcup', w: 2, d: 1, wall: 1 }, garlic: { s: 'garlic', w: 1, d: 1, wall: 1 },
+  dispenser: { s: 'dispenser', w: 1, d: 1 }, dishrack: { s: 'dishrack', w: 1, d: 1 }, ktable: { s: 'ktable', w: 2, d: 1 }, mono: { s: 'mono', w: 1, d: 1 }, bin: { s: 'bin', w: 1, d: 1 },
+  /* bathroom */
+  medcab: { s: 'medcab', o: 'medcab_o', oa: 'r', w: 1, d: 1, cont: 'medcab', wall: 1 }, basket: { s: 'basket', o: 'basket_o', oa: 'l', w: 1, d: 1, cont: 'basket' },
+  cart: { s: 'cart', o: 'cart_o', w: 1, d: 1, cont: 'cart' },
+  toilet: { s: 'toilet', w: 1, d: 1 }, toilet2: { s: 'toilet_up', w: 1, d: 1 }, pedsink: { s: 'pedsink', w: 1, d: 1 }, curtain: { s: 'curtain', w: 2, d: 1, wall: 1 },
+  drum: { s: 'drum', w: 2, d: 1 }, washer: { s: 'washer', w: 2, d: 1 }, towel: { s: 'towel', w: 1, d: 1, wall: 1 },
+  drain: { s: 'd_drain', w: 1, d: 1, floor: 1 }, mold: { s: 'd_mold', w: 1, d: 1, floor: 1 }, roach: { s: 'd_roach1', w: 1, d: 1, floor: 1 }, roach2: { s: 'd_roach2', w: 1, d: 1, floor: 1 }, roach3: { s: 'd_roach3', w: 1, d: 1, floor: 1 },
+};
+const CONT = {
+  display: { n: 'Display cabinet', noise: 5, dur: 1.1, pool: { food: 2, tool: 2, med: 1 }, rich: .9 },
+  cabinet: { n: 'Cabinet', noise: 8, dur: 1.1, pool: { food: 3, tool: 3, med: 1 }, rich: 1 },
+  wardrobe: { n: 'Wardrobe', noise: 10, dur: 1.3, pool: { wear: 4, tool: 1, med: 1, weapon: 1, valuable: 1 }, rich: .9 },
+  drawers: { n: 'Chest of drawers', noise: 4, dur: 1, pool: { med: 2, tool: 2, food: 1, valuable: 2, wear: 1 }, rich: 1 },
+  bed: { n: 'Bed', noise: 3, dur: 1.3, pool: { tool: 1, med: 1, valuable: 1 }, rich: .5 },
+  box: { n: 'Cardboard box', noise: 2, dur: .8, pool: { food: 2, tool: 2, med: 1, ammo: 1, weapon: 1, valuable: 1 }, rich: .85 },
+  pack: { n: 'Backpack', noise: 2, dur: .9, pool: { food: 2, med: 2, tool: 2, ammo: 1, valuable: 1 }, rich: 1 },
+  trunk: { n: 'Trunk', noise: 7, dur: 1.2, pool: { tool: 3, weapon: 1, ammo: 2, food: 1, wear: 1 }, rich: 1.1 },
+  crate: { n: 'Wooden crate', noise: 6, dur: 1, pool: { food: 3, tool: 2, ammo: 1 }, rich: 1 },
+  file: { n: 'Filing cabinet', noise: 9, dur: 1.1, pool: { tool: 3, med: 1, valuable: 1 }, rich: .8 },
+  locker: { n: 'Metal locker', noise: 14, dur: 1.2, pool: { tool: 3, weapon: 2, ammo: 2, med: 1, wear: 2 }, rich: 1 },
+  fuse: { n: 'Fuse box', noise: 5, dur: .9, pool: { tool: 2 }, rich: .6 },
+  fridge: { n: 'Refrigerator', noise: 6, dur: 1.1, pool: { food: 4, med: 1 }, rich: 1.1 }, pantry: { n: 'Pantry shelf', noise: 3, dur: 1, pool: { food: 5, tool: 1 }, rich: 1.2 },
+  sinkcab: { n: 'Sink cabinet', noise: 5, dur: 1, pool: { tool: 3, food: 1, med: 1 }, rich: .9 }, tower: { n: 'Drawer tower', noise: 4, dur: .9, pool: { tool: 2, med: 1, food: 1 }, rich: .9 },
+  cooker: { n: 'Rice cooker', noise: 2, dur: .7, pool: { food: 2 }, rich: .6 }, tin: { n: 'Biscuit tin', noise: 2, dur: .7, pool: { food: 2, med: 1, tool: 1 }, rich: .7 },
+  medcab: { n: 'Medicine cabinet', noise: 5, dur: 1, pool: { med: 5, tool: 1 }, rich: 1.2 }, basket: { n: 'Laundry basket', noise: 2, dur: .8, pool: { tool: 1, med: 1, food: 1 }, rich: .5 },
+  cart: { n: 'Toiletry cart', noise: 3, dur: .8, pool: { med: 3, tool: 1 }, rich: .8 },
+};
+const FLOORTEX = { hall: 't_slate2', living: 't_slate', bed: 't_brown', kitchen: 't_terra', bath: 't_blue', stock: 't_concrete2' };
+
+/* What each kind of room holds. top: against the wall at the back of the room, wall: hung on that wall, free: anywhere on the floor,
+   floor: flat on the floor (rugs, stains). [type, chance]; a piece that would cut a room off or wall in a cupboard is not placed. */
+const ROOMSPEC = {
+  hall: { top: [['dress', .5], ['trunk', .6], ['locker', .6], ['file', .6], ['box', .5], ['pack', .5], ['box', .4], ['crate', .3]], wall: [['fuse', .7]], free: [['box', .3], ['stool', .3]] },
+  living: { top: [['tv', 1], ['dcab', 1], ['dcab2', .8], ['side', .8]], floor: [['rug', .9]], free: [['sofa', 1], ['table', .8], ['chairf', .6], ['chairb', .5], ['box', .4], ['pack', .4]] },
+  bed: { top: [['bed', 1], ['stand', .9], ['lamp', .8], ['ward', 1], ['dress', .8]], floor: [['rug', .7]], free: [['chairf', .4], ['box', .4], ['crate', .3]] },
+  kitchen: { top: [['fridge', .95], ['pantry', .9], ['sinkcab', .95], ['stove', 1], ['tower', .8]], wall: [['wcup', .9], ['garlic', .7]],
+    free: [['ktable', .9], ['mono', .7], ['mono', .6], ['cooker', .9], ['tin', .9], ['dispenser', .7], ['dishrack', .4], ['bin', .7], ['box', .4]] },
+  bath: { top: [['toilet', 1], ['pedsink', 1], ['drum', .9], ['washer', .8]], wall: [['medcab', .95], ['towel', .7], ['curtain', .8]],
+    free: [['basket', .9], ['cart', .85], ['stool', .3]],
+    floor: [['drain', 1], ['mold', .7], ['mold', .5], ['roach', .8], ['roach2', .6], ['roach3', .6]] },
+  stock: { top: [['locker', 1], ['locker', .9], ['file', .9], ['file', .8], ['trunk', .9], ['locker', .8], ['file', .7], ['box', .6], ['locker', .6]], wall: [['fuse', .7]],
+    free: [['crate', .9], ['crate', .9], ['crate', .8], ['crate', .8], ['crate', .6], ['box', .7], ['box', .6], ['box', .5], ['cot', .9], ['trunk', .8], ['pack', .6],
+      ['table', .8], ['chairf', .6], ['chairf', .6], ['stool', .5], ['file', .7], ['locker', .7], ['pack', .5]] },
+};
+const STREETS = ['Mercado St.', 'Ugbo Alley', 'Tayuman St.', 'Juan Luna St.', 'Moriones St.', 'Balut Lane', 'Vitas St.'];
+
+function rollLoot(r, c, rich) {
+  const k = c.rich * rich, out = [];
+  const n = (r() < .55 * k ? 1 : 0) + (r() < .4 * k ? 1 : 0) + (r() < .15 * k ? 1 : 0);
+  for (let i = 0; i < n; i++) out.push(pick(r, CAT[wpick(r, c.pool)]));
+  if ((c === CONT.locker || c === CONT.trunk || c === CONT.crate || c === CONT.file) && r() < .05) out.push('crowbar');
+  return out;
+}
+
+function buildHouse(cf) {
+  const flat = cf.tpl === 'flat';
+  const r = mulberry(Math.imul(cf.seed, 2654435761) ^ (flat ? 11 : 23));
+  const ri = (a, b) => a + Math.floor(r() * (b - a + 1));
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const k = Math.floor(r() * (i + 1)); [a[i], a[k]] = [a[k], a[i]]; } return a; };
+  /* The floor plan is rolled from the seed. A flat: the hall along the front, then the living room and the bedroom side by side (either way
+     round, widths vary), then the kitchen and the bathroom (open plan, split varies). A storeroom: one big room of varying size. Doors and
+     the front door land anywhere they fit. */
+  let W, Hh, plan;
+  if (flat) {
+    const lw = ri(7, 10), bw = ri(7, 10), midH = ri(6, 7), lowH = ri(6, 7), mir = r() < .5;
+    W = lw + bw + 3; const midY = 7, lowY = midY + midH + 2; Hh = lowY + lowH + 1;
+    const kw = ri(8, W - 2 - 7);
+    const X = (x, w) => (mir ? W - x - w : x);
+    plan = { lw, bw, midY, midH, lowY, lowH, kw, X };
+  } else { W = ri(17, 22); Hh = ri(14, 18); }
+  const grid = Array.from({ length: Hh }, () => Array(W).fill('#'));
+  const kind = Array.from({ length: Hh }, () => Array(W).fill(''));
+  const rooms = {};
+  const room = (name, x, y, w, h) => { rooms[name] = { x, y, w, h }; for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) { grid[j][i] = '.'; kind[j][i] = name; } };
+  const door = (x, y, ch) => { grid[y][x] = ch; grid[y + 1][x] = ch; };
+  const wide = (x, y) => { door(x, y, 'd'); door(x + 1, y, 'd'); };           // an open doorway two tiles wide (the locked bedroom door and the front door stay one)
+  let lock = cf.lock, bedLocked = false, exit, spawn, bedDoor = null;
+  const decor = [], lights = [];
+  if (lock === 'auto') { const u = r(); lock = u < .3 ? 'open' : u < .55 ? 'kick' : u < .8 ? 'crowbar' : 'boarded'; }
+  const ex = ri(2, W - 3);
+  grid[0][ex] = 'E'; grid[1][ex] = 'E'; exit = [{ x: ex, y: 1 }, { x: ex, y: 0 }]; spawn = { x: ex + .5, y: 2.6, a: Math.PI / 2 };
+  const wallSpot = (y, x0, x1) => { for (let t = 0; t < 20; t++) { const x = ri(x0, x1); if (grid[y][x] === '#' && grid[y + 1] && grid[y + 1][x] === '.' && !decor.some(d => d.y === y && Math.abs(d.x - x) < 2)) return x; } return -1; };
+  if (flat) {
+    const { lw, bw, midY, midH, lowY, lowH, kw, X } = plan;
+    room('hall', 1, 2, W - 2, 3);
+    room('living', X(1, lw), midY, lw, midH); room('bed', X(lw + 2, bw), midY, bw, midH);
+    room('kitchen', X(1, kw), lowY, kw, lowH); room('bath', X(kw + 1, W - 2 - kw), lowY, W - 2 - kw, lowH);
+    const L = rooms.living, B = rooms.bed, K = rooms.kitchen;
+    wide(ri(L.x + 1, L.x + L.w - 3), 5);
+    bedLocked = r() < .45;
+    bedDoor = { x: ri(B.x + 1, B.x + B.w - 2), y: 5 }; door(bedDoor.x, 5, bedLocked ? 'k' : 'd');
+    const lo = Math.max(L.x, K.x) + 1, hi = Math.min(L.x + L.w, K.x + K.w) - 3;   // living room down into the kitchen, where the two overlap
+    wide(hi >= lo ? ri(lo, hi) : Math.max(L.x, K.x), midY + midH);
+    const wl = wallSpot(midY - 1, B.x + 1, B.x + B.w - 2);
+    if (wl >= 0) { decor.push({ s: 'win_lit', x: wl, y: midY - 1 }); lights.push({ x: wl + .5, y: midY + .4, r: 7, room: B }); }
+    for (const [sp, y] of [['frame', 1], ['clock', 1], ['frame', lowY - 1], ['win_board', lowY - 1]]) { const x = wallSpot(y, 1, W - 2); if (x >= 0) decor.push({ s: sp, x, y }); }
+  } else {
+    room('stock', 1, 2, W - 2, Hh - 3);
+    for (const sp of ['clock', 'frame', 'win_board']) { const x = wallSpot(1, 1, W - 2); if (x >= 0) decor.push({ s: sp, x, y: 1 }); }
+  }
+  const open = (x, y) => y >= 0 && x >= 0 && y < Hh && x < W && grid[y][x] !== '#' && grid[y][x] !== ' ';
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+    if (grid[y][x] !== '#') continue;
+    let near = false;
+    for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (open(x + i, y + j)) near = true;
+    if (!near) grid[y][x] = ' ';
+  }
+  const objs = [], occ = new Array(W * Hh).fill(null);
+  // the floor just inside every door and below the front door stays clear
+  const keep = new Uint8Array(W * Hh);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) if ('dEk'.includes(grid[y][x]))
+    for (const b of [1, -1, 2, -2]) { const ny = y + b; if (grid[ny] && grid[ny][x] === '.') keep[ny * W + x] = 1; }
+  const pass = (x, y) => y >= 0 && x >= 0 && y < Hh && x < W && '.dEk'.includes(grid[y][x]) && !occ[y * W + x];
+  function sound() {                                                              // every open tile still reachable, every cupboard still has a side to stand at
+    let total = 0, sx = -1, sy = -1;
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) if (pass(x, y)) { total++; if (sx < 0) { sx = x; sy = y; } }
+    const seen = new Uint8Array(W * Hh), st = [[sx, sy]]; seen[sy * W + sx] = 1; let n = 0;
+    while (st.length) { const [x, y] = st.pop(); n++; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + a, ny = y + b; if (pass(nx, ny) && !seen[ny * W + nx]) { seen[ny * W + nx] = 1; st.push([nx, ny]); } } }
+    if (n !== total) return false;
+    for (const o of objs) {
+      if (!o.cont) continue;
+      if (o.f.wall) { if (!pass(o.x, o.y + 1)) return false; continue; }
+      let ok = false;
+      for (let i = o.x; i < o.x + o.w && !ok; i++) ok = pass(i, o.y - 1) || pass(i, o.y + o.d);
+      for (let j = o.y; j < o.y + o.d && !ok; j++) ok = pass(o.x - 1, j) || pass(o.x + o.w, j);
+      if (!ok) return false;
+    }
+    return true;
+  }
+  const add = (type, x, y) => {
+    const f = FURN[type];
+    if (f.wall) { if (!(grid[y] && grid[y][x] === '#' && grid[y + 1] && grid[y + 1][x] === '.') || occ[y * W + x] || decor.some(d => d.y === y && Math.abs(d.x - x) < 2)) return null; }
+    else if (!f.floor) for (let j = y; j < y + f.d; j++) for (let i = x; i < x + f.w; i++) if (!(j >= 0 && i >= 0 && j < Hh && i < W) || grid[j][i] !== '.' || occ[j * W + i] || keep[j * W + i]) return null;
+    const o = { type, x, y, w: f.w, d: f.d, f, seed: Math.floor(r() * 1e9), cont: f.cont ? CONT[f.cont] : null, loot: [], done: false };
+    objs.push(o);
+    if (f.floor) return o;
+    for (let j = y; j < y + f.d; j++) for (let i = x; i < x + f.w; i++) occ[j * W + i] = o;
+    if (!sound()) { objs.pop(); for (let j = y; j < y + f.d; j++) for (let i = x; i < x + f.w; i++) occ[j * W + i] = null; return null; }
+    return o;
+  };
+  const xs = (rm, w) => shuffle(Array.from({ length: Math.max(0, rm.w - w + 1) }, (_, k) => rm.x + k));
+  for (const name in rooms) {
+    const rm = rooms[name], spec = ROOMSPEC[name] || {};
+    for (const [t, p] of spec.floor || []) { if (r() > p) continue; const f = FURN[t]; add(t, ri(rm.x, rm.x + rm.w - f.w), ri(rm.y, rm.y + rm.h - f.d)); }
+    for (const [t, p] of spec.top || []) { if (r() > p) continue; for (const x of xs(rm, FURN[t].w)) if (add(t, x, rm.y)) break; }
+    for (const [t, p] of spec.wall || []) { if (r() > p) continue; for (const x of xs(rm, FURN[t].w)) if (add(t, x, rm.y - 1)) break; }
+    for (const [t, p] of spec.free || []) {
+      if (r() > p) continue; const f = FURN[t];
+      for (let k = 0; k < 24; k++) if (add(t, ri(rm.x, rm.x + rm.w - f.w), ri(rm.y + 1, rm.y + rm.h - f.d))) break;
+    }
+  }
+  const rich = flat ? 1 : 1.35;
+  for (const o of objs) if (o.cont) o.loot = rollLoot(r, o.cont, rich);
+  if (bedLocked) {
+    const b = rooms.bed;
+    const cands = objs.filter(o => o.cont && !(o.x >= b.x && o.x < b.x + b.w && o.y >= b.y - 1 && o.y < b.y + b.h));
+    if (cands.length) pick(r, cands).loot.push('key'); else { bedLocked = false; door(bedDoor.x, 5, 'd'); }
+  }
+  const blocked = new Uint8Array(W * Hh);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) { const c = grid[y][x]; if (c === '#' || c === ' ' || c === 'k') blocked[y * W + x] = 1; if (occ[y * W + x]) blocked[y * W + x] = 1; }
+  const zs = [];
+  const zn = cf.zombies === 'auto' ? (() => { const u = r(); return flat ? (u < .35 ? 1 : u < .45 ? 2 : 0) : (u < .6 ? 1 : u < .8 ? 2 : 0); })() : parseInt(cf.zombies, 10) || 0;
+  for (let tries = 0; zs.length < zn && tries < 300; tries++) {
+    const x = Math.floor(r() * W), y = Math.floor(r() * Hh);
+    if (grid[y][x] !== '.' || blocked[y * W + x] || Math.hypot(x - spawn.x, y - spawn.y) < 8) continue;
+    zs.push({ i: zs.length, dir: 'd', dist: 0, x: x + .5, y: y + .5, a: 0, state: 'sleep', t: 0, path: [], pt: 0, bob: r() * 6, flip: r() < .5 });
+  }
+  const name = flat ? 'No. ' + (3 + (cf.seed * 7) % 90) + ' ' + STREETS[cf.seed % STREETS.length] : 'Storeroom behind a shuttered shop';
+  return { tpl: cf.tpl, w: W, h: Hh, grid, kind, rooms, objs, occ, blocked, zombies: zs, spawn, exit, lock, bedLocked, bedDoor, decor, lights, name, open };
+}
+
+/* ---------- state ---------- */
+let RUN, G, mode = 'doorstep';
+const keys = new Set();
+
+function newRun() {
+  if (EMBED) return;
+  RUN = { hp: 100, dread: 0, bag: [], visits: 0 };
+  if (cfg.crowbar) RUN.bag.push('crowbar');
+  RUN.bag.push('bandage');
+  loadHouse();
+}
+function loadHouse() {
+  const H = buildHouse(cfg);
+  G = {
+    H, noise: 0, budget: cfg.budget > 0 ? cfg.budget : Infinity, used: 0,
+    juan: { x: H.spawn.x, y: H.spawn.y, a: H.spawn.a, face: 'd', moving: 0, t: 0, dist: 0 },
+    path: [], target: null, search: null, loot: null, zombies: H.zombies, took: [], met: 0, stuck: 0, world: null,
+    seen: new Uint8Array(H.w * H.h), cam: { fx: 0, fy: 0, x: 0, y: 0 }, ld: null, time: 0, spawnCool: 0, hudT: 0, toastT: 0, woke: 0,
+    killed: [], corpses: [], keyHeld: false, bedOpen: false, asking: false, fightZ: null,
+  };
+  for (const e of H.exit) G.seen[e.y * H.w + e.x] = 1;
+  if (EMBED) {
+    const S = HOST.state;                                                    // what Juan already did in this house: containers opened (and what is left in them), zombies put down, the key
+    if (S) {
+      H.objs.forEach((o, i) => { if (S.opened && S.opened[i]) { o.done = true; o.loot = S.opened[i].slice(); } });
+      G.used = S.used || 0; if (G.budget !== Infinity) G.budget = Math.max(0, G.budget - G.used);
+      G.killed = (S.killed || []).slice(); G.keyHeld = !!S.key; G.bedOpen = !!S.bedOpen;
+      G.zombies = H.zombies.filter(z => !G.killed.includes(z.i));
+      G.corpses = H.zombies.filter(z => G.killed.includes(z.i)).map(z => ({ x: z.x, y: z.y, v: z.i % 3 }));
+      if (G.bedOpen) openBedDoor();
+    }
+  }
+  paintWorld(); buildStaticLight();
+  if (EMBED) { mode = 'play'; hideCard(); toast('Inside. The light is all Juan has.', 2600); hud(); pushState(); return; }
+  enterDoorstep();
+}
+function openBedDoor() {
+  if (!G.H.bedDoor) return;
+  const x = G.H.bedDoor.x;
+  for (let j = 0; j < G.H.h; j++) if (G.H.grid[j][x] === 'k') { G.H.grid[j][x] = 'd'; G.H.blocked[j * G.H.w + x] = 0; }
+}
+function pushState() {
+  if (!EMBED) return;
+  const opened = {}; G.H.objs.forEach((o, i) => { if (o.done) opened[i] = o.loot.slice(); });
+  const left = { food: 0, med: 0, tool: 0, weapon: 0 };
+  for (const o of G.H.objs) if (o.done) for (const it of o.loot) for (const c of ['food', 'med', 'tool', 'weapon']) if (CAT[c].includes(it)) { left[c]++; break; }
+  const total = G.H.objs.filter(o => o.cont).length;
+  post({ t: 'state', state: { opened, killed: G.killed.slice(), key: G.keyHeld, bedOpen: G.bedOpen, used: G.used, total, left, alive: G.zombies.length, tpl: G.H.tpl } });
+}
+
+/* ---------- painting the static house ---------- */
+function paintWorld() {
+  const H = G.H, WW = H.w * T, WH = H.h * T;
+  if (!G.world) { G.world = document.createElement('canvas'); G.world.width = WW * S; G.world.height = WH * S; }
+  G.WW = WW; G.WH = WH;
+  const c = G.world.getContext('2d'); c.imageSmoothingEnabled = false; c.setTransform(S, 0, 0, S, 0, 0);
+  const rw = mulberry(cfg.seed * 977 + 5);
+  rect(c, 0, 0, WW, WH, '#000');
+  const isOpen = (x, y) => y >= 0 && x >= 0 && y < H.h && x < H.w && '.dEk'.includes(H.grid[y][x]);
+  const isWall = (x, y) => y >= 0 && x >= 0 && y < H.h && x < H.w && H.grid[y][x] === '#';
+  const floorKind = (x, y) => { for (const [i, j] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) if (H.kind[y + j] && H.kind[y + j][x + i]) return H.kind[y + j][x + i]; return 'hall'; };
+  for (let y = 0; y < H.h; y++) for (let x = 0; x < H.w; x++) {
+    const g = H.grid[y][x], px = x * T, py = y * T;
+    if (g === ' ') continue;
+    if (g === '#') {
+      if (isOpen(x, y + 1)) {                                         // the face of a wall, seen from the room below
+        rect(c, px, py, T, T, '#2e3a42'); rect(c, px, py, T, 1, '#394650');
+        rect(c, px + u(5), py + 1, 1, u(12), '#27323a'); rect(c, px + u(11), py + 1, 1, u(12), '#27323a'); rect(c, px, py + u(8), T, 1, '#27323a');
+        rect(c, px, py + T - u(3), T, u(3), '#1d252b'); rect(c, px, py + T - u(3), T, 1, '#3a4750');
+        if (rw() < .3) rect(c, px + Math.floor(rw() * u(10)), py + 1 + Math.floor(rw() * u(6)), u(3), u(6), 'rgba(0,0,0,.22)');
+        if (rw() < .12) rect(c, px + Math.floor(rw() * u(12)), py + u(9), 2, u(4), 'rgba(90,110,50,.5)');
+      } else if (isWall(x, y + 1) && isOpen(x, y + 2)) {              // the top of that wall
+        rect(c, px, py, T, T, '#4a5861'); rect(c, px, py, T, u(2), '#8497a3'); rect(c, px, py + T - u(2), T, u(2), '#2f3b43');
+      } else {                                                          // thin walls
+        rect(c, px, py, T, T, '#3d4a53');
+        if (isOpen(x, y - 1)) rect(c, px, py, T, u(2), '#8497a3');
+        if (isOpen(x - 1, y)) rect(c, px, py, u(2), T, '#8497a3');
+        if (isOpen(x + 1, y)) rect(c, px + T - u(2), py, u(2), T, '#8497a3');
+      }
+      continue;
+    }
+    const k = (g === 'd' || g === 'E' || g === 'k') ? floorKind(x, y) : H.kind[y][x];
+    const tex = IMG[FLOORTEX[k]];
+    if (tex) c.drawImage(tex, (x % 4) * T * S, (y % 4) * T * S, T * S, T * S, px, py, T, T); else rect(c, px, py, T, T, '#283036');
+    c.fillStyle = 'rgba(8,12,18,.2)'; c.fillRect(px, py, T, T);
+    rect(c, px + T - 1, py, 1, T, 'rgba(0,0,0,.18)'); rect(c, px, py + T - 1, T, 1, 'rgba(0,0,0,.18)');
+    for (let i = 0; i < 5; i++) rect(c, px + Math.floor(rw() * T), py + Math.floor(rw() * T), 1, 1, rw() < .5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.25)');
+  }
+  for (let i = 0; i < 40; i++) {
+    const x = Math.floor(rw() * H.w), y = Math.floor(rw() * H.h);
+    if (H.grid[y][x] !== '.') continue;
+    const cx = x * T + Math.floor(rw() * T), cy = y * T + Math.floor(rw() * T), rr = 2 + Math.floor(rw() * 5);
+    for (let j = -rr; j <= rr; j++) for (let k = -rr; k <= rr; k++) if (j * j + k * k <= rr * rr && rw() < .6) rect(c, cx + k, cy + j, 1, 1, 'rgba(0,0,0,.16)');
+  }
+  for (let i = 0; i < 9; i++) {
+    const x = Math.floor(rw() * H.w), y = Math.floor(rw() * H.h);
+    if (H.grid[y][x] !== '.' || H.occ[y * H.w + x]) continue;
+    spr(c, rw() < .6 ? 'd_moss' : 'd_paper', x * T + T / 2, y * T + T - u(2), rw() < .5);
+  }
+  for (const o of H.objs) if (o.f.floor) spr(c, o.f.s, (o.x + o.w / 2) * T, (o.y + o.d) * T);
+  for (let y = 0; y < H.h - 1; y++) for (let x = 0; x < H.w; x++) {                 // doors: a two-tile passage through a wall
+    const g = H.grid[y][x];
+    if (g === 'd' && H.grid[y][x - 1] === 'd') continue;                              // the right half of a wide doorway: the left half drew it
+    if (g === 'd' && H.grid[y][x + 1] === 'd' && isWall(x, y - 1)) doorway(c, (x + 1) * T, (y + 2) * T, 2 * T + 5);
+    else if ((g === 'd' || g === 'k' || g === 'E') && isWall(x, y - 1)) spr(c, g === 'k' ? 'door_lock' : g === 'E' ? 'door_steel' : 'door_open', (x + .5) * T, (y + 2) * T);
+  }
+  for (const d of H.decor) spr(c, d.s, (d.x + .5) * T, (d.y + 1) * T - u(3));
+}
+/* An open doorway wider than its sprite: the dark frame is cut into its two edges and a middle, and only the middle is stretched, so the border stays crisp. */
+function doorway(c, cx, base, w) {
+  const im = IMG.door_open, m = MAN.door_open; if (!im || !m) return;
+  const e = 4, h = m.h / S, x0 = Math.round((cx - w / 2) * S) / S, y = Math.round((base - h) * S) / S, ew = e / S;
+  c.drawImage(im, 0, 0, e, im.height, x0, y, ew, h);
+  c.drawImage(im, e, 0, im.width - 2 * e, im.height, x0 + ew, y, w - 2 * ew, h);
+  c.drawImage(im, im.width - e, 0, e, im.height, x0 + w - ew, y, ew, h);
+}
+function buildStaticLight() {
+  const H = G.H;
+  const cv = document.createElement('canvas'); cv.width = G.WW; cv.height = G.WH;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  for (const L of H.lights) {
+    c.save(); c.beginPath(); c.rect(L.room.x * T, (L.room.y - 1) * T, L.room.w * T, (L.room.h + 1) * T); c.clip();
+    const g = c.createRadialGradient(L.x * T, L.y * T, 0, L.x * T, L.y * T, L.r * T);
+    g.addColorStop(0, 'rgba(255,255,255,.85)'); g.addColorStop(.55, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g; c.fillRect(L.room.x * T, (L.room.y - 1) * T, L.room.w * T, (L.room.h + 1) * T); c.restore();
+  }
+  c.fillStyle = '#fff';
+  for (const d of H.decor) if (d.s === 'win_lit') { const m = MAN[d.s], mw = m.w / S, mh = m.h / S; c.fillRect(Math.round((d.x + .5) * T - mw / 2), (d.y + 1) * T - u(3) - mh, mw, mh); }
+  const dd = c.getImageData(0, 0, G.WW, G.WH).data, a = new Uint8Array(G.WW * G.WH);
+  for (let i = 0; i < a.length; i++) a[i] = dd[i * 4 + 3];
+  G.staticA = a;
+}
+
+/* ---------- Juan and the Shambler ---------- */
+/* The Shambler (house_shambler_1 and _2): walk frames zd/zl/zr0-3 and a back view zu0 (the sheet has only one, so "up" bobs it), asleep zs0-3,
+   waking zw0-7 (lying, eyes open, propped up, on hands and knees, up) and dead zx0-2. Native pixel art, like Juan. */
+const lit = (sx, sy) => G.ld.data[(clamp((sy - 8) * S, 0, VHd - 1) * VWd + clamp(sx * S, 0, VWd - 1)) * 4] / 255 >= .3;
+function zombieSprite(z) {
+  if (z.state === 'sleep') return 'zs' + (z.i == null ? 0 : z.i % 4);
+  if (z.state === 'wake' && !z.stun) return 'zw' + clamp(Math.floor((1 - z.t / z.t0) * 8), 0, 7);
+  const ph = Math.floor(z.dist * 3) % 4;
+  return z.dir === 'u' ? 'zu0' : 'z' + z.dir + (z.state === 'wake' ? 0 : ph);
+}
+function drawZombie(z, cam) {
+  const sx = Math.round(z.x * T - cam.x), sy = Math.round(z.y * T - cam.y);
+  if (sx < -20 || sy < -30 || sx > VW + 20 || sy > VH + 30 || !lit(sx, sy)) return;
+  const bob = z.dir === 'u' && z.state === 'hunt' && Math.floor(z.dist * 3) % 2 ? 1 : 0;
+  spr(vx, zombieSprite(z), sx, sy + 2 - bob);
+}
+function drawCorpse(c, cam) {
+  const sx = Math.round(c.x * T - cam.x), sy = Math.round(c.y * T - cam.y);
+  if (sx < -20 || sy < -30 || sx > VW + 20 || sy > VH + 30 || !lit(sx, sy)) return;
+  spr(vx, 'zx' + c.v, sx, sy + 3);
+}
+/* Juan's movement sheet only: jd/jl/jr/ju = down/left/right/up, frames stand, step, stand, other step. Native pixel art, so no mirroring or scaling. */
+function juanSprite() {
+  const j = G.juan;
+  return { d: 'jd', l: 'jl', r: 'jr', u: 'ju' }[j.face] + (j.moving ? Math.floor(j.dist * 4) % 4 : 0);
+}
+
+/* ---------- light, sight and the dark ---------- */
+function lightBlock(tx, ty) {
+  const H = G.H;
+  if (tx < 0 || ty < 0 || tx >= H.w || ty >= H.h) return true;
+  const c = H.grid[ty][tx];
+  if (c === '#' || c === ' ' || c === 'k' || c === 'E') return true;
+  const o = H.occ[ty * H.w + tx]; return !!(o && o.f.tall);
+}
+function castRay(ox, oy, ang, maxR) {
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  let tx = Math.floor(ox), ty = Math.floor(oy);
+  const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
+  const tdx = Math.abs(dx) < 1e-9 ? 1e9 : Math.abs(1 / dx), tdy = Math.abs(dy) < 1e-9 ? 1e9 : Math.abs(1 / dy);
+  let tmx = Math.abs(dx) < 1e-9 ? 1e9 : (dx > 0 ? tx + 1 - ox : ox - tx) * tdx, tmy = Math.abs(dy) < 1e-9 ? 1e9 : (dy > 0 ? ty + 1 - oy : oy - ty) * tdy, dist = 0;
+  while (dist < maxR) {
+    if (tmx < tmy) { dist = tmx; tmx += tdx; tx += sx; } else { dist = tmy; tmy += tdy; ty += sy; }
+    if (lightBlock(tx, ty)) return Math.min(maxR, dist + .55);
+  }
+  return maxR;
+}
+function lineClear(ax, ay, bx, by) { const d = Math.hypot(bx - ax, by - ay); return castRay(ax, ay, Math.atan2(by - ay, bx - ax), d + .6) >= d - .05; }
+function lightPass() {
+  const j = G.juan, cam = G.cam, ox = j.x * T - cam.x, oy = j.y * T - cam.y;
+  lx.setTransform(1, 0, 0, 1, 0, 0); lx.globalCompositeOperation = 'source-over'; lx.globalAlpha = 1; lx.fillStyle = '#000'; lx.fillRect(0, 0, VWd, VHd); lx.setTransform(S, 0, 0, S, 0, 0);
+  const N = 180, R = 6.4, pts = [];
+  for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, d = castRay(j.x, j.y, a, R); pts.push([ox + Math.cos(a) * d * T, oy + Math.sin(a) * d * T]); }
+  lx.save(); lx.beginPath(); pts.forEach((p, i) => i ? lx.lineTo(p[0], p[1]) : lx.moveTo(p[0], p[1])); lx.closePath(); lx.clip();
+  lx.globalCompositeOperation = 'lighter';
+  const hy = oy - u(7);
+  let g = lx.createRadialGradient(ox, hy, 0, ox, hy, 2.8 * T);
+  g.addColorStop(0, 'rgba(255,255,255,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  lx.fillStyle = g; lx.beginPath(); lx.arc(ox, hy, 3.2 * T, 0, 6.3); lx.fill();
+  const fx = ox + Math.cos(j.a) * .6 * T, fy = hy + Math.sin(j.a) * .6 * T, CR = 6.2 * T;
+  g = lx.createRadialGradient(fx, fy, 0, fx, fy, CR);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.5, 'rgba(255,255,255,.72)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  for (const [ha, al] of [[.66, .5], [.44, .5], [.24, .5]]) { lx.globalAlpha = al; lx.fillStyle = g; lx.beginPath(); lx.moveTo(fx, fy); lx.arc(fx, fy, CR, j.a - ha, j.a + ha); lx.closePath(); lx.fill(); }
+  lx.restore();
+  lx.setTransform(1, 0, 0, 1, 0, 0);
+  G.ld = lx.getImageData(0, 0, VWd, VHd);
+  const H = G.H, d = G.ld.data;
+  for (let ty = Math.max(0, Math.floor(cam.y / T)); ty <= Math.min(H.h - 1, Math.floor((cam.y + VH) / T)); ty++)
+    for (let tx = Math.max(0, Math.floor(cam.x / T)); tx <= Math.min(H.w - 1, Math.floor((cam.x + VW) / T)); tx++) {
+      const sx = Math.round(tx * T + T / 2 - cam.x), sy = Math.round(ty * T + T / 2 - cam.y);
+      if (sx >= 0 && sy >= 0 && sx < VW && sy < VH && d[((sy * S) * VWd + sx * S) * 4] > 56) G.seen[ty * H.w + tx] = 1;
+    }
+}
+let WARM = 0;
+function composite(getV) {
+  const img = vx.getImageData(0, 0, VWd, VHd), d = img.data;
+  let i = 0;
+  for (let y = 0; y < VHd; y++) for (let x = 0; x < VWd; x++, i += 4) {
+    const v = getV(x, y);
+    let qv = Math.round(v * LV) / LV; if (qv > 1) qv = 1; if (qv < 0) qv = 0;
+    const w = WARM, k = 1 - qv;
+    d[i] = d[i] * qv * (1 + .3 * w) + AMB[0] * k;
+    d[i + 1] = d[i + 1] * qv * (1 - .04 * w) + AMB[1] * k;
+    d[i + 2] = d[i + 2] * qv * (1 - .42 * w) + AMB[2] * k;
+  }
+  vx.putImageData(img, 0, 0);
+}
+
+/* ---------- walking ---------- */
+const SPEED = 3.2;
+const walkable = (x, y) => y >= 0 && x >= 0 && y < G.H.h && x < G.H.w && !G.H.blocked[y * G.H.w + x];
+function canStand(px, py, r) {
+  for (const dx of [-r, r]) for (const dy of [-r, r]) if (!walkable(Math.floor(px + dx), Math.floor(py + dy))) return false;
+  return true;
+}
+function step(e, mx, my, r) {
+  let moved = 0;
+  if (mx && canStand(e.x + mx, e.y, r)) { e.x += mx; moved = 1; }
+  if (my && canStand(e.x, e.y + my, r)) { e.y += my; moved = 1; }
+  return moved;
+}
+function turn(a, b, k) { let d = b - a; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832; return a + d * Math.min(1, k); }
+function bfs(sx, sy, goal) {
+  const H = G.H, W = H.w, n = W * H.h, prev = new Int32Array(n).fill(-2), qu = [sx + sy * W];
+  prev[sx + sy * W] = -1;
+  for (let qi = 0; qi < qu.length; qi++) {
+    const c = qu[qi], x = c % W, y = (c / W) | 0;
+    if (goal(x, y)) { const out = []; let k = c; while (prev[k] !== -1) { out.push([k % W, (k / W) | 0]); k = prev[k]; } return out.reverse(); }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (!walkable(nx, ny) || prev[nx + ny * W] !== -2) continue;
+      if (dx && dy && (!walkable(x + dx, y) || !walkable(x, y + dy))) continue;
+      prev[nx + ny * W] = c; qu.push(nx + ny * W);
+    }
+  }
+  return null;
+}
+const distObj = (o, x, y) => Math.hypot(x - clamp(x, o.x, o.x + o.w), y - clamp(y, o.y, o.y + o.d));
+function spriteRect(o) {
+  const m = MAN[o.f.o && o.done ? o.f.o : o.f.s]; if (!m) return null;
+  const mw = m.w / S, mh = m.h / S, cx = (o.x + o.w / 2) * T, base = o.f.wall ? (o.y + 1) * T - u(3) : (o.y + o.d) * T;
+  return { x0: cx - mw / 2, x1: cx + mw / 2, y0: base - mh, y1: base, base };
+}
+function objAtPoint(wx, wy) {
+  let best = null;
+  for (const o of G.H.objs) {
+    if (!o.cont) continue;
+    const r = spriteRect(o);
+    if (r && wx >= r.x0 && wx <= r.x1 && wy >= r.y0 && wy <= r.y1 && (!best || r.base > best.base)) best = { o, base: r.base };
+  }
+  return best && best.o;
+}
+
+function onTap(wx, wy) {
+  if (mode !== 'play') return;
+  const H = G.H, j = G.juan, tx = Math.floor(wx / T), ty = Math.floor(wy / T);
+  if (tx < 0 || ty < 0 || tx >= H.w || ty >= H.h) return;
+  const o = objAtPoint(wx, wy) || (H.occ[ty * H.w + tx] && H.occ[ty * H.w + tx].cont ? H.occ[ty * H.w + tx] : null);
+  if (o) {
+    const adj = (x, y) => walkable(x, y) && ((x >= o.x && x < o.x + o.w && (y === o.y - 1 || y === o.y + o.d)) || (y >= o.y && y < o.y + o.d && (x === o.x - 1 || x === o.x + o.w)));
+    goInteract({ kind: 'cont', o }, adj, distObj(o, j.x, j.y) <= .85); return;
+  }
+  if (H.grid[ty][tx] === 'k') {
+    const nearDoor = (x, y) => [[0, 1], [0, -1], [1, 0], [-1, 0]].some(([a, b]) => H.grid[y + b] && H.grid[y + b][x + a] === 'k');
+    goInteract({ kind: 'door', x: tx, y: ty }, (x, y) => walkable(x, y) && nearDoor(x, y), nearDoor(Math.floor(j.x), Math.floor(j.y))); return;
+  }
+  if (!walkable(tx, ty)) { toast('Nothing to do there.'); return; }
+  const p = bfs(Math.floor(j.x), Math.floor(j.y), (x, y) => x === tx && y === ty);
+  if (!p) { toast("Can't get there."); return; }
+  G.path = p; G.target = null;
+}
+function goInteract(t, goal, near) {
+  const j = G.juan;
+  if (near) { G.path = []; interact(t); return; }
+  const p = bfs(Math.floor(j.x), Math.floor(j.y), goal);
+  if (!p) { toast("Can't reach that."); return; }
+  G.path = p; G.target = t;
+}
+function interact(t) {
+  G.juan.face = 'u';
+  if (t.kind === 'cont') openCont(t.o);
+  else if (t.kind === 'door') innerDoor(t.x, t.y);
+}
+function interactNearest() {
+  if (mode !== 'play') return;
+  const j = G.juan; let best = null, bd = 1.2;
+  for (const o of G.H.objs) if (o.cont) { const d = distObj(o, j.x, j.y); if (d < bd) { bd = d; best = o; } }
+  if (best) { G.path = []; interact({ kind: 'cont', o: best }); return; }
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const x = Math.floor(j.x) + dx, y = Math.floor(j.y) + dy; if (G.H.grid[y] && G.H.grid[y][x] === 'k') { G.path = []; interact({ kind: 'door', x, y }); return; } }
+}
+
+/* ---------- searching, loot, locks ---------- */
+const card = $('card'), toastEl = $('toast');
+function toast(msg, ms = 1900) { toastEl.textContent = msg; toastEl.classList.add('on'); G.toastT = ms / 1000; }
+function showCard(html, acts) {
+  card.innerHTML = html; card.hidden = false;
+  acts.forEach(a => {
+    const b = document.createElement('button'); b.className = 'btn ' + (a.cls || ''); b.innerHTML = a.html || a.t; if (a.dis) b.disabled = true;
+    b.addEventListener('click', () => a.fn()); card.appendChild(b);
+  });
+}
+function hideCard() { card.hidden = true; card.innerHTML = ''; }
+const nm = k => (ITEMS[k] && ITEMS[k].n) || k;
+function openCont(o) {
+  if (o.done) { mode = 'card'; showLoot(o); return; }
+  if (G.budget <= 0) { toast('Juan is spent. No more digging. Time to go.', 2600); return; }
+  if ((EMBED ? HOST.bag.filter(Boolean).length >= 10 : RUN.bag.length >= 5)) toast('The bag is full. Look anyway, then drop something to make room.', 2400);
+  G.budget--; G.used++; G.noise += o.cont.noise;
+  G.search = { o, t: 0, dur: o.cont.dur }; mode = 'search';
+  $('slabel').textContent = 'SEARCHING ' + o.cont.n.toUpperCase(); $('sbar').hidden = false; $('sfill').style.width = '0';
+}
+function finishSearch() {
+  const s = G.search; G.search = null; $('sbar').hidden = true; s.o.done = true; mode = 'card'; showLoot(s.o); pushState();
+}
+function showLoot(o) {
+  G.loot = o;
+  const rows = o.loot.map((it, i) => ({ html: '<img src="' + ICON[it] + '" alt="">' + nm(it) + '<em>take</em>', fn: () => takeItem(o, i) }));
+  const html = '<small>Searched</small><h3>' + o.cont.n + '</h3>' + (o.loot.length ? '<p>Take what Juan can carry. A full bag: tap a bag item to drop it here.</p>' : '<div class="empty">Nothing but dust.</div>');
+  const all = o.loot.length > 1 ? [{ cls: 'go', html: 'Take all that fits<em>' + o.loot.length + ' things</em>', fn: () => takeAll(o) }] : [];
+  showCard(html, all.concat(rows, [{ t: 'Done', cls: o.loot.length > 1 ? '' : 'go', fn: () => { G.loot = null; hideCard(); mode = 'play'; hud(); } }]));
+}
+/* One after another, until the bag says no: whatever does not fit stays in the container, and the toast says how many. */
+function takeAll(o) {
+  if (G.asking) return;
+  let took = 0;
+  const next = () => {
+    const i = o.loot.length ? 0 : -1;
+    if (i < 0) { toast(took ? 'Took ' + took + '.' : 'Nothing to take.'); return; }
+    const it = o.loot[i];
+    if (!EMBED) { if (it !== 'key' && RUN.bag.length >= 5) { toast(took ? 'Took ' + took + '. The bag is full; ' + o.loot.length + ' left here.' : 'BAG FULL. Tap a bag item to drop it.'); return; }
+      o.loot.splice(i, 1); RUN.bag.push(it); G.took.push(it); took++; showLoot(o); hud(); next(); return; }
+    if (it === 'key') { o.loot.splice(i, 1); G.keyHeld = true; G.took.push(it); took++; showLoot(o); hud(); pushState(); next(); return; }
+    ask({ t: 'take', item: it }, r => {
+      if (!r.ok) { toast(took ? 'Took ' + took + '. The bag is full; ' + o.loot.length + ' left here.' : 'BAG FULL. Tap a bag item to drop it.', 2600); return; }
+      o.loot.splice(o.loot.indexOf(it), 1); G.took.push(it); took++; showLoot(o); hud(); pushState(); next();
+    });
+  };
+  next();
+}
+function takeItem(o, i) {
+  if (EMBED) {
+    if (G.asking) return;
+    const it = o.loot[i];
+    if (it === 'key') { o.loot.splice(i, 1); G.keyHeld = true; G.took.push(it); showLoot(o); hud(); pushState(); toast('A key. It might fit the bedroom door.'); return; }
+    ask({ t: 'take', item: it }, r => {
+      if (!r.ok) { toast('BAG FULL. Tap a bag item to drop it.'); return; }
+      const k = o.loot.indexOf(it); if (k >= 0) o.loot.splice(k, 1);
+      G.took.push(it); showLoot(o); hud(); pushState();
+    });
+    return;
+  }
+  if (RUN.bag.length >= 5) { toast('BAG FULL. Tap a bag item to drop it.'); return; }
+  const it = o.loot.splice(i, 1)[0]; RUN.bag.push(it); G.took.push(it); showLoot(o); hud();
+}
+function bagTap(i) {
+  if (EMBED) {
+    if (!HOST.bag[i] || G.asking) return;
+    if (mode === 'card' && G.loot) {
+      ask({ t: 'drop', slot: i }, r => {
+        if (!r.ok) return;
+        learn(r.item); G.loot.loot.push(r.item.pid);
+        const k = G.took.lastIndexOf(r.item.pid); if (k >= 0) G.took.splice(k, 1);
+        showLoot(G.loot); hud(); pushState();
+      });
+    } else if (mode === 'play') ask({ t: 'use', slot: i }, r => { toast(r.msg); hud(); });
+    return;
+  }
+  const it = RUN.bag[i]; if (!it) return;
+  if (mode === 'card' && G.loot) { RUN.bag.splice(i, 1); G.loot.loot.push(it); const k = G.took.lastIndexOf(it); if (k >= 0) G.took.splice(k, 1); showLoot(G.loot); hud(); return; }
+  if (mode !== 'play') return;
+  if (ITEMS[it].heal) {
+    if (RUN.hp >= 100) { toast('Already at full health.'); return; }
+    RUN.hp = Math.min(100, RUN.hp + ITEMS[it].heal); RUN.bag.splice(i, 1); toast(nm(it) + ': +' + ITEMS[it].heal + ' HP'); hud();
+  } else toast(nm(it) + (['crowbar', 'key'].includes(it) ? ': opens locked doors.' : ': better saved for the shelter.'));
+}
+function innerDoor(x, y) {
+  mode = 'card';
+  const hasKey = EMBED ? G.keyHeld : RUN.bag.includes('key'), hasBar = EMBED ? HOST.bar || HOST.bag.some(sl => sl && sl.pid === 'crowbar') : RUN.bag.includes('crowbar'), acts = [];
+  const unlock = () => { for (let j = y - 1; j <= y + 1; j++) if (G.H.grid[j] && G.H.grid[j][x] === 'k') { G.H.grid[j][x] = 'd'; G.H.blocked[j * G.H.w + x] = 0; } G.bedOpen = true; paintWorld(); hideCard(); mode = 'play'; pushState(); };
+  if (hasKey) acts.push({ cls: 'go', html: 'Use the key<em>quiet</em>', fn: () => { if (EMBED) G.keyHeld = false; else RUN.bag.splice(RUN.bag.indexOf('key'), 1); unlock(); toast('The lock turns.'); hud(); } });
+  if (hasBar) acts.push({ html: 'Pry it with the crowbar<em>+8 noise</em>', fn: () => { G.noise += 8; unlock(); toast('The frame gives.'); hud(); } });
+  acts.push({ cls: 'risk', html: 'Kick it in<em>55% · +30 noise</em>', fn: () => { G.noise += 30; if (Math.random() < .55) { unlock(); toast('The door slams open.'); } else { hideCard(); mode = 'play'; toast('It holds. That was loud.'); } hud(); } });
+  acts.push({ t: 'Leave it', fn: () => { hideCard(); mode = 'play'; } });
+  showCard('<small>Bedroom</small><h3>Locked door</h3><p>' + (hasKey ? 'The bedroom key fits.' : 'Locked from the inside, or the key went with whoever lived here. A key may be somewhere in the house.') + '</p>', acts);
+}
+
+/* ---------- the doorstep ---------- */
+function enterDoorstep() {
+  mode = 'doorstep'; $('sbar').hidden = true;
+  const L = G.H.lock, hasBar = RUN.bag.includes('crowbar'), acts = [];
+  const go = () => { mode = 'play'; hideCard(); toast('Inside. The light is all Juan has.', 2600); hud(); };
+  const next = () => { cfg.seed++; syncPanel(); loadHouse(); };
+  const kick = (chance, noise) => () => { G.noise += noise; if (Math.random() < chance) { toast('The door gives.'); go(); } else { toast('It holds. That was loud.'); enterDoorstep(); } hud(); };
+  const bar = noise => () => { G.noise += noise; go(); };
+  let blurb = '';
+  if (L === 'open') { blurb = 'The door is unlatched. Nobody has been in for a while.'; acts.push({ t: 'Go in', cls: 'go', fn: go }); }
+  else if (L === 'kick') {
+    blurb = 'Swollen shut and rusted at the lock. It might give to a kick, but it would echo down the street.';
+    if (hasBar) acts.push({ cls: 'go', html: 'Pry it open<em>quiet · +8 noise</em>', fn: bar(8) });
+    acts.push({ cls: hasBar ? '' : 'go', html: 'Kick it in<em>55% · +25 noise</em>', fn: kick(.55, 25) });
+  } else if (L === 'crowbar') {
+    blurb = 'A steel door and a real lock. Kicking is a waste. A crowbar would do it.';
+    if (hasBar) acts.push({ cls: 'go', html: 'Pry it open<em>+8 noise</em>', fn: bar(8) });
+    acts.push({ cls: 'risk', html: 'Kick it anyway<em>15% · +30 noise</em>', fn: kick(.15, 30) });
+  } else {
+    blurb = 'Planks nailed across the frame. Whoever did this wanted nobody inside, or something in.';
+    if (hasBar) acts.push({ cls: 'go', html: 'Pull the planks<em>+14 noise</em>', fn: bar(14) });
+    else acts.push({ t: 'No way through without a tool', dis: true });
+  }
+  acts.push({ t: 'Walk on to the next house', fn: next });
+  showCard('<small>' + G.H.name + '</small><h3>' + ({ open: 'Unlocked', kick: 'Stuck door', crowbar: 'Steel door', boarded: 'Boarded up' })[L] + '</h3><p>' + blurb + '</p>', acts);
+  hud();
+}
+function renderDoorstep() {
+  const c = vx, L = G.H.lock;
+  c.setTransform(S, 0, 0, S, OX * S, OY * S);
+  rect(c, -OX, -OY, VW, VH, '#070a0c'); rect(c, -OX, 0, VW, 30, '#0b1114'); rect(c, 4, 12, 22, 18, '#0e161a'); rect(c, 84, 8, 22, 22, '#0e161a'); rect(c, 30, 18, 14, 12, '#0c1317');
+  rect(c, 8, 34, 94, 118, '#2a343b');
+  for (let y = 38; y < 152; y += 6) rect(c, 8, y, 94, 1, '#232c32');
+  for (let y = 38; y < 152; y += 12) for (let x = 8 + ((y / 6) % 2) * 5; x < 102; x += 10) rect(c, x, y, 1, 6, '#222a30');
+  rect(c, 4, 26, 102, 9, '#1c2429'); rect(c, 4, 26, 102, 2, '#46545e');
+  spr(c, 'win_board', 28, 82, false, 1.5);
+  spr(c, G.H.decor.some(d => d.s === 'win_lit') ? 'win_lit' : 'win_board', 84, 82, false, 1.5);
+  const doorSprite = { open: 'door_open', kick: 'door', crowbar: 'door_steel', boarded: 'door_board' }[L];
+  spr(c, doorSprite, 55, 152, false, 3);
+  rect(c, -OX, 152, VW, VH, '#10161a'); rect(c, -OX, 152, VW, 3, '#2a343a'); rect(c, -OX, 155, VW, 1, '#1a2227');
+  for (let x = 4 - Math.ceil(OX / 22) * 22; x < VW - OX; x += 22) rect(c, x, 205, 10, 2, '#1e272d');
+  rect(c, 38, 152, 34, 4, '#2c363c');
+  spr(c, 'ju0', 55, 176, false, 2);
+  WARM = 0;
+  composite((px, py) => {
+    const x = px / S - OX, y = py / S - OY, dx = x - 55, dy = y - 150, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx), da = Math.abs(((a + Math.PI / 2 + 3.1416) % 6.2832) - 3.1416);
+    const cone = d < 150 ? (1 - d / 150) * clamp(1 - da / .8, 0, 1) * 1.6 : 0;
+    const glow = d < 34 ? (1 - d / 34) * .6 : 0;
+    return Math.max(.08, cone, glow, (x > 68 && x < 100 && y > 60 && y < 84 && L === 'open') ? .35 : 0);
+  });
+}
+
+/* ---------- zombies, noise, combat ---------- */
+function updateZombie(z, dt) {
+  const j = G.juan, d = Math.hypot(z.x - j.x, z.y - j.y);
+  if (z.state === 'sleep') {
+    if ((G.noise >= 55 || d < 2) && lineClear(j.x, j.y, z.x, z.y)) { z.state = 'wake'; z.t = .6 + Math.random() * .6; z.t0 = z.t; if (!G.woke) { G.woke = 1; toast('Something shifts in the dark.', 2400); } }
+    return;
+  }
+  if (z.state === 'wake') { z.t -= dt; if (z.t <= 0) { z.state = 'hunt'; z.stun = false; } return; }
+  z.pt -= dt;
+  if (z.pt <= 0) { z.pt = .35; z.path = bfs(Math.floor(z.x), Math.floor(z.y), (x, y) => x === Math.floor(j.x) && y === Math.floor(j.y)) || []; }
+  let tx = j.x, ty = j.y;
+  if (d > 1.2 && z.path.length) { const w = z.path[0]; tx = w[0] + .5; ty = w[1] + .5; if (Math.hypot(tx - z.x, ty - z.y) < .12) z.path.shift(); }
+  const dd = Math.hypot(tx - z.x, ty - z.y) || 1, sp = 1.25 * dt;
+  const mx = (tx - z.x) / dd * sp, my = (ty - z.y) / dd * sp;
+  if (Math.abs(mx) > Math.abs(my) * 1.3) z.dir = mx > 0 ? 'r' : 'l'; else if (Math.abs(my) > Math.abs(mx) * 1.3) z.dir = my > 0 ? 'd' : 'u';
+  if (step(z, mx, my, .26)) z.dist += sp;
+  if (d < .75 && mode !== 'card') startCombat(z);
+}
+function startCombat(z) {
+  if (G.search) { G.search = null; G.budget++; G.used--; $('sbar').hidden = true; }
+  if (EMBED) { G.path = []; G.target = null; mode = 'fight'; G.met++; G.fightZ = z; hideCard(); post({ t: 'fight' }); return; }
+  G.path = []; G.target = null; mode = 'card'; G.met++;
+  RUN.dread = Math.min(100, RUN.dread + 4);
+  showCard('<small>Preview only</small><h3>A Shambler reached Juan</h3><p>In the game this opens the in-house combat screen (one weaker Shambler, no grid). This stand-alone page has no combat, so it just skips the fight.</p>', [
+    { cls: 'go', html: 'Skip the fight<em>preview only</em>', fn: () => {
+      const dmg = [0, 0, 10, 10, 20][Math.floor(Math.random() * 5)];
+      RUN.hp -= dmg; RUN.dread = Math.min(100, RUN.dread + 4); G.noise += 15; G.zombies.splice(G.zombies.indexOf(z), 1); hideCard(); mode = 'play';
+      toast(dmg ? 'It bit him for ' + dmg + '.' : 'Clean kill. No bite.', 2400); hud(); if (RUN.hp <= 0) dead();
+    } },
+  ]);
+}
+function dead() {
+  mode = 'card'; $('sbar').hidden = true;
+  showCard('<small>Run over</small><h3>Juan is down</h3><p>He did not make it out of the house.</p>', [{ t: 'New run', cls: 'go', fn: newRun }]);
+}
+function spawnAtDoor() {
+  const e = G.H.exit[0]; G.zombies.push({ dir: 'd', dist: 0, x: e.x + .5, y: e.y + 1.6, a: 0, state: 'hunt', t: 0, path: [], pt: 0, bob: 0, flip: false });
+  toast('Something answers from the street.', 2600);
+}
+function fightEnd(result) {
+  const z = G.fightZ; G.fightZ = null; mode = 'play';
+  if (!z) return;
+  if (result === 'won') {
+    G.zombies.splice(G.zombies.indexOf(z), 1); if (z.i != null) G.killed.push(z.i); G.corpses.push({ x: z.x, y: z.y, v: Math.floor(Math.random() * 3) }); G.noise += 15; toast('It stops moving. The house is quiet again.', 2400);
+  } else {                                                                      // got away: it staggers, and Juan runs for the door
+    z.state = 'wake'; z.t = 3; z.t0 = 3; z.stun = true; z.path = [];
+    const e = G.H.exit[0], p = bfs(Math.floor(G.juan.x), Math.floor(G.juan.y), (x, y) => x === e.x && y === e.y + 1); if (p) G.path = p;
+    toast('Juan bolts for the door.', 2400);
+  }
+  pushState(); hud();
+}
+function leave() {
+  mode = 'card'; G.path = []; $('sbar').hidden = true; RUN.visits++;
+  if (EMBED) {
+    const left = G.H.objs.filter(o => o.cont && !o.done).length, spent = G.budget <= 0;
+    showCard('<small>' + G.H.name + '</small><h3>Back on the street?</h3><div class="stats"><span>Searches</span><b>' + G.used + '</b><span>Not searched yet</span><b>' + left + '</b><span>Shamblers met</span><b>' + G.met + '</b></div>', [
+      { cls: 'go', html: 'Step outside', fn: () => { post({ t: 'leave', searched: G.used, all: left === 0 || spent }); } },
+      { t: 'Stay inside', fn: () => { G.juan.x = G.H.spawn.x; G.juan.y = G.H.spawn.y; G.juan.face = 'd'; hideCard(); mode = 'play'; } },
+    ]);
+    return;
+  }
+  const took = G.took.length ? G.took.map(nm).join(', ') : 'nothing';
+  showCard('<small>' + G.H.name + '</small><h3>Back on the street</h3><div class="stats"><span>Carried out</span><b>' + took + '</b><span>Searches</span><b>' + G.used + '</b><span>Noise made</span><b>' + Math.round(G.noise) + '</b><span>Shamblers met</span><b>' + G.met + '</b><span>HP</span><b>' + Math.round(RUN.hp) + '</b><span>Dread</span><b>' + Math.round(RUN.dread) + '</b></div>', [
+    { cls: 'go', html: 'Next house<em>same run</em>', fn: () => { cfg.seed++; syncPanel(); loadHouse(); } },
+    { t: 'This house again', fn: loadHouse },
+    { t: 'New run', fn: newRun },
+  ]);
+}
+
+/* ---------- the loop ---------- */
+function sim(dt) {
+  const j = G.juan;
+  if (mode === 'play') {
+    let dx = 0, dy = 0;
+    if (keys.size) {
+      if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
+      if (keys.has('d') || keys.has('arrowright')) dx += 1;
+      if (keys.has('w') || keys.has('arrowup')) dy -= 1;
+      if (keys.has('s') || keys.has('arrowdown')) dy += 1;
+      if (dx || dy) { G.path = []; G.target = null; const n = Math.hypot(dx, dy); dx /= n; dy /= n; }
+    }
+    if (!dx && !dy && G.path.length) {
+      const w = G.path[0], ex = w[0] + .5 - j.x, ey = w[1] + .5 - j.y, d = Math.hypot(ex, ey);
+      if (d < .1) { G.path.shift(); if (!G.path.length && G.target) { const t = G.target; G.target = null; interact(t); } }
+      else { dx = ex / d; dy = ey / d; }
+    }
+    if (dx || dy) {
+      const sp = SPEED * dt, ok = step(j, dx * sp, dy * sp, .28);
+      j.a = turn(j.a, Math.atan2(dy, dx), dt * 14); j.moving = 1; j.t += dt; if (ok) j.dist += sp;
+      const ax = Math.abs(dx), ay = Math.abs(dy);                       // near a diagonal, keep the current facing so the sprite does not flicker
+      if (ax > ay * 1.3) j.face = dx > 0 ? 'r' : 'l'; else if (ay > ax * 1.3) j.face = dy > 0 ? 'd' : 'u';
+      G.stuck = ok ? 0 : G.stuck + dt; if (G.stuck > .45) { G.path = []; G.target = null; G.stuck = 0; }
+    } else j.moving = 0;
+  } else if (mode === 'search') {
+    const s = G.search; s.t += dt; $('sfill').style.width = Math.min(100, s.t / s.dur * 100) + '%';
+    j.a = turn(j.a, -Math.PI / 2, dt * 10); j.moving = 0;
+    if (s.t >= s.dur) finishSearch();
+  }
+  if (mode === 'play' || mode === 'search') {
+    G.noise = Math.max(0, G.noise - 2.2 * dt); G.spawnCool -= dt;
+    if (G.noise >= 100 && G.spawnCool <= 0) { spawnAtDoor(); G.noise = 62; G.spawnCool = 18; }
+    for (const z of G.zombies.slice()) if (mode === 'play' || mode === 'search') updateZombie(z, dt);
+    const ty = Math.floor(j.y - .2), tx = Math.floor(j.x);
+    if (mode === 'play' && G.H.grid[ty] && G.H.grid[ty][tx] === 'E') leave();
+  }
+  G.time += dt; G.hudT -= dt; if (G.hudT <= 0) { G.hudT = .1; hud(); }
+  if (G.toastT > 0) { G.toastT -= dt; if (G.toastT <= 0) toastEl.classList.remove('on'); }
+}
+function render() {
+  if (mode === 'doorstep') { renderDoorstep(); return; }
+  const H = G.H, j = G.juan, cam = G.cam;
+  cam.fx += (j.x * T - VW / 2 - cam.fx) * .2; cam.fy += (j.y * T - u(12) - VH / 2 - cam.fy) * .2;
+  cam.x = Math.round(clamp(cam.fx, -T, G.WW - VW + T)); cam.y = Math.round(clamp(cam.fy, -T, G.WH - VH + T));
+  lightPass();
+  vx.setTransform(1, 0, 0, 1, 0, 0); rect(vx, 0, 0, VWd, VHd, '#000'); vx.drawImage(G.world, -cam.x * S, -cam.y * S); vx.setTransform(S, 0, 0, S, 0, 0);
+  const pulse = (Math.sin(G.time * 4) + 1) / 2, list = [];
+  for (const o of H.objs) {
+    if (o.f.floor) continue;
+    list.push({ b: o.f.wall ? (o.y + 1) * T - u(4) : (o.y + o.d) * T, f: () => {
+      const sr = spriteRect(o); if (!sr) return;
+      const name = o.done && o.f.o ? o.f.o : o.f.s, cx = (o.x + o.w / 2) * T - cam.x;
+      let px = cx;
+      if (o.done && o.f.o && o.f.oa === 'r') px = cx + (MAN[o.f.s].w - MAN[o.f.o].w) / 2 / S;
+      else if (o.done && o.f.o && o.f.oa === 'l') px = cx + (MAN[o.f.o].w - MAN[o.f.s].w) / 2 / S;
+      spr(vx, name, px, sr.base - cam.y);
+      if (o.cont && !o.done) { vx.fillStyle = 'rgba(240,166,60,' + (.45 + pulse * .55) + ')'; vx.fillRect(Math.round(sr.x1 - cam.x - 3), Math.round(sr.y0 - cam.y + 1), 2, 2); }
+      else if (o.cont) {                                                          // searched: a small tick, so nobody digs through the same drawer twice
+        const tx = Math.round(sr.x1 - cam.x - 5), ty = Math.round(sr.y0 - cam.y + 1);
+        vx.fillStyle = 'rgba(90,161,122,.9)'; vx.fillRect(tx, ty + 1, 1, 1); vx.fillRect(tx + 1, ty + 2, 1, 1); vx.fillRect(tx + 2, ty + 1, 1, 1); vx.fillRect(tx + 3, ty, 1, 1);
+      }
+    } });
+  }
+  for (const c of G.corpses) list.push({ b: c.y * T - 6, f: () => drawCorpse(c, cam) });
+  for (const z of G.zombies) list.push({ b: z.y * T, f: () => drawZombie(z, cam) });
+  list.push({ b: j.y * T + 2, f: () => spr(vx, juanSprite(), j.x * T - cam.x, j.y * T + 2 - cam.y) });
+  list.sort((a, b) => a.b - b.b); for (const d of list) d.f();
+  G.exitScr = [(H.exit[0].x + .5) * T - cam.x, (H.exit[0].y + .5) * T - cam.y];
+  const d = G.ld.data, SA = G.staticA, WW = G.WW, WH = G.WH, seen = G.seen;
+  composite((x, y) => {
+    const wx = Math.floor(cam.x + x / S), wy = Math.floor(cam.y + y / S);
+    let v = d[(y * VWd + x) * 4] / 255, amb = .012, sl = 0;
+    if (wx >= 0 && wy >= 0 && wx < WW && wy < WH) { sl = SA[wy * WW + wx] / 255; if (seen[Math.floor(wy / T) * H.w + Math.floor(wx / T)]) amb = .42; }
+    WARM = sl > v ? sl : 0;
+    return Math.max(v, amb, sl);
+  });
+}
+/* Drawn after the light, so it reads even in the dark: amber, pulsing, pinned to the screen edge in the door's direction. */
+function exitArrow() {
+  if (!G.exitScr || mode === 'doorstep') return;
+  const [ex, ey] = G.exitScr, m = 7, top = 22, bot = VH - 30;
+  if (ex >= m && ex <= VW - m && ey >= top && ey <= bot) return;
+  const cx = VW / 2, cy = (top + bot) / 2, dx = ex - cx, dy = ey - cy;
+  const k = Math.min(Math.abs((VW / 2 - m) / (dx || 1e-6)), Math.abs(((bot - top) / 2) / (dy || 1e-6)));
+  const px = cx + dx * k, py = cy + dy * k, a = Math.atan2(dy, dx), p = .55 + .45 * Math.sin(G.time * 5);
+  vx.setTransform(S, 0, 0, S, 0, 0);
+  vx.save(); vx.translate(Math.round(px), Math.round(py)); vx.rotate(a);
+  vx.fillStyle = 'rgba(0,0,0,.6)'; vx.beginPath(); vx.moveTo(5, 0); vx.lineTo(-4, -5); vx.lineTo(-4, 5); vx.closePath(); vx.fill();
+  vx.fillStyle = 'rgba(240,166,60,' + p + ')'; vx.beginPath(); vx.moveTo(4, 0); vx.lineTo(-3, -4); vx.lineTo(-3, 4); vx.closePath(); vx.fill();
+  vx.restore();
+}
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (G) { if (mode === 'doorstep') G.time += dt; else sim(dt); render(); exitArrow(); }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- hud, input, panel ---------- */
+function hud() {
+  if (!G) return;
+  if (EMBED) {
+    $('bag').innerHTML = Array.from({ length: 10 }, (_, i) => {
+      const it = HOST.bag[i];
+      if (it) learn(it);
+      return '<button class="slot" data-i="' + i + '" title="' + (it ? it.name : '') + '">' + (it ? '<img src="' + ICON[it.pid] + '" alt="' + it.name + '">' + (it.qty > 1 ? '<i>' + it.qty + '</i>' : '') : '') + '</button>';
+    }).join('');
+  }
+  $('hpb').style.width = Math.max(0, RUN.hp) + '%'; $('hpt').textContent = Math.max(0, Math.round(RUN.hp));
+  const n = Math.round(G.noise), lv = n < 25 ? 0 : n < 55 ? 1 : n < 85 ? 2 : 3;
+  $('nb').style.width = Math.min(100, n) + '%'; $('nb').className = 'lv' + lv; $('nt').textContent = ['QUIET', 'STIRRING', 'LOUD', 'DANGER'][lv];
+  const used = EMBED ? HOST.bag.filter(Boolean).length : RUN.bag.length, cap = EMBED ? 10 : 5;
+  $('dread').innerHTML = 'DREAD ' + Math.round(RUN.dread) + ' · <b style="color:' + (used >= cap ? 'var(--red)' : 'inherit') + ';font-weight:700">BAG ' + used + '/' + cap + '</b>' + (G.keyHeld ? ' · KEY' : '');
+  $('scav').textContent = 'SCAVENGE ' + (G.budget === Infinity ? '∞' : G.budget);
+  if (!EMBED) $('bag').innerHTML = Array.from({ length: 5 }, (_, i) => { const it = RUN.bag[i]; return '<button class="slot" data-i="' + i + '" title="' + (it ? nm(it) : '') + '">' + (it ? '<img src="' + ICON[it] + '" alt="' + nm(it) + '">' : '') + '</button>'; }).join('');
+}
+$('bag').addEventListener('click', e => { const b = e.target.closest('.slot'); if (b) bagTap(+b.dataset.i); });
+view.addEventListener('pointerdown', e => {
+  const r = view.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * VW, py = (e.clientY - r.top) / r.height * VH;
+  if (G) onTap(px + G.cam.x, py + G.cam.y);
+});
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) { if (e.target.tagName !== 'INPUT') { keys.add(k); e.preventDefault(); } }
+  else if ((k === 'e' || k === ' ') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') { interactNearest(); e.preventDefault(); }
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
+document.addEventListener('visibilitychange', () => keys.clear());
+function fit() {
+  if (EMBED) return;
+  const pw = innerWidth > 820 ? 300 : 0;
+  const s = clamp(Math.min((innerHeight - 30) / VH, (innerWidth - 30 - pw) / VW), 2, 4);
+  document.documentElement.style.setProperty('--s', s.toFixed(3));
+}
+addEventListener('resize', fit); fit();
+function syncPanel() {
+  $('oTpl').value = cfg.tpl; $('oSeed').value = cfg.seed; $('oLock').value = cfg.lock; $('oZ').value = cfg.zombies;
+  $('oBudget').value = String(cfg.budget); $('oBar').checked = cfg.crowbar;
+}
+function applyPanel() {
+  cfg.tpl = $('oTpl').value; cfg.seed = parseInt($('oSeed').value, 10) || 1; cfg.lock = $('oLock').value; cfg.zombies = $('oZ').value;
+  cfg.budget = parseInt($('oBudget').value, 10) || 0; cfg.crowbar = $('oBar').checked; newRun();
+}
+for (const id of ['oTpl', 'oLock', 'oZ', 'oBudget', 'oBar']) $(id).addEventListener('change', applyPanel);
+$('oSeed').addEventListener('change', applyPanel);
+$('sPrev').addEventListener('click', () => { cfg.seed = Math.max(1, cfg.seed - 1); syncPanel(); loadHouse(); });
+$('sNext').addEventListener('click', () => { cfg.seed++; syncPanel(); loadHouse(); });
+$('cHeal').addEventListener('click', () => { RUN.hp = 100; RUN.dread = 0; hud(); });
+$('cNoise').addEventListener('click', () => { if (G) { G.noise += 30; hud(); } });
+$('cZ').addEventListener('click', () => { if (G && (mode === 'play' || mode === 'search')) spawnAtDoor(); });
+$('cExit').addEventListener('click', () => { if (G && mode === 'play') { const e = G.H.exit[0], p = bfs(Math.floor(G.juan.x), Math.floor(G.juan.y), (x, y) => x === e.x && y === e.y); if (p) G.path = p; } });
+$('cNew').addEventListener('click', newRun);
+
+window.__house = { keys, juanSprite: () => juanSprite(), get G() { return G; }, get RUN() { return RUN; }, get mode() { return mode; }, cfg, tap: (tx, ty) => onTap(tx * T + T / 2, ty * T + T / 2), enter: () => { mode = 'play'; hideCard(); hud(); }, openCont, newRun, loadHouse, bfs, T };
+addEventListener('message', e => {
+  const m = e.data;
+  if (!EMBED || !m || m.pauwi !== 'house-cmd') return;
+  if (m.cmd === 'init') {
+    HOST = { bag: m.bag || [], state: m.state || null, bar: !!m.bar };   /* bar: a crowbar in Juan's hand, not in the bag */
+    RUN = { hp: m.hp, dread: m.dread, bag: [], visits: 0 };
+    cfg.tpl = m.tpl === 'stock' ? 'stock' : 'flat'; cfg.seed = m.seed || 3; cfg.lock = 'open'; cfg.zombies = 'auto';
+    loadHouse();
+  } else if (m.cmd === 'sync') {
+    HOST.bag = m.bag; HOST.bar = !!m.bar; if (RUN) { RUN.hp = m.hp; RUN.dread = m.dread; } hud();
+  } else if (m.cmd === 'reply') {
+    const cb = pending[m.id]; delete pending[m.id]; if (G) G.asking = false; if (cb) cb(m);
+  } else if (m.cmd === 'fightEnd') fightEnd(m.result);
+});
+loadArt().then(() => {
+  if (EMBED) { requestAnimationFrame(loop); post({ t: 'ready' }); return; }
+  syncPanel(); newRun(); if (q.get('skip')) { mode = 'play'; hideCard(); hud(); }
+  requestAnimationFrame(loop);
+});
+})();
+
+</script>
+</body>
+</html>

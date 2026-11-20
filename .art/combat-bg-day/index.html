@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat BG — Day</title>
+<style>
+  :root { --ink:#0E1214; --amber:#F0A63C; --bone:#ECE4D5; --slate:#828B90; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--ink); color:var(--bone);
+         font:13px/1.4 ui-monospace, Consolas, monospace; display:flex; flex-direction:column; align-items:center; gap:14px; padding:16px; }
+  h1 { margin:0; font:700 15px/1 ui-monospace, Consolas, monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--amber); }
+  .stage { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; justify-content:center; }
+  .frame { height:min(900px, calc(100vh - 150px)); aspect-ratio:110/225; background:#000; outline:1px solid #2a3330; }
+  .frame.native { height:auto; aspect-ratio:auto; }
+  canvas { display:block; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .frame.native canvas { width:110px; height:225px; }
+  .frame.x2 canvas { width:220px; height:450px; }
+  .controls { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:460px; }
+  button { background:#161c1e; color:var(--bone); border:1px solid #2f3a3d; padding:6px 10px; font:inherit; cursor:pointer; }
+  button[aria-pressed="true"] { border-color:var(--amber); color:var(--amber); }
+  p.note { color:var(--slate); max-width:460px; margin:0; text-align:center; }
+  .embed { padding:0; gap:0; justify-content:center; overflow:hidden; }
+  .embed h1, .embed .controls, .embed p.note { display:none; }
+  .embed .frame { height:100vh; outline:none; }
+</style>
+</head>
+<body>
+<h1>Combat BG · Day (fog)</h1>
+<div class="controls">
+  <button id="play" aria-pressed="true">Playing</button>
+  <button data-speed="1" aria-pressed="true">Speed 1×</button>
+  <button data-speed="4" aria-pressed="false">Speed 4×</button>
+  <button id="drizzle" aria-pressed="true">Drizzle</button>
+  <button id="leaves" aria-pressed="true">Falling leaves</button>
+  <button data-scale="fit" aria-pressed="true">Fit (4×)</button>
+  <button data-scale="x2" aria-pressed="false">2×</button>
+  <button data-scale="native" aria-pressed="false">Native 1×</button>
+</div>
+<div class="stage"><div class="frame" id="frame"><canvas id="c" width="110" height="225"></canvas></div></div>
+<p class="note">Native 110×225, shown at 4× (440×900, the phone frame). 13-colour fog palette sampled from the reference. Runs at 12 fps on purpose, so it reads as pixel art.</p>
+
+<script>
+if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed');
+(() => {
+const W = 110, H = 225, HY = 150;            // horizon row
+const PAL = ['#1b2622','#212e29','#283832','#2f3f39','#374a44','#3f534c','#465b54',
+             '#4e645d','#566c65','#5e756d','#657c74','#6c827a','#75897f'];
+const N = PAL.length - 1;
+const RGB = PAL.map(h => [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16)));
+const BAYER = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]].map(r => r.map(v => (v + .5) / 16));
+const FOG = 0.84;
+
+const tone = new Float32Array(W * H);
+const over = new Int32Array(W * H);           // packed rgb override (lights), -1 = none
+const depth = new Float32Array(W * H);         // per-pixel atmospheric depth, drives how much mist sits on it
+
+// ---------- noise ----------
+function hash(x, y, s = 0) {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, s = 0) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+let seed = 7;
+const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) | 0, (seed >>> 0) / 4294967296);
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+// ---------- raster primitives (all in tone space; d = atmospheric depth 0 near .. 1 lost in fog) ----------
+function put(x, y, t, d = 0) {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= W || y >= H) return;
+  tone[y * W + x] = t + (FOG - t) * d;
+  depth[y * W + x] = d;
+}
+function rect(x, y, w, h, t, d) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) put(x + i, y + j, t, d); }
+function line(x0, y0, x1, y1, t, d, w = 1) {
+  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1) * 2;
+  for (let k = 0; k <= n; k++) {
+    const x = lerp(x0, x1, k / n), y = lerp(y0, y1, k / n);
+    for (let i = 0; i < w; i++) put(x - (w - 1) / 2 + i, y, t, d);
+  }
+}
+
+// ---------- trees ----------
+function cluster(c, T, tr) {
+  const ox = Math.round(Math.sin(T * 0.9 + c.ph) * c.amp + Math.sin(T * 0.37 + c.ph * 2.3) * c.amp * 0.5);
+  const oy = Math.round(Math.sin(T * 0.7 + c.ph * 1.7) * c.amp * 0.35);
+  const rustle = Math.floor(T * 2.5 + c.ph * 10);
+  const R = c.r + 2;
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const dist = Math.hypot(dx, dy * 1.12);
+    const edge = c.r + (vnoise(dx * 0.45, dy * 0.45, c.id) - 0.5) * 5 + (hash(dx, dy, c.id) - 0.5) * 2.2 + (hash(dx, dy, c.id * 31 + rustle) - 0.5) * 0.9;
+    if (dist > edge) continue;
+    if (dist > c.r * 0.55 && hash(dx, dy, c.id + 99) > 0.93) continue;          // sky holes
+    let t = tr.base + 0.07 * (-dy / c.r) + c.lift + 0.07 * (vnoise((c.x + dx) * 0.3, (c.y + dy) * 0.3, 21) - 0.5);
+    if (hash(dx, dy, c.id + 5) > 0.8 && dy < 0) t += 0.06;                       // leaf speckle
+    if (dist > edge - 1 && dy < -1) t += 0.04;                                   // rim catching fog light
+    put(c.x + dx + ox, c.y + dy + oy, t, tr.d);
+  }
+}
+function drawTree(tr, T) {
+  const pts = tr.trunk;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const [x0, y0, w0] = pts[k], [x1, y1] = pts[k + 1];
+    const n = Math.abs(y1 - y0);
+    for (let s = 0; s <= n; s++) {
+      const x = lerp(x0, x1, s / n), y = lerp(y0, y1, s / n), w = Math.max(1, Math.round(lerp(w0, pts[k + 1][2], s / n)));
+      for (let i = 0; i < w; i++) {
+        const lit = i === 0 && w > 2 ? 0.08 : 0;
+        put(x - Math.floor(w / 2) + i, y, tr.base - 0.02 + lit + (hash(i, Math.round(y), 3) > 0.8 ? 0.03 : 0), tr.d);
+      }
+    }
+  }
+  for (const b of tr.branches) {
+    const c = tr.clusters[b.to];
+    line(b.x, b.y, c.x + (b.dx || 0), c.y + 2, tr.base, tr.d, b.w || 1);
+  }
+  for (const c of tr.clusters) cluster(c, T, tr);
+}
+let cid = 1;
+function makeTree(d, base, trunk, clusters, branches = []) {
+  return { d, base, trunk, branches,
+    clusters: clusters.map(([x, y, r, amp = 0.8, lift = 0]) => ({ x, y, r, amp, lift, ph: rnd() * 6.28, id: cid++ })) };
+}
+
+// Big foreground talisay tree, right side, overflowing the frame edge
+const bigTree = makeTree(0.04, 0.11,
+  [[89, 172, 7], [88, 150, 5], [88, 120, 4], [86, 80, 4], [85, 40, 3], [84, 8, 2]],
+  [[70, 20, 13, 1.1], [90, 10, 15, 1.2], [107, 22, 13, 1.0], [64, 44, 11, 1.0, 0.02], [84, 38, 13, 1.0],
+   [104, 48, 12, 0.9], [74, 64, 10, 0.8], [95, 70, 11, 0.8], [108, 82, 9, 0.7], [58, 26, 9, 1.2, 0.03],
+   [80, -2, 12, 1.1], [104, -2, 12, 1.0], [88, 88, 7, 0.6], [66, 80, 7, 0.7, 0.02], [55, 6, 8, 1.2, 0.03]],
+  [{ x: 87, y: 70, to: 6, w: 2 }, { x: 86, y: 55, to: 3, w: 2 }, { x: 88, y: 90, to: 13 }, { x: 88, y: 98, to: 12 },
+   { x: 85, y: 45, to: 9 }, { x: 87, y: 62, to: 8 }]);
+
+// Ghost trees behind it, lost in fog
+const ghostA = makeTree(0.6, 0.2, [[74, 152, 2], [73, 52, 1]],
+  [[73, 58, 7, 0.8], [70, 70, 8, 0.7], [77, 80, 7, 0.7], [72, 92, 7, 0.6], [75, 104, 6, 0.6], [71, 116, 5, 0.5]],
+  [{ x: 74, y: 112, to: 5 }]);
+const ghostB = makeTree(0.5, 0.18, [[103, 154, 3], [103, 40, 2]],
+  [[104, 50, 9, 0.8], [99, 66, 9, 0.8], [106, 82, 9, 0.7], [101, 98, 8, 0.6], [105, 112, 6, 0.6]],
+  [{ x: 103, y: 110, to: 4 }]);
+const ghostC = makeTree(0.74, 0.22, [[62, 151, 1], [62, 100, 1]],
+  [[60, 98, 6, 0.6], [65, 108, 5, 0.6]]);
+
+// Mid-ground mango trees on the left
+const mango = makeTree(0.38, 0.17, [[21, 160, 3], [21, 130, 2], [20, 118, 2]],
+  [[13, 114, 9, 0.8], [25, 108, 10, 0.9], [31, 119, 8, 0.7], [18, 124, 8, 0.6], [6, 120, 7, 0.6], [20, 99, 7, 0.9, 0.02]],
+  [{ x: 21, y: 128, to: 0 }, { x: 21, y: 126, to: 2 }]);
+const mango2 = makeTree(0.56, 0.2, [[40, 155, 1], [40, 130, 1]],
+  [[38, 126, 5, 0.7], [44, 130, 4, 0.6], [41, 120, 4, 0.8]]);
+
+// ---------- static town geometry ----------
+const skyline = [];
+for (let x = -2; x < W; ) {
+  const w = 4 + Math.floor(rnd() * 6), h = 3 + Math.floor(rnd() * 9);
+  skyline.push({ x, w, h, slope: rnd() > 0.5 });
+  x += w;
+}
+const houses = [
+  { x: 0, w: 13, top: 128, roof: 4 }, { x: 13, w: 11, top: 133, roof: 3, store: true },
+  { x: 24, w: 12, top: 137, roof: 3 }, { x: 36, w: 9, top: 141, roof: 2 }, { x: 45, w: 6, top: 145, roof: 2 },
+];
+const poles = [
+  { x: 6, b: 214, t: 18, w: 2, d: 0.04, arm: 12 }, { x: 31, b: 168, t: 98, w: 1, d: 0.36, arm: 6 },
+  { x: 43, b: 157, t: 127, w: 1, d: 0.55, arm: 4 }, { x: 50, b: 152, t: 139, w: 1, d: 0.7, arm: 2 },
+];
+const tufts = [];
+for (let i = 0; i < 70; i++) {
+  const left = rnd() < 0.45;
+  const y = 158 + rnd() * 67;
+  const t = (y - HY) / (H - HY);
+  const roadL = 54 - 2 * t - (1.5 + 45 * t), roadR = 54 - 2 * t + (1.5 + 45 * t);
+  const x = left ? rnd() * Math.max(2, roadL) : roadR + rnd() * (W - roadR);
+  tufts.push({ x, y, h: 1 + Math.round(rnd() * 2 + t * 3), ph: rnd() * 6.28, t: 0.12 + rnd() * 0.1, d: 0.55 * (1 - t) });
+}
+const puddles = [
+  { x: 38, y: 206, rx: 19, ry: 5 }, { x: 78, y: 190, rx: 12, ry: 3.2 }, { x: 50, y: 172, rx: 7, ry: 1.6 },
+  { x: 62, y: 162, rx: 4, ry: 1 },
+];
+
+// ---------- particles ----------
+const drops = Array.from({ length: 34 }, () => ({ x: rnd() * W, y: rnd() * H, v: 9 + rnd() * 7 }));
+const leaves = [];
+
+// ---------- scene ----------
+function draw(T, opts) {
+  over.fill(-1); depth.fill(1);
+  // sky + high drifting fog
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+    tone[y * W + x] = 0.8 + 0.045 * (y / HY) + 0.05 * (vnoise(x * 0.05 - T * 0.02, y * 0.04) - 0.5);
+
+  // far skyline: tin roofs, water tank, church tower
+  for (const b of skyline) {
+    for (let i = 0; i < b.w; i++) {
+      const top = HY + 1 - b.h - (b.slope ? Math.round((i / b.w) * 2) : 0);
+      for (let y = top; y <= HY + 1; y++) put(b.x + i, y, 0.3, 0.78);
+    }
+  }
+  rect(8, 116, 4, 36, 0.28, 0.72); rect(7, 112, 6, 5, 0.28, 0.72); put(10, 109, 0.28, 0.72); put(10, 110, 0.28, 0.72);
+  put(9, 110, 0.28, 0.72); put(11, 110, 0.28, 0.72); put(10, 111, 0.28, 0.72);                       // Santo Niño bell tower
+  rect(63, 128, 6, 5, 0.3, 0.76); line(64, 133, 63, 141, 0.3, 0.76); line(67, 133, 68, 141, 0.3, 0.76); // water tank
+
+  drawTree(ghostC, T); drawTree(ghostA, T); drawTree(ghostB, T);
+
+  // ground: verges + wet asphalt road
+  for (let y = HY; y < H; y++) {
+    const t = (y - HY) / (H - HY), d = 0.82 * Math.pow(1 - t, 1.6);
+    const c = 54 - 2 * t, half = 1.5 + 45 * t;
+    for (let x = 0; x < W; x++) {
+      const u = (x - c) / half;
+      if (Math.abs(u) <= 1) {
+        let r = 0.27 + 0.05 * vnoise(u * 3, y * 0.25, 5);
+        const n = vnoise(u * 5 + T * 0.05, y * 0.9 * (1.3 - t * 0.6), 2);
+        if (n > 0.66) r = lerp(r, 0.66, Math.min(1, (n - 0.66) * 5));
+        if (Math.abs(u) > 0.93) r -= 0.05;                                      // gutter edge
+        put(x, y, r, d);
+      } else {
+        const g = 0.22 + 0.05 * hash(x, y, 8) + (x > c ? -0.03 : 0);
+        put(x, y, g, d);
+      }
+    }
+  }
+  // puddles reflecting the fog, rippling
+  for (const p of puddles) {
+    for (let y = Math.floor(p.y - p.ry - 1); y <= p.y + p.ry + 1; y++)
+      for (let x = Math.floor(p.x - p.rx - 2); x <= p.x + p.rx + 2; x++) {
+        const e = ((x - p.x) / p.rx) ** 2 + ((y - p.y) / p.ry) ** 2;
+        if (e > 1 + (hash(x, y, 4) - 0.5) * 0.5) continue;
+        const t = (y - HY) / (H - HY);
+        const rx = x + Math.round(Math.sin(y * 1.7 + T * 2.2) * 0.6);
+        let r = 0.74 - 0.06 * ((y - p.y + p.ry) / (2 * p.ry));
+        if (Math.abs(rx - 88) <= 2) r = 0.2;                                     // big trunk reflection
+        if (Math.abs(rx - 6) <= 1) r = 0.18;                                     // pole reflection
+        if (hash(x, y, Math.floor(T * 4)) > 0.975) r = 0.86;                    // glints
+        put(x, y, r, 0.82 * Math.pow(1 - t, 1.6));
+      }
+  }
+  // right bank rising toward the big tree
+  for (let x = 58; x < W; x++) {
+    const top = Math.round(HY + 3 - (x - 58) * 0.14 - 2 * vnoise(x * 0.2, 1, 3));
+    for (let y = top; y < 176; y++) {
+      const t = (y - HY) / (H - HY), c = 54 - 2 * t, half = 1.5 + 45 * t;
+      if (x < c + half + 1) continue;
+      put(x, y, 0.17 + 0.05 * hash(x, y, 9) + (y === top ? 0.06 : 0), 0.62 * Math.pow(1 - t, 1.4));
+    }
+  }
+
+  // left row of houses: corrugated tin roofs, one sari-sari store
+  for (const h of houses) {
+    const bot = 158 - Math.round(h.x / 10);
+    const d = 0.32 + h.x / 140;
+    rect(h.x, h.top, h.w, bot - h.top, 0.34, d);
+    for (let i = -1; i <= h.w; i++) for (let j = 0; j < h.roof; j++)
+      put(h.x + i, h.top - h.roof + j + 1, (h.x + i) % 2 ? 0.25 : 0.31, d);       // corrugation
+    if (h.store) {
+      rect(h.x + 1, h.top + 2, h.w - 2, 3, 0.52, d);                             // faded sign board
+      for (let i = 2; i < h.w - 2; i += 2) put(h.x + i, h.top + 3, 0.3, d);
+      for (let i = 1; i < h.w - 1; i++) for (let y = h.top + 6; y < bot - 1; y++)
+        put(h.x + i, y, i % 2 ? 0.2 : 0.29, d);                                  // grille
+      const flick = 0.75 + 0.25 * Math.sin(T * 9) * Math.sin(T * 2.3) - (hash(Math.floor(T * 10), 1, 2) > 0.92 ? 0.4 : 0);
+      over[(h.top + 6) * W + h.x + 5] = flick > 0.7 ? 0xb8a160 : flick > 0.45 ? 0x948656 : 0x6f6d52;  // bare bulb
+    } else {
+      rect(h.x + 3, h.top + 4, 3, 3, 0.2, d);
+      if (h.w > 9) rect(h.x + h.w - 4, h.top + 4, 2, 3, 0.2, d);
+    }
+  }
+  drawTree(mango2, T); drawTree(mango, T);
+
+  // far tricycle on the road, tail lamps in the fog
+  rect(51, 147, 5, 4, 0.18, 0.58); rect(50, 146, 7, 1, 0.18, 0.58);
+  const tl = 0.7 + 0.3 * Math.sin(T * 5.1) * Math.sin(T * 1.3) - (hash(Math.floor(T * 7), 2, 6) > 0.9 ? 0.35 : 0);
+  const red = tl > 0.75 ? 0xb4483a : tl > 0.5 ? 0x8d4237 : 0x6a4a42;
+  over[150 * W + 51] = red; over[150 * W + 55] = red;
+
+  // utility poles + sagging wires
+  for (let i = 0; i < poles.length; i++) {
+    const p = poles[i];
+    rect(p.x - (p.w > 1 ? 1 : 0), p.t, p.w, p.b - p.t, 0.12, p.d);
+    rect(p.x - p.arm / 2, p.t + 3, p.arm + 1, 1, 0.12, p.d);
+    if (i === 0) { rect(p.x - 4, p.t + 12, 4, 8, 0.1, p.d); put(p.x - 3, p.t + 12, 0.2, p.d); }   // transformer
+  }
+  const wire = (x0, y0, x1, y1, sag, d, k) => {
+    const s = sag * (1 + 0.12 * Math.sin(T * 0.8 + k)) ;
+    const n = Math.ceil(Math.abs(x1 - x0)) * 2;
+    for (let j = 0; j <= n; j++) {
+      const q = j / n;
+      put(lerp(x0, x1, q), lerp(y0, y1, q) + s * 4 * q * (1 - q), 0.13, d);
+    }
+  };
+  for (let i = 0; i < poles.length - 1; i++) {
+    const a = poles[i], b = poles[i + 1], d = (a.d + b.d) / 2;
+    for (const side of [-1, 1]) wire(a.x + side * a.arm / 2, a.t + 3, b.x + side * b.arm / 2, b.t + 3, 2 + 6 * (1 - d), d, i * 2 + side);
+  }
+  wire(12, 21, 112, 40, 9, 0.12, 9);                                             // lines across to the tree
+  wire(-2, 30, 6, 21, 2, 0.04, 6);
+
+  drawTree(bigTree, T);
+
+  for (const g of tufts) {
+    const sw = Math.round(Math.sin(T * 1.4 + g.ph) * 0.7);
+    for (let j = 0; j < g.h; j++) put(g.x + (j === g.h - 1 ? sw : 0), g.y - j, g.t, g.d);
+  }
+
+  // low ground mist + drifting fog banks over everything
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const ground = 0.42 * Math.exp(-(((y - 150) / 11) ** 2)) * (0.5 + 0.6 * vnoise(x * 0.07 - T * 0.06, y * 0.2, 11));
+    const bank = 0.22 * clamp((vnoise(x * 0.035 - T * 0.03, y * 0.05 + T * 0.004, 12) - 0.45) * 3, 0, 1);
+    const i = y * W + x, m = clamp(ground + bank, 0, 0.7) * (0.2 + 0.8 * depth[i]);
+    tone[i] += (FOG - tone[i]) * m;
+  }
+
+  if (opts.drizzle) for (const p of drops) {
+    const i = Math.round(p.y) * W + Math.round(p.x);
+    if (i >= 0 && i < tone.length) tone[i] += (0.97 - tone[i]) * 0.45;
+  }
+  if (opts.leaves) for (const l of leaves) put(l.x, l.y, 0.12, 0.1);
+}
+
+function step(dt, opts) {
+  for (const p of drops) {
+    p.y += p.v * dt; p.x -= p.v * 0.18 * dt;
+    if (p.y > H) { p.y = -2; p.x = rnd() * (W + 20); }
+  }
+  if (opts.leaves && leaves.length < 4 && rnd() < dt * 0.5) {
+    const c = bigTree.clusters[Math.floor(rnd() * bigTree.clusters.length)];
+    leaves.push({ x: c.x, y: c.y + c.r * 0.6, ph: rnd() * 6, age: 0 });
+  }
+  for (let k = leaves.length - 1; k >= 0; k--) {
+    const l = leaves[k];
+    l.age += dt; l.y += 5 * dt; l.x += (Math.sin(l.age * 2.2 + l.ph) * 5 - 2.5) * dt;
+    if (l.y > H || l.x < -2) leaves.splice(k, 1);
+  }
+}
+
+// ---------- output ----------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const img = ctx.createImageData(W, H);
+function blit() {
+  const px = img.data;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, o = i * 4;
+    if (over[i] >= 0) { px[o] = over[i] >> 16; px[o + 1] = (over[i] >> 8) & 255; px[o + 2] = over[i] & 255; px[o + 3] = 255; continue; }
+    const k = clamp(Math.floor(tone[i] * N + (BAYER[y & 3][x & 3] - 0.5) * 0.35 + 0.5), 0, N);
+    const c = RGB[k];
+    px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+const opts = { drizzle: true, leaves: true, speed: 1, playing: true };
+let T = 3, last = performance.now(), acc = 0;
+const FRAME = 1 / 12;
+function loop(now) {
+  const dt = Math.min(0.25, (now - last) / 1000); last = now;
+  if (opts.playing) {
+    acc += dt;
+    if (acc >= FRAME) {
+      const s = acc * opts.speed; acc = 0;
+      T += s; step(s, opts); draw(T, opts); blit();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+draw(T, opts); blit();
+requestAnimationFrame(loop);
+
+// ---------- controls ----------
+const $ = s => document.querySelector(s);
+$('#play').onclick = e => { opts.playing = !opts.playing; e.target.setAttribute('aria-pressed', opts.playing); e.target.textContent = opts.playing ? 'Playing' : 'Paused'; };
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
+  opts.speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(o => o.setAttribute('aria-pressed', o === b));
+});
+for (const k of ['drizzle', 'leaves']) $('#' + k).onclick = e => { opts[k] = !opts[k]; e.target.setAttribute('aria-pressed', opts[k]); };
+document.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => {
+  $('#frame').className = 'frame' + (b.dataset.scale === 'fit' ? '' : ' ' + b.dataset.scale + (b.dataset.scale === 'x2' ? ' native' : ''));
+  document.querySelectorAll('[data-scale]').forEach(o => o.setAttribute('aria-pressed', o === b));
+});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Keepsakes</title>
+<style>
+:root{--night:#0e1214;--sodium:#f0a63c;--red:#d94b3b;--teal:#2e86ab;--green:#5aa17a;--bone:#ece4d5;--muted:#828b90;--s:3;
+  --mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif;
+  --hand:'Segoe Print','Bradley Hand','Chalkboard SE','Comic Sans MS',cursive}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{padding:16px}
+header{max-width:980px;margin:0 auto 14px}
+h1{margin:0;font:400 30px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 10px;color:#b9c3c8;font:13px/1.5 var(--mono)}
+.tog{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.tog span{font:700 11px var(--mono);letter-spacing:.1em;color:var(--muted);margin-right:2px}
+.tog button{background:#16212a;color:var(--bone);border:2px solid #3a4851;padding:6px 10px;font:700 12px var(--mono);letter-spacing:.06em;cursor:pointer}
+.tog button[aria-pressed=true]{border-color:var(--sodium);color:var(--sodium)}
+.row{display:flex;gap:28px;justify-content:center;flex-wrap:wrap;max-width:980px;margin:0 auto}
+.notes{flex:1 1 300px;max-width:520px;font:12.5px/1.55 var(--mono);color:#b9c3c8}
+.notes h2{margin:14px 0 4px;font:400 20px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--bone)}
+.notes ul{margin:4px 0;padding-left:16px}.notes b{color:var(--bone)}
+.notes .pend{color:#e6b15e}
+
+/* ---------- the phone screen ---------- */
+.scr{position:relative;width:calc(110px * var(--s));height:calc(225px * var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none;flex:none}
+#cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.abs{position:absolute}
+.px{image-rendering:pixelated}
+[hidden]{display:none!important}
+.toast{left:8%;right:8%;top:24px;text-align:center;font:11px/1.35 var(--mono);padding:5px 6px;background:#0e1214ee;border:1px solid #3a4851;color:var(--bone);opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+.hudline{left:6px;right:6px;top:6px;font:700 10px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#cfe8dc;text-shadow:1px 1px 0 #000;display:flex;justify-content:space-between;pointer-events:none}
+.hint{left:8px;right:8px;bottom:10px;text-align:center;font:10.5px/1.35 var(--mono);color:#cfd6d9;text-shadow:1px 1px 0 #000;pointer-events:none}
+
+/* the house loot card, the same as the house page's */
+.card{left:6px;right:6px;bottom:14px;z-index:5;background:#0c1418;border:2px solid #526169;box-shadow:3px 3px 0 #000;padding:10px 10px 9px;font:12px/1.4 var(--mono)}
+.card h3{margin:0 0 2px;font:400 21px/1.05 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.card small{display:block;color:var(--muted);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px}
+.card p{margin:0 0 8px;color:#c9d2d6}
+.card .opt{display:flex;align-items:center;gap:8px;width:100%;margin-top:5px;padding:7px 8px;background:#16212a;border:2px solid #3a4851;color:var(--bone);font:700 12px var(--mono);text-align:left;cursor:pointer}
+.card .opt img{width:24px;height:24px;image-rendering:pixelated;flex:none;object-fit:contain}
+.card .opt em{margin-left:auto;font-style:normal;font-weight:400;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.card .opt.keep{border-color:#a8843c;background:#1d1a12}
+.card .opt.keep em{color:#e6b15e}
+.card .opt.go{border-color:var(--sodium);color:var(--sodium)}
+.card .emoji{width:24px;text-align:center;font-size:17px}
+
+/* reading */
+.rhead{left:8px;right:8px;top:6px;pointer-events:none;text-shadow:1px 1px 0 #000}
+.rhead small{display:block;font:700 9.5px var(--mono);letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.rhead b{display:block;font:400 19px/1.05 var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--sodium)}
+.paper{position:absolute;image-rendering:pixelated;cursor:pointer}
+.ink{position:absolute;white-space:pre-wrap;overflow:hidden;pointer-events:none}
+.ink.hand{font-family:var(--hand)}
+.ink.typed{font-family:var(--mono);font-weight:700;letter-spacing:.02em}
+.ink .t1{display:block;font-weight:700;font-size:1.45em;letter-spacing:.06em}
+.ink .bot{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:.8em;word-spacing:.5em}
+.flip{left:0;right:0;text-align:center;font:700 9px var(--mono);letter-spacing:.14em;color:#8e989d;pointer-events:none}
+.logbox{position:absolute;left:6px;right:6px;display:flex;align-items:center;gap:6px;min-height:72px;padding:9px 12px;border:15px solid transparent;
+  border-image:url('../../public/game/kit/out/dialog-frame.png') 5 fill / 15px stretch;image-rendering:pixelated;pointer-events:none}
+.logbox .face{flex:none;width:48px;height:51px;image-rendering:pixelated;margin:-9px 0}
+.logbox p{flex:1;margin:0;font:700 10px/1.45 var(--mono);letter-spacing:.03em;color:#f2ecdc;text-shadow:1px 1px 0 #000}
+.caret{display:inline-block;margin-left:3px;font-style:normal;font-size:.75em;color:#f0a63c;animation:caret .8s steps(2) infinite}
+@keyframes caret{50%{opacity:0}}
+.chips{left:8px;right:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;pointer-events:none}
+.chip{padding:3px 7px;font:700 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;border:2px solid;background:#0c1418;box-shadow:2px 2px 0 #000;animation:pop .45s steps(5)}
+.chip.hope{color:var(--sodium);border-color:var(--sodium)}
+.chip.tip{color:#8cc7dd;border-color:var(--teal)}
+@keyframes pop{0%{transform:translateY(8px);opacity:0}100%{transform:none;opacity:1}}
+.acts{left:8px;right:8px;bottom:10px;display:flex;gap:6px}
+.acts button{flex:1;padding:9px 6px;background:#16212a;border:2px solid #3a4851;color:var(--bone);font:700 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:2px 2px 0 #000}
+.acts button.go{border-color:var(--sodium);color:var(--sodium)}
+.acts button.sm{flex:0 0 44px}
+
+/* the wall */
+.whead{left:10px;right:10px;top:5px;display:flex;align-items:baseline;justify-content:space-between;pointer-events:none;text-shadow:1px 1px 0 #000}
+.whead b{font:400 24px/1 var(--disp);letter-spacing:.06em;color:var(--sodium)}
+.whead span{font:700 12px var(--mono);letter-spacing:.08em;color:var(--bone)}
+.wfoot{left:10px;right:10px;bottom:7px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.wfoot span{font:700 9.5px/1.3 var(--mono);letter-spacing:.06em;color:#cfd6d9;text-shadow:1px 1px 0 #000}
+.wfoot button{padding:6px 9px;background:#16212a;border:2px solid #3a4851;color:var(--bone);font:700 11px var(--mono);letter-spacing:.06em;cursor:pointer;box-shadow:2px 2px 0 #000}
+</style>
+</head>
+<body>
+<header>
+  <h1>Keepsakes</h1>
+  <p>Notes and photos Juan finds in houses, read on the spot and pinned up at the shelter. Tap through it: find one in a drawer, read it, go home, look at the wall. The papers and photos here are drawn in code as stand-ins until the paintings exist.</p>
+  <div class="tog" id="steps"><span>STEP</span>
+    <button data-step="house">1 · Found in a drawer</button>
+    <button data-step="room">2 · Back at the shelter</button>
+    <button data-step="wall">3 · The wall</button>
+  </div>
+  <div class="tog" id="fills"><span>ALBUM</span>
+    <button data-fill="empty">Empty</button>
+    <button data-fill="some">A few</button>
+    <button data-fill="full">All 20</button>
+  </div>
+  <div class="tog"><span>BROWSE ALL 20</span>
+    <button id="prev">◂ prev</button><button id="next">next ▸</button>
+  </div>
+</header>
+
+<div class="row">
+  <div class="scr" id="scr">
+    <canvas id="cv" width="110" height="225"></canvas>
+    <div id="ui"></div>
+    <div class="abs toast" id="toast"></div>
+  </div>
+
+  <div class="notes">
+    <h2>How it plays</h2>
+    <ul>
+      <li><b>Where:</b> at most one per house, in about 2 flats in 5 and 1 storeroom in 7. Only in drawers, wardrobes, beds, filing cabinets, boxes, backpacks, trunks and biscuit tins.</li>
+      <li><b>No bag slot.</b> Like the bedroom key, a keepsake goes into Juan's jacket, never the 10-slot bag.</li>
+      <li><b>Reading it the first time:</b> +3 Hope. Juan says one line about it in the message box.</li>
+      <li><b>Tip notes</b> (3 of the 12) mark a supply cache on the phone map, the same <b>?</b> ring a radio tip makes, on the street the note names.</li>
+      <li><b>Photos</b> turn over: tap one to read the back.</li>
+      <li><b>At the shelter</b> Juan pins what he carried on the wall. In Nida's store that's the counter front, where papers were already pinned. Tap it for the close-up wall; tap any keepsake to read it again (no Hope the second time).</li>
+      <li><b>The wall survives death.</b> These are memories. A new run rolls keepsakes you don't have yet first.</li>
+    </ul>
+    <h2>Stand-ins</h2>
+    <ul>
+      <li class="pend">8 photos: code-drawn scenes until the two photo sheets are painted.</li>
+      <li class="pend">8 paper kinds (notebook, sticky, crayon drawing, calendar, pawn ticket, letter, prayer card, napkin): code-drawn until the paper sheet is painted. The writing is always drawn in code.</li>
+      <li>The close-up wall is code-drawn for good (the user's call): a cork board on planks, lit by a kerosene lantern off the bottom left.</li>
+      <li>Handwriting uses a system font here; the app will bundle one so Android looks the same.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const S = 3, W = 110, H = 225;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+const ui = document.getElementById('ui'), toastEl = document.getElementById('toast');
+g.imageSmoothingEnabled = false;
+
+// ---------------- the keepsakes ----------------
+const STREETS = ['Mercado St.', 'Ugbo Alley', 'Tayuman St.', 'Juan Luna St.', 'Moriones St.', 'Balut Lane', 'Vitas St.'];
+const K = [
+  { id: 'list', kind: 'note', paper: 'notebook', title: 'A shopping list', ink: '#2b4a8a',
+    text: 'Rice, 2 kilos\nSardines, 3 cans\nEggs if Aling Nena has\nLoad for Ma\'s phone\nBEA\'S MILK!!', juan: 'Bea\'s milk. Underlined twice.' },
+  { id: 'p-birthday', kind: 'photo', title: 'A birthday photo', back: 'Bea, 7th birthday.\nMercado St.', juan: 'Spaghetti with hot dogs. Every party had it.' },
+  { id: 'fridge', kind: 'note', paper: 'sticky', title: 'A note on the fridge', ink: '#3a3020',
+    text: 'Ramil —\nLRT\'s closed at Tayuman. We walked to Tito Ben\'s in Balut. Lock the grill. Key\'s under the Santo Niño.', juan: 'I hope Ramil read this.' },
+  { id: 'drawing', kind: 'note', paper: 'crayon', title: 'A child\'s drawing', ink: '#c0392b',
+    text: 'MY FAMILY\nPapa Mama Ate Me Bantay', juan: 'Bantay got the biggest head.' },
+  { id: 'p-tutuban', kind: 'photo', title: 'A staff photo', back: 'Tutuban Christmas party.\nFloor staff.', juan: 'Same blue polo I wore. I never got invited to this one.' },
+  { id: 'pawn', kind: 'note', paper: 'ticket', title: 'A pawn ticket', ink: '#5a2422', typed: true,
+    text: 'PAWN TICKET  No. 04417\nGold ring, 18k, 2.1 g\nLoan: P3,200.00\nRedeem on or before the 30th', juan: 'She meant to come back for it.' },
+  { id: 'letter', kind: 'note', paper: 'letter', title: 'A letter, never sent', ink: '#2b4a8a',
+    text: 'Anak,\nYour tuition money is in the biscuit tin. If I\'m not back by Sunday go to Tita Marlyn in Navotas. Don\'t wait for me. Eat.\n— Ma', juan: 'Never sent. Or never picked up.' },
+  { id: 'p-wedding', kind: 'photo', title: 'A wedding photo', back: 'Ramil & Joy.\nSanto Niño de Tondo.', juan: 'They look like they\'d never been tired.' },
+  { id: 'tip-relief', kind: 'note', paper: 'calendar', title: 'A torn calendar page', ink: '#26303a', tip: true,
+    text: 'Relief packs moved behind the chapel on {street}.\nDon\'t tell the whole block.', juan: 'Somebody kept quiet about this. Might still be there.' },
+  { id: 'prayer', kind: 'note', paper: 'prayer', title: 'A prayer card', ink: '#2b4a8a', back: 'Pit Señor.\nKeep my boys safe.\nKeep them home.', juan: 'Pit Señor.' },
+  { id: 'p-basket', kind: 'photo', title: 'A basketball photo', back: 'Barangay league.\nChampions again!', juan: 'The hoop\'s still up on half the corners out there.' },
+  { id: 'love', kind: 'note', paper: 'notebook', title: 'A folded note', ink: '#7a2a4a',
+    text: 'Meet me under the Tutuban clock after your shift. I\'ll bring turon.\nDon\'t be late this time.\n— L', juan: 'I used to clock out under that clock.' },
+  { id: 'tally', kind: 'note', paper: 'calendar', title: 'A wall calendar', ink: '#26303a',
+    text: 'Day 9 — water\'s off.\nDay 11 — they\'re on the roof next door.\nDay 12 — quiet.\nDay 13', juan: 'Day 13 is blank.' },
+  { id: 'p-store', kind: 'photo', title: 'A store photo', back: 'The store\'s first day.', juan: 'Somebody\'s whole savings, right there.' },
+  { id: 'tip-gas', kind: 'note', paper: 'napkin', title: 'Writing on a napkin', ink: '#2b4a8a', tip: true,
+    text: 'Dodong —\ntwo cans of gas under the tarp on {street}.\nTake one, leave one.', juan: 'Take one, leave one. Fair.' },
+  { id: 'fare', kind: 'note', paper: 'sticky', title: 'An IOU', ink: '#3a3020',
+    text: 'Mang Carding —\nI owe you P13 for the jeep. Divisoria to Blumentritt. Tomorrow. Promise.', juan: 'Thirteen pesos. Tomorrow.' },
+  { id: 'p-grad', kind: 'photo', title: 'A graduation photo', back: 'Grace, BS Nursing.\nLola cried the whole time.', juan: 'A nurse. I hope she\'s somewhere with a door that locks.' },
+  { id: 'tip-meds', kind: 'note', paper: 'letter', title: 'A note under a door', ink: '#26303a', tip: true,
+    text: 'Meds left in a cooler under the stairs on {street}.\nTake them before they\'re gone.', juan: 'Under the stairs. I can find stairs.' },
+  { id: 'p-fiesta', kind: 'photo', title: 'A fiesta photo', back: 'Fiesta. January.', juan: 'Our fiesta back in the province was smaller. Louder, though.' },
+  { id: 'p-baby', kind: 'photo', title: 'A baby photo', back: 'Baby Miguel, 3 months.', juan: 'He\'d be walking by now.' },
+];
+const BY = Object.fromEntries(K.map((k) => [k.id, k]));
+
+// ---------------- pixel helpers ----------------
+const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+function disc(c, cx, cy, r, col) { c.fillStyle = col; for (let y = -r; y <= r; y++) { const w = Math.floor(Math.sqrt(r * r - y * y + r * .8)); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2 + 1, 1); } }
+function line(c, x0, y0, x1, y1, col) { c.fillStyle = col; const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) c.fillRect(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), 1, 1); }
+function mul(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hs(s) { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; }
+function mk(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return [c, x]; }
+function person(c, x, y, h, shirt, o = {}) {
+  const skin = o.skin || '#b07a52', hair = o.hair || '#1c1410', pants = o.pants || '#2f3b52';
+  const hr = Math.max(1, Math.round(h * .11)), headY = y - h + hr, bw = Math.max(2, Math.round(h * .32));
+  const tt = headY + hr + 1, th = Math.round(h * .38), inset = bw > 3 ? 1 : 0;
+  R(c, x - bw / 2, tt, bw, th, shirt);
+  R(c, x - bw / 2 + inset, tt + th, bw - inset * 2, y - (tt + th), pants);
+  disc(c, x, headY, hr, skin);
+  R(c, x - hr, headY - hr, hr * 2 + 1, Math.max(1, Math.round(hr * .8)), hair);
+  if (o.cap) R(c, x - hr - 1, headY - hr - 1, hr * 2 + 3, Math.max(1, Math.round(hr * .8)), o.cap);
+}
+
+// ---------------- the papers (big, read size) ----------------
+const SIZE = { notebook: [84, 104], sticky: [72, 72], crayon: [94, 72], calendar: [84, 98], ticket: [94, 58], letter: [86, 108], prayer: [62, 92], napkin: [82, 82], photo: [94, 72] };
+const ROOMCOL = { notebook: '#c9b28a', sticky: '#c9a648', crayon: '#cfbe9c', calendar: '#c4ad88', ticket: '#c4a08e', letter: '#cdb68e', prayer: '#cdb37a', napkin: '#d0bd98' };
+const PAPERCOL = { notebook: '#e6e0cf', sticky: '#e9cb5b', crayon: '#f2eee5', calendar: '#ebe6db', ticket: '#e9cccb', letter: '#eee8d9', prayer: '#f2e8cc', napkin: '#f1eee6' };
+
+function paperFront(k) {
+  const kind = k.kind === 'photo' ? 'photo' : k.paper, [w, h] = SIZE[kind], [c, x] = mk(w, h), r = mul(hs(k.id));
+  const torn = (top) => { for (let i = 0; i < w; i++) { const n = Math.floor(r() * 3); if (top) x.clearRect(i, 0, 1, n); else x.clearRect(i, h - n, 1, n); } };
+  switch (kind) {
+    case 'notebook':
+      R(x, 0, 0, w, h, '#e6e0cf');
+      for (let y = 13; y < h - 2; y += 7) R(x, 0, y, w, 1, '#a9bccd');
+      R(x, Math.round(w * .16), 0, 1, h, '#d08a86');
+      R(x, w - 1, 0, 1, h, '#cfc7b2'); R(x, 0, h - 1, w, 1, '#cbc2ab');
+      torn(true); break;
+    case 'sticky': {
+      R(x, 0, 0, w, h, '#e9cb5b'); R(x, 0, 0, w, 8, '#e0c04a');
+      const cc = 11; for (let i = 0; i < cc; i++) { const y = h - cc + i, n = i + 1; x.clearRect(w - n, y, n, 1); R(x, w - n - 1, y, 1, 1, '#b89a36'); }
+      R(x, w - 1, 0, 1, h - cc, '#d4b444'); break; }
+    case 'crayon': {
+      R(x, 0, 0, w, h, '#f2eee5'); R(x, w - 1, 0, 1, h, '#d9d3c6'); R(x, 0, h - 1, w, 1, '#d9d3c6');
+      disc(x, w - 12, 10, 6, '#f2b630');
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; line(x, w - 12 + Math.cos(a) * 8, 10 + Math.sin(a) * 8, w - 12 + Math.cos(a) * 11, 10 + Math.sin(a) * 11, '#f2b630'); }
+      for (let i = 0; i < w; i += 2) line(x, i, h - 13 + (i % 4 ? 1 : 0), i + 2, h - 13 + (i % 4 ? 0 : 1), '#5aa17a');
+      const figs = [[.16, 30, '#2e86ab'], [.32, 28, '#d94b3b'], [.48, 22, '#9b59b6'], [.62, 17, '#f0a63c']];
+      for (const [fx, fh, col] of figs) {
+        const cx = Math.round(w * fx), base = h - 15, top = base - fh;
+        x.fillStyle = col; for (let a = 0; a < 6.3; a += .5) x.fillRect(Math.round(cx + Math.cos(a) * 3), Math.round(top + 3 + Math.sin(a) * 3), 1, 1);
+        line(x, cx, top + 6, cx, base - fh * .35, col); line(x, cx - 5, top + 10, cx + 5, top + 10, col);
+        line(x, cx, base - fh * .35, cx - 4, base, col); line(x, cx, base - fh * .35, cx + 4, base, col);
+      }
+      const dx = Math.round(w * .8), dy = h - 20; R(x, dx - 6, dy, 12, 5, '#8a5a34'); disc(x, dx + 8, dy - 4, 5, '#8a5a34'); R(x, dx + 6, dy - 6, 2, 2, '#1c1410');
+      line(x, dx - 5, dy + 5, dx - 6, dy + 8, '#8a5a34'); line(x, dx + 4, dy + 5, dx + 5, dy + 8, '#8a5a34'); line(x, dx - 6, dy, dx - 10, dy - 4, '#8a5a34');
+      break; }
+    case 'calendar': {
+      R(x, 0, 0, w, h, '#ebe6db'); R(x, 0, 0, w, 16, '#b8372b'); R(x, 0, 15, w, 1, '#8f2a21');
+      disc(x, 20, 3, 2, '#3a2a20'); disc(x, w - 20, 3, 2, '#3a2a20');
+      const gx = 4, gy = 22, cw = (w - 8) / 7, ch = (h - gy - 6) / 5;
+      for (let i = 0; i <= 7; i++) R(x, gx + i * cw, gy, 1, ch * 5, '#c8c0af');
+      for (let j = 0; j <= 5; j++) R(x, gx, gy + j * ch, w - 8, 1, '#c8c0af');
+      for (let i = 0; i < 7; i++) for (let j = 0; j < 5; j++) R(x, gx + i * cw + 2, gy + j * ch + 2, 2, 2, i === 0 ? '#c0392b' : '#8f877a');
+      R(x, gx, 18, w - 8, 2, '#d6cfc0');
+      torn(false); break; }
+    case 'ticket': {
+      R(x, 0, 0, w, h, '#e9cccb');
+      for (let y = 1; y < h; y += 3) x.clearRect(12, y, 1, 1);
+      R(x, 16, 4, w - 20, 8, '#b56a68'); for (let i = 18; i < w - 8; i += 4) R(x, i, 6, 2, 4, '#e9cccb');
+      for (const y of [22, 32, 42]) R(x, 16, y, w - 22, 1, '#c9a5a4');
+      R(x, 3, 6, 6, h - 12, '#dbb3b2'); R(x, 0, h - 1, w, 1, '#c9a5a4'); R(x, w - 1, 0, 1, h, '#c9a5a4');
+      break; }
+    case 'letter':
+      R(x, 0, 0, w, h, '#eee8d9');
+      for (let y = 12; y < h - 4; y += 7) R(x, 4, y, w - 8, 1, '#cfc6b1');
+      for (const y of [Math.round(h / 3), Math.round(h * 2 / 3)]) { R(x, 0, y, w, 1, '#d6cdb8'); R(x, 0, y + 1, w, 1, '#f8f3e8'); }
+      R(x, w - 1, 0, 1, h, '#d6cdb8'); R(x, 0, h - 1, w, 1, '#d6cdb8'); break;
+    case 'prayer': {
+      R(x, 0, 0, w, h, '#f2e8cc'); R(x, 2, 2, w - 4, h - 4, '#c49a35'); R(x, 4, 4, w - 8, h - 8, '#f2e8cc');
+      R(x, 6, 6, w - 12, h - 22, '#34507e');
+      const cx = w / 2; disc(x, cx, 30, 11, '#e8cf7a');
+      for (let y = 40; y < h - 18; y++) { const ww = 4 + (y - 40) * .42; R(x, cx - ww, y, ww * 2, 1, '#b3342b'); }
+      R(x, cx - 12, h - 19, 24, 1, '#e6c050');
+      disc(x, cx, 31, 6, '#e0b48c'); R(x, cx - 6, 21, 13, 4, '#e6c050'); for (const d of [-5, 0, 5]) R(x, cx + d, 18, 1, 3, '#e6c050');
+      disc(x, cx + 10, 52, 3, '#d8c070'); R(x, cx + 10, 46, 1, 4, '#d8c070'); R(x, cx + 9, 47, 3, 1, '#d8c070');
+      for (let i = 9; i < w - 9; i += 3) R(x, i, h - 11, 2, 2, '#8a6a2a');
+      break; }
+    case 'napkin': {
+      R(x, 0, 0, w, h, '#f1eee6');
+      for (let y = 3; y < h; y += 6) for (let i = (y / 6 % 2) * 3 + 3; i < w; i += 6) R(x, i, y, 1, 1, '#ded9cc');
+      R(x, w / 2, 0, 1, h, '#e2ddd0'); R(x, 0, h / 2, w, 1, '#e2ddd0');
+      disc(x, w * .72, h * .74, 11, '#d3b68c'); disc(x, w * .72, h * .74, 9, '#f1eee6');
+      break; }
+    case 'photo': photoFront(k, x, w, h); break;
+  }
+  return c;
+}
+
+function photoFront(k, x, w, h) {
+  R(x, 0, 0, w, h, '#ece6d8');
+  const ox = 3, oy = 3, iw = w - 6, ih = h - 6;
+  const [s, g2] = mk(iw, ih), r = (a, b, c, d, col) => R(g2, a, b, c, d, col), P = (...a) => person(g2, ...a);
+  switch (k.id) {
+    case 'p-birthday':
+      r(0, 0, iw, ih, '#b9c99a');
+      for (let i = 0; i < iw; i += 8) { const col = ['#d94b3b', '#f0a63c', '#2e86ab', '#5aa17a'][i / 8 % 4]; for (let j = 0; j < 5; j++) r(i + j, 6 + j, 8 - j * 2, 1, col); }
+      line(g2, 8, 14, 9, 30, '#555'); disc(g2, 8, 12, 4, '#d94b3b'); line(g2, 78, 13, 77, 30, '#555'); disc(g2, 78, 11, 4, '#2e86ab');
+      P(18, ih, 26, '#f0a63c'); P(30, ih, 22, '#ece4d5'); P(56, ih, 24, '#5aa17a'); P(69, ih, 28, '#d94b3b');
+      r(12, ih - 20, 64, 3, '#e6dfcd'); r(12, ih - 17, 64, 5, '#8a5a34');
+      r(38, ih - 27, 14, 7, '#f1e7d8'); r(38, ih - 28, 14, 2, '#d94b3b'); r(44, ih - 32, 1, 4, '#f0a63c');
+      disc(g2, 24, ih - 22, 3, '#d8603c'); break;
+    case 'p-basket':
+      r(0, 0, iw, ih, '#a7c7d6'); r(0, 8, 18, ih, '#7b7f80'); for (let y = 12; y < 40; y += 7) r(4, y, 4, 3, '#4a5054');
+      r(68, 4, 20, ih, '#8a8070'); for (let y = 8; y < 40; y += 7) r(74, y, 5, 3, '#4f4a40');
+      r(0, ih * .62, iw, ih, '#5e6266'); for (let i = 4; i < iw; i += 12) r(i, ih - 6, 6, 1, '#c9c2a8');
+      r(62, 14, 2, 36, '#3a3d40'); r(54, 10, 16, 11, '#e6e2d8'); r(58, 14, 7, 5, '#d94b3b'); r(59, 15, 5, 3, '#e6e2d8'); r(56, 21, 9, 1, '#e06a2a');
+      P(28, ih - 4, 30, '#d94b3b', { pants: '#20252e' }); P(44, ih - 10, 28, '#ece4d5'); r(40, ih - 36, 1, 5, '#b07a52'); r(48, ih - 36, 1, 5, '#b07a52');
+      disc(g2, 50, 20, 2, '#d8662a'); break;
+    case 'p-wedding':
+      r(0, 0, iw, ih, '#cfd8dc'); r(12, 0, 64, ih, '#e2d6bd'); r(12, 0, 64, 3, '#cbbd9f');
+      disc(g2, 44, 22, 10, '#5a3a26'); r(34, 22, 21, ih, '#5a3a26'); r(20, 8, 6, 10, '#a99c80'); r(62, 8, 6, 10, '#a99c80');
+      r(0, ih - 12, iw, 4, '#c9bea8'); r(0, ih - 8, iw, 8, '#b8ad97');
+      P(38, ih - 9, 30, '#f6f3ec', { pants: '#f6f3ec' }); r(32, ih - 24, 13, 15, '#f6f3ec');
+      P(51, ih - 9, 32, '#2a2c33', { pants: '#2a2c33' }); r(51, ih - 34, 1, 6, '#f6f3ec');
+      for (let i = 0; i < 14; i++) r(20 + (i * 37) % 50, 6 + (i * 23) % 30, 1, 1, ['#f0a63c', '#f6f3ec', '#d98aa0'][i % 3]); break;
+    case 'p-store':
+      r(0, 0, iw, ih, '#9c7a4e'); r(4, 3, iw - 8, 11, '#c23a2c'); for (let i = 10; i < iw - 10; i += 6) r(i, 6, 4, 5, '#f2c230');
+      r(8, 17, iw - 16, 22, '#2a2420'); for (let i = 10; i < iw - 8; i += 7) r(i, 19, 3, 4, ['#d94b3b', '#5aa17a', '#f0a63c', '#2e86ab'][i % 4]);
+      for (let i = 8; i < iw - 8; i += 4) r(i, 17, 1, 22, '#8a8f90');
+      r(0, ih - 10, iw, 10, '#7d7a72');
+      P(20, ih - 3, 32, '#2e86ab'); P(32, ih - 3, 30, '#d98aa0'); P(56, ih - 3, 18, '#f0a63c'); P(68, ih - 3, 14, '#5aa17a'); break;
+    case 'p-grad':
+      r(0, 0, iw, ih, '#bfae84'); for (let i = 0; i < iw; i += 9) r(i, 0, 1, ih, '#ad9c72');
+      r(10, 5, 68, 8, '#2e5aa8'); for (let i = 14; i < 74; i += 5) r(i, 8, 3, 2, '#e8e8e8');
+      P(36, ih - 3, 40, '#1c1c22', { pants: '#1c1c22' }); r(29, ih - 45, 15, 2, '#111'); r(43, ih - 44, 1, 5, '#f0c030');
+      P(57, ih - 3, 31, '#9b6aa8', { hair: '#cfcfcf' }); break;
+    case 'p-tutuban':
+      r(0, 0, iw, ih, '#d8cfc0'); r(0, ih * .7, iw, ih, '#bcb4a6');
+      for (let i = 0; i < iw; i += 2) r(i, 4 + Math.abs((i % 16) - 8) / 2, 2, 2, '#2f7a3c');
+      for (let i = 3; i < iw; i += 9) r(i, 7, 1, 1, '#d94b3b');
+      for (let j = 0; j < 6; j++) r(44 - j, 14 + j, 1 + j * 2, 1, '#f0a63c'); for (let j = 0; j < 6; j++) r(39 + j, 20 + j, 11 - j * 2, 1, '#f0a63c');
+      for (let i = 0; i < 6; i++) P(10 + i * 13, ih - 3, 26 + (i * 7) % 5, '#2e5f8a', { pants: '#2a2c33' });
+      break;
+    case 'p-fiesta':
+      r(0, 0, iw, ih, '#9fbfd0'); r(0, 0, 10, ih, '#8a7f74'); r(iw - 10, 0, 10, ih, '#7d7268');
+      for (const yy of [5, 12, 19]) for (let i = 10; i < iw - 10; i += 3) r(i, yy + ((i / 3) % 2), 2, 2, ['#d94b3b', '#f0a63c', '#2e86ab', '#5aa17a', '#ece4d5'][(i / 3 + yy) % 5 | 0]);
+      { const rr = mul(7); for (let i = 0; i < 16; i++) P(6 + rr() * (iw - 12), ih - 1 - rr() * 10, 16 + rr() * 9, ['#d94b3b', '#f0a63c', '#2e86ab', '#5aa17a', '#ece4d5', '#9b59b6'][i % 6]); }
+      break;
+    case 'p-baby':
+      r(0, 0, iw, ih, '#d9c7a2'); r(46, 4, 36, 34, '#5a3e26'); for (let a = 48; a < 80; a += 6) for (let b = 6; b < 36; b += 6) r(a, b, 5, 5, '#ece3c9');
+      line(g2, 10, 8, 12, 36, '#6b5a40'); line(g2, 52, 8, 48, 36, '#6b5a40');
+      for (let i = 10; i <= 50; i++) { const y = 36 + Math.round(9 * Math.sin(Math.PI * (i - 10) / 40)); r(i, y, 1, 5, '#d98aa0'); }
+      disc(g2, 28, 40, 4, '#e0b48c'); r(25, 36, 6, 2, '#2a1e16'); r(18, 44, 22, 3, '#f2e6e0'); break;
+  }
+  g2.fillStyle = 'rgba(240,166,60,.10)'; g2.fillRect(0, 0, iw, ih);
+  g2.fillStyle = 'rgba(20,10,0,.18)'; g2.fillRect(0, 0, iw, 2); g2.fillRect(0, ih - 2, iw, 2); g2.fillRect(0, 0, 2, ih); g2.fillRect(iw - 2, 0, 2, ih);
+  x.drawImage(s, ox, oy);
+}
+
+function paperBack(k) {
+  const kind = k.kind === 'photo' ? 'photo' : k.paper, [w, h] = SIZE[kind], [c, x] = mk(w, h);
+  if (kind === 'prayer') { R(x, 0, 0, w, h, '#f2e8cc'); R(x, 2, 2, w - 4, h - 4, '#c49a35'); R(x, 4, 4, w - 8, h - 8, '#f2e8cc'); return c; }
+  R(x, 0, 0, w, h, '#e8e1cd'); for (let i = -h; i < w; i += 9) line(x, i, 0, i + h, h, '#ddd5bf');
+  for (let i = 0; i < 12; i++) R(x, w - 30 + i * 2, h - 6, 1, 2, '#b9b19c');
+  return c;
+}
+
+/** A small one for the wall: the big drawing shrunk by averaging, alpha kept hard. */
+const THUMB = { notebook: [16, 20], sticky: [14, 14], crayon: [18, 14], calendar: [16, 19], ticket: [18, 11], letter: [16, 20], prayer: [12, 18], napkin: [16, 16], photo: [20, 15] };
+const thumbs = {};
+function thumb(k) {
+  if (thumbs[k.id]) return thumbs[k.id];
+  const kind = k.kind === 'photo' ? 'photo' : k.paper, [w, h] = THUMB[kind], [c, x] = mk(w, h);
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(paperFront(k), 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h); for (let i = 3; i < d.data.length; i += 4) d.data[i] = d.data[i] > 110 ? 255 : 0; x.putImageData(d, 0, 0);
+  return (thumbs[k.id] = c);
+}
+
+// ---------------- state ----------------
+/** id → 'carried' (in his jacket) or 'pinned' (on the wall). */
+let album = {};
+let streets = {};
+let step = 'house', fill = 'some', hope = 46, browse = -1;
+let reading = null, flipped = false, typeT = null;
+const FILLS = { empty: [], some: ['list', 'p-birthday', 'fridge', 'p-tutuban', 'tip-relief', 'love'], full: K.map((k) => k.id) };
+function setFill(f) { fill = f; album = {}; for (const id of FILLS[f]) album[id] = 'pinned'; for (const id of FILLS[f]) if (BY[id].tip) streets[id] ??= 'Tayuman St.'; }
+setFill('some');
+let houseFind = null, houseGauze = true;
+function rollHouseFind() { const left = K.filter((k) => !album[k.id]); houseFind = (left.find((k) => k.id === 'letter') ?? left[0])?.id ?? null; houseGauze = true; }
+rollHouseFind();
+
+function toast(m, ms = 2200) { toastEl.textContent = m; toastEl.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.classList.remove('on'), ms); }
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+/** Street names end in a dot already ("Vitas St."), so a sentence ending on one doesn't get a second. */
+const textOf = (k) => { const s = streets[k.id] ?? 'Tayuman St.'; return k.text.replace('{street}.', s.endsWith('.') ? s : s + '.').replace('{street}', s); };
+
+// ---------------- scenes on the canvas ----------------
+const room = new Image(); room.src = '../shelter-ui/shelter-nida-110.png'; room.onload = () => draw();
+let t0 = performance.now();
+
+function drawHouse(dim) {
+  R(g, 0, 0, W, H, '#0b0907');
+  R(g, 0, 0, W, 56, '#2a2019'); for (let i = 0; i < W; i += 6) R(g, i, 0, 1, 54, '#231a14'); R(g, 0, 54, W, 3, '#18110c');
+  for (let y = 57, row = 0; y < H; y += 7, row++) { R(g, 0, y, W, 7, row % 2 ? '#432d1d' : '#4a3220'); R(g, 0, y + 6, W, 1, '#2b1c12'); for (let i = (row % 3) * 13; i < W; i += 38) R(g, i, y, 1, 6, '#2b1c12'); }
+  // the chest of drawers, its middle drawer pulled out
+  R(g, 33, 30, 44, 37, '#6b4528'); R(g, 33, 30, 44, 3, '#7d5432'); R(g, 33, 66, 44, 2, '#3a2414');
+  for (const y of [36, 44]) { R(g, 35, y, 40, 7, '#5e3c22'); R(g, 53, y + 3, 4, 1, '#c9a46a'); }
+  R(g, 31, 54, 48, 16, '#5a3a22'); R(g, 33, 55, 44, 8, '#1a110b'); R(g, 31, 69, 48, 2, '#2e1c10'); R(g, 53, 65, 4, 1, '#c9a46a');
+  if (houseFind && step === 'house') R(g, 48, 57, 9, 4, '#e6dfc9');
+  R(g, 86, 84, 12, 12, '#5b3b22'); R(g, 86, 80, 12, 4, '#6b4528');
+  // Juan from above, facing the drawers
+  disc(g, 55, 104, 5, '#4f5a34'); disc(g, 55, 101, 3, '#b8902e'); R(g, 53, 97, 5, 2, '#9c7a26');
+  // the flashlight: everything dark but the cone and a little round him
+  const [d, dx] = mk(W, H); dx.fillStyle = 'rgba(3,4,5,.95)'; dx.fillRect(0, 0, W, H);
+  dx.globalCompositeOperation = 'destination-out';
+  const fl = 1 - .06 * (Math.sin(performance.now() / 90) > .93 ? 1 : 0);
+  const gr = dx.createRadialGradient(55, 98, 2, 55, 70, 62); gr.addColorStop(0, `rgba(0,0,0,${fl})`); gr.addColorStop(.7, `rgba(0,0,0,${.75 * fl})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  dx.fillStyle = gr; dx.beginPath(); dx.moveTo(55, 98); dx.lineTo(18, 24); dx.lineTo(92, 24); dx.closePath(); dx.fill();
+  const g3 = dx.createRadialGradient(55, 104, 1, 55, 104, 16); g3.addColorStop(0, 'rgba(0,0,0,.8)'); g3.addColorStop(1, 'rgba(0,0,0,0)'); dx.fillStyle = g3; dx.fillRect(0, 70, W, 60);
+  g.drawImage(d, 0, 0);
+  if (dim) { g.fillStyle = 'rgba(0,0,0,.72)'; g.fillRect(0, 0, W, H); }
+}
+
+// Where the pinned ones go on Nida's counter front (the room's own pixels).
+const PINS = []; for (let row = 0; row < 3; row++) for (let col = 0; col < 7; col++) PINS.push([61 + col * 5.4 + (row % 2) * 1.5, 136 + row * 7]);
+const ORDER = K.map((k) => k.id);
+let fresh = [];
+function drawRoom() {
+  R(g, 0, 0, W, H, '#0b0907');
+  if (room.complete && room.naturalWidth) g.drawImage(room, 0, 0);
+  const blink = (performance.now() - t0) % 500 < 250;
+  ORDER.forEach((id, i) => {
+    if (album[id] !== 'pinned') return;
+    if (fresh.includes(id) && blink) return;
+    const k = BY[id], [x, y] = PINS[i].map(Math.round);
+    // in the lamp's warm, low light: the paper colours, dimmed and warmed
+    if (k.kind === 'photo') { R(g, x, y, 4, 3, '#c9b48e'); R(g, x + 1, y + 1, 2, 1, '#4a4a36'); }
+    else { R(g, x, y, 3, 4, ROOMCOL[k.paper]); R(g, x, y + 3, 3, 1, '#7a5a36'); }
+    R(g, x + 1, y - 1, 1, 1, ['#c0392b', '#2e6a8a', '#d08a2c'][hs(id) % 3]);
+  });
+  if ((performance.now() - t0) % 1400 < 700) { R(g, 97, 134, 1, 3, '#f0a63c'); R(g, 96, 135, 3, 1, '#f0a63c'); }
+}
+
+const SLOT = (i) => { const c = i % 4, row = Math.floor(i / 4), r = mul(hs(ORDER[i])); return [9 + c * 23 + 11.5 + (r() * 4 - 2), 29 + row * 34.8 + 18 + (r() * 4 - 2)]; };
+/* The wall, drawn once: weathered planks, a cork board nailed to them with a chipped frame, pale marks where somebody else's papers
+   used to hang, old pin holes, and a few spare pins left stuck near the edges. The light goes on last, over everything (wallLight). */
+let wallBase = null;
+function bakeWall() {
+  const [c, x] = mk(W, H), r = mul(41);
+  R(x, 0, 0, W, H, '#5a3a24');
+  for (let i = 0, px = 0; px < W; i++) { const w = 9 + Math.floor(r() * 5), col = ['#5a3a24', '#62402a', '#553620', '#5e3e26'][i % 4];
+    R(x, px, 0, w, H, col); R(x, px, 0, 1, H, '#2e1d10'); R(x, px + 1, 0, 1, H, '#6e4b31');
+    for (let k = 0; k < 6; k++) R(x, px + 2 + r() * (w - 4), r() * H, 1, 3 + r() * 8, '#4c301c');
+    for (const ny of [12, 214]) R(x, px + Math.floor(w / 2), ny, 1, 1, '#1e140c');
+    px += w; }
+  R(x, 7, 28, 98, 182, 'rgba(10,5,0,.45)');                       // the board's shadow on the planks
+  R(x, 4, 24, 100, 184, '#2e1d10'); R(x, 5, 25, 98, 182, '#4a2f1a'); R(x, 5, 25, 98, 1, '#6a4628'); R(x, 5, 25, 1, 182, '#6a4628');
+  for (let k = 0; k < 14; k++) { const t = r(); R(x, t < .5 ? 5 + r() * 98 : (r() < .5 ? 5 : 102), t < .5 ? (r() < .5 ? 25 : 205) : 25 + r() * 182, 1 + r() * 2, 1, '#2a1a0e'); }
+  R(x, 8, 28, 92, 177, '#a06d3c');
+  for (let i = 0; i < 1100; i++) R(x, 8 + r() * 92, 28 + r() * 177, 1, 1, ['#8f5f31', '#b47e48', '#7a4f28', '#a87444', '#946233'][i % 5]);
+  for (let i = 0; i < 9; i++) {                                        // where papers used to be
+    const w = 9 + Math.floor(r() * 8), h = 10 + Math.floor(r() * 9), gx = 10 + r() * (88 - w), gy = 31 + r() * (170 - h);
+    x.fillStyle = 'rgba(205,160,105,.22)'; x.fillRect(Math.round(gx), Math.round(gy), w, h);
+    R(x, gx + w / 2, gy, 1, 1, '#5a3a1c'); }
+  for (let i = 0; i < 40; i++) R(x, 9 + r() * 90, 29 + r() * 175, 1, 1, '#4a2c14');
+  for (const [px, py, col] of [[13, 33, '#d94b3b'], [94, 37, '#2e86ab'], [17, 199, '#f0a63c'], [91, 196, '#5aa17a'], [57, 30, '#d94b3b']]) {
+    R(x, px - 1, py - 1, 3, 2, col); R(x, px - 1, py - 1, 1, 1, '#f6efe0'); R(x, px, py + 1, 1, 1, '#2a1a0e'); }
+  return c;
+}
+/* A kerosene lantern just off the bottom left: bright there, the top right corner nearly dark, in a few hard dithered steps, warm.
+   No electric light: it's a brownout. */
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + .5) / 16);
+function wallLight() {
+  const d = g.getImageData(0, 0, W, H), p = d.data, fl = 1 + .025 * Math.sin(performance.now() / 170) + .02 * Math.sin(performance.now() / 53);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const dist = Math.hypot(x + 14, y - 240) / 300, l = Math.max(.5, Math.min(1.08, (1.2 - dist * .85) * fl));
+    // 8 hard steps; the dither only frays the edge of each band instead of covering the whole board
+    const lv = Math.floor(l * 8 + .5 + (BAYER[(y & 3) * 4 + (x & 3)] - .5) * .55) / 8, i = (y * W + x) * 4;
+    p[i] = Math.min(255, p[i] * lv * 1.06); p[i + 1] = p[i + 1] * lv * .96; p[i + 2] = p[i + 2] * lv * .8;
+  }
+  g.putImageData(d, 0, 0);
+}
+function drawWall() {
+  g.drawImage(wallBase ??= bakeWall(), 0, 0);
+  ORDER.forEach((id, i) => {
+    const k = BY[id], [cx, cy] = SLOT(i), th = thumb(k), x = Math.round(cx - th.width / 2), y = Math.round(cy - th.height / 2);
+    if (album[id] === 'pinned') {
+      g.fillStyle = 'rgba(40,20,5,.45)'; g.fillRect(x + 1, y + 1, th.width, th.height);
+      g.drawImage(th, x, y);
+      const pc = ['#d94b3b', '#2e86ab', '#f0a63c', '#5aa17a'][hs(id) % 4];
+      R(g, cx - 1, y - 1, 3, 2, pc); R(g, cx - 1, y - 1, 1, 1, '#f6efe0');
+    } else {
+      g.fillStyle = 'rgba(60,32,10,.2)'; g.fillRect(x, y, th.width, 1); g.fillRect(x, y + th.height - 1, th.width, 1); g.fillRect(x, y, 1, th.height); g.fillRect(x + th.width - 1, y, 1, th.height);
+      R(g, cx, y, 1, 1, '#4a2c14');
+    }
+  });
+  wallLight();
+}
+
+function draw() {
+  g.clearRect(0, 0, W, H);
+  if (reading) {
+    if (reading.from === 'wall') { drawWall(); g.fillStyle = 'rgba(0,0,0,.74)'; g.fillRect(0, 0, W, H); }
+    else if (reading.from === 'room') { drawRoom(); g.fillStyle = 'rgba(0,0,0,.74)'; g.fillRect(0, 0, W, H); }
+    else drawHouse(true);
+  } else if (step === 'house') drawHouse(false);
+  else if (step === 'room') drawRoom();
+  else drawWall();
+}
+(function loop() { draw(); requestAnimationFrame(loop); })();
+
+// ---------------- the overlays ----------------
+const px = (n) => n * S + 'px';
+function render() {
+  document.querySelectorAll('#steps button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.step === step && !reading)));
+  document.querySelectorAll('#fills button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fill === fill)));
+  if (reading) return renderRead();
+  if (step === 'house') {
+    const k = houseFind && BY[houseFind];
+    const rows = [];
+    if (k) rows.push(`<button class="opt keep" data-act="read"><img src="${thumb(k).toDataURL()}" alt="">${esc(k.title)}<em>read · keep</em></button>`);
+    if (houseGauze) rows.push(`<button class="opt" data-act="gauze"><span class="emoji">🩹</span>Gauze<em>take</em></button>`);
+    ui.innerHTML = `<div class="abs hudline"><span>BAG 6/10</span><span>HOPE ${hope}</span></div>
+      <div class="abs card"><small>Searched</small><h3>Chest of drawers</h3>
+      <p>${k ? 'Take what Juan can carry. Keepsakes go in his jacket, not the bag.' : (rows.length ? 'Take what Juan can carry.' : 'Nothing but dust.')}</p>
+      ${rows.join('')}<button class="opt ${k ? '' : 'go'}" data-act="done">Done</button></div>`;
+  } else if (step === 'room') {
+    const n = Object.values(album).filter((v) => v === 'pinned').length;
+    ui.innerHTML = `<div class="abs hudline"><span>NIDA'S SARI-SARI STORE</span><span>HOPE ${hope}</span></div>
+      <div class="abs hint">${n ? `The counter front: ${n} keepsake${n > 1 ? 's' : ''} pinned. Tap it.` : 'Nothing pinned on the counter yet.'}</div>
+      <div class="abs" data-act="wall" style="left:${px(56)};top:${px(132)};width:${px(45)};height:${px(28)};cursor:pointer" title="The counter front"></div>`;
+  } else {
+    const have = Object.keys(album).filter((id) => album[id] === 'pinned');
+    const notes = have.filter((id) => BY[id].kind === 'note').length, photos = have.length - notes;
+    ui.innerHTML = `<div class="abs whead"><b>KEEPSAKES</b><span>${have.length} / ${K.length}</span></div>
+      <div class="abs" data-act="board" style="left:${px(9)};top:${px(29)};width:${px(92)};height:${px(175)};cursor:pointer"></div>
+      <div class="abs wfoot"><span>NOTES ${notes}/12 · PHOTOS ${photos}/8</span><button data-act="back">◂ BACK</button></div>`;
+  }
+}
+
+function renderRead() {
+  const k = reading.k, kind = k.kind === 'photo' ? 'photo' : k.paper, [w, h] = SIZE[kind];
+  const canFlip = !!k.back, showBack = canFlip && flipped;
+  const pxX = Math.round((W - w) / 2), pxY = 22;
+  const img = (showBack ? paperBack(k) : paperFront(k)).toDataURL();
+  let inkHtml = '';
+  const box = (l, t, r, b) => `left:${px(pxX + l)};top:${px(pxY + t)};width:${px(w - l - r)};height:${px(h - t - b)}`;
+  if (k.kind === 'photo' || kind === 'prayer') {
+    if (showBack) inkHtml = `<div class="ink hand" style="${box(8, 10, 8, 8)};display:flex;align-items:center;justify-content:center;text-align:center;color:#2b4a8a;font-size:15px;line-height:22px">${esc(k.back)}</div>`;
+    else if (kind === 'prayer') inkHtml = `<div class="ink typed" style="${box(4, h - 20, 4, 4)};text-align:center;color:#5a4316;font-size:7.5px;line-height:10px;letter-spacing:.12em">SANTO NIÑO DE TONDO</div>`;
+  } else if (kind === 'crayon') {
+    const [t1, ...rest] = textOf(k).split('\n');
+    inkHtml = `<div class="ink hand" style="${box(6, 4, 22, 2)};color:${k.ink};font-size:13px"><span class="t1">${esc(t1)}</span><span class="bot">${esc(rest.join(' '))}</span></div>`;
+  } else {
+    const st = {
+      notebook: [w * .2, 9, 5, 4, 14, 21], sticky: [7, 11, 8, 12, 13.5, 19], calendar: [7, 25, 7, 6, 13.5, 19.5], ticket: [17, 13, 5, 4, 9.5, 14.5],
+      letter: [7, 6, 6, 4, 13, 21], napkin: [8, 9, 8, 8, 13.5, 20],
+    }[kind];
+    inkHtml = `<div class="ink ${k.typed ? 'typed' : 'hand'}" style="${box(st[0], st[1], st[2], st[3])};color:${k.ink};font-size:${st[4]}px;line-height:${st[5]}px">${esc(textOf(k))}</div>`;
+  }
+  const logTop = pxY + h + 8;
+  const chips = [];
+  if (reading.first) chips.push('<span class="chip hope">+3 HOPE</span>');
+  if (reading.first && k.tip) chips.push(`<span class="chip tip">? marked on the phone · ${esc(streets[k.id])}</span>`);
+  const acts = reading.browse
+    ? `<button class="sm" data-act="bprev">◂</button><button class="go" data-act="close">Close</button><button class="sm" data-act="bnext">▸</button>`
+    : reading.from === 'house' ? `<button class="go" data-act="keep">Keep it</button>`
+      : `<button class="go" data-act="close">Back to the wall</button>`;
+  ui.innerHTML = `<div class="abs rhead"><small>${k.kind === 'photo' ? 'A photo' : 'A note'}${reading.first ? ' · in the chest of drawers' : ''}</small><b>${esc(k.title)}</b></div>
+    <img class="paper" data-act="${canFlip ? 'flip' : ''}" src="${img}" alt="" style="left:${px(pxX)};top:${px(pxY)};width:${px(w)};height:${px(h)}">
+    ${inkHtml}
+    ${canFlip ? `<div class="abs flip" style="top:${px(pxY + h + 1)}">TAP TO TURN IT ${showBack ? 'BACK' : 'OVER'}</div>` : ''}
+    <div class="logbox" style="top:${px(logTop + (canFlip ? 3 : 0))}"><img class="face" src="../../public/game/kit/out/portrait-juan.png" alt=""><p id="say"></p></div>
+    <div class="abs chips" style="top:${px(logTop + (canFlip ? 3 : 0) + 30)}">${chips.join('')}</div>
+    <div class="abs acts">${acts}</div>`;
+  clearInterval(typeT);
+  const say = document.getElementById('say'), full = k.juan; let n = reading.typed ?? 0;
+  const paint = () => { say.innerHTML = esc(full.slice(0, n)) + (n >= full.length ? '<i class="caret">▼</i>' : ''); };
+  paint();
+  if (n < full.length) typeT = setInterval(() => { n++; reading.typed = n; paint(); if (n >= full.length) clearInterval(typeT); }, 32);
+}
+
+function read(id, o) {
+  const k = BY[id]; flipped = false;
+  if (o.first) { hope += 3; if (k.tip) streets[id] = STREETS[Math.floor(Math.random() * STREETS.length)]; }
+  reading = { k, ...o, typed: 0 }; render();
+}
+
+// ---------------- input ----------------
+ui.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act, rect = document.getElementById('scr').getBoundingClientRect();
+  const nx = (e.clientX - rect.left - 3) / S, ny = (e.clientY - rect.top - 3) / S;
+  switch (a) {
+    case 'read': album[houseFind] = 'carried'; read(houseFind, { from: 'house', first: true }); break;
+    case 'keep': { const k = reading.k; reading = null; houseFind = null; render(); toast(`${k.kind === 'photo' ? 'The photo' : 'The note'} goes in his jacket. He'll pin it up at the shelter.`, 2600); break; }
+    case 'gauze': houseGauze = false; render(); toast('Gauze: into the bag. BAG 7/10'); break;
+    case 'done': toast('(the house again: walk on, search the next cupboard)'); break;
+    case 'flip': flipped = !flipped; { const t = reading.typed; render(); reading.typed = t; } break;
+    case 'wall': if (Object.values(album).some((v) => v === 'pinned')) { step = 'wall'; render(); } else toast('Nothing pinned up yet.'); break;
+    case 'board': {
+      let best = -1, bd = 1e9; ORDER.forEach((id, i) => { const [cx, cy] = SLOT(i), d = Math.hypot(cx - nx, cy - ny); if (d < bd) { bd = d; best = i; } });
+      if (best < 0 || bd > 13) return;
+      const id = ORDER[best];
+      if (album[id] === 'pinned') read(id, { from: 'wall', first: false }); else toast('Still out there somewhere.');
+      break; }
+    case 'back': step = 'room'; render(); break;
+    case 'close': reading = null; browse = -1; render(); break;
+    case 'bprev': case 'bnext': browseTo(browse + (a === 'bnext' ? 1 : -1)); break;
+  }
+});
+function go(s) {
+  reading = null; browse = -1; step = s;
+  if (s === 'room') {
+    fresh = Object.keys(album).filter((id) => album[id] === 'carried');
+    for (const id of fresh) album[id] = 'pinned';
+    if (fresh.length) { const k = BY[fresh[0]]; toast(`Juan pins up ${fresh.length > 1 ? fresh.length + ' keepsakes' : k.title.toLowerCase()} on the counter.`, 2600); setTimeout(() => (fresh = []), 2000); }
+  }
+  if (s === 'house' && !houseFind) rollHouseFind();
+  render();
+}
+function browseTo(i) { browse = (i + K.length) % K.length; flipped = false; reading = { k: K[browse], from: step === 'wall' ? 'wall' : step, first: false, browse: true, typed: 0 }; render(); }
+document.querySelectorAll('#steps button').forEach((b) => b.onclick = () => go(b.dataset.step));
+document.querySelectorAll('#fills button').forEach((b) => b.onclick = () => { setFill(b.dataset.fill); rollHouseFind(); render(); });
+document.getElementById('prev').onclick = () => browseTo(browse < 0 ? K.length - 1 : browse - 1);
+document.getElementById('next').onclick = () => browseTo(browse + 1);
+render();
+</script>
+</body>
+</html>

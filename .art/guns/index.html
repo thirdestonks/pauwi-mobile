@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAUWI · Guns</title>
+<style>
+:root{--sodium:#f0a63c;--red:#d94b3b;--bone:#ece4d5;--muted:#828b90;--s:3;
+  --mono:ui-monospace,Menlo,Consolas,monospace;--disp:Impact,'Arial Narrow Bold','Arial Narrow',sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#07090a;color:var(--bone);font-family:system-ui,sans-serif}
+body{padding:16px}
+header{max-width:1000px;margin:0 auto 14px}
+h1{margin:0;font:400 32px/1 var(--disp);letter-spacing:.04em;text-transform:uppercase;color:var(--sodium)}
+header p{margin:6px 0 0;color:#b9c3c8;font:13px/1.55 var(--mono);max-width:900px}
+.row{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1100px;margin:0 auto}
+.col{width:calc(110px*var(--s));flex:none}
+.col h2{margin:0;font:400 22px/1 var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.col .sub{margin:3px 0 8px;color:var(--muted);font:11.5px/1.4 var(--mono)}
+.scr{position:relative;width:calc(110px*var(--s));height:calc(225px*var(--s));overflow:hidden;background:#000;border:3px solid #26313a;user-select:none;-webkit-user-select:none;touch-action:none}
+.scr iframe{position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none}
+.scr canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;pointer-events:none}
+.flashlight{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 30% 45%,rgba(255,200,110,.55),rgba(255,160,60,.18) 45%,transparent 75%);opacity:0;transition:opacity .09s}
+.shake{animation:shake .14s steps(3)}
+@keyframes shake{0%{transform:translate(3px,-2px)}50%{transform:translate(-3px,2px)}100%{transform:none}}
+.shake-big{animation:shakebig .26s steps(5)}
+@keyframes shakebig{0%{transform:translate(6px,5px)}25%{transform:translate(-5px,-3px)}50%{transform:translate(3px,2px)}75%{transform:translate(-2px,-1px)}100%{transform:none}}
+.hud{position:absolute;left:8px;right:8px;top:8px;display:flex;justify-content:space-between;font:700 11px var(--mono);letter-spacing:.06em;text-shadow:1px 1px 0 #000;z-index:4}
+.hud .hp{color:#ff9a8a}
+.ammo{position:absolute;left:8px;bottom:8px;z-index:4;padding:4px 7px;background:#0e1214d0;border:2px solid #3a4851;font:700 13px var(--mono);text-shadow:1px 1px 0 #000;text-align:left}
+.ammo small{display:block;font-size:9px;color:var(--muted);letter-spacing:.08em}
+.ammo.low b{color:#ff7b66}
+.log{position:absolute;left:8px;right:8px;top:26px;font:700 10.5px/1.4 var(--mono);color:#f2ecdc;text-shadow:1px 1px 0 #000;z-index:4;min-height:30px}
+.btns{display:flex;gap:6px;margin-top:8px}
+.btns button{flex:1;padding:12px 4px;background:#0e1214;border:3px solid #526169;color:var(--bone);font:700 13px var(--mono);letter-spacing:.06em;cursor:pointer;box-shadow:3px 3px 0 #000;touch-action:none}
+.btns button.fire{border-color:var(--sodium);color:var(--sodium)}
+.btns button:active,.btns button.press{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
+.btns button:disabled{opacity:.45}
+.col ul{margin:10px 0 0;padding-left:16px;font:11.5px/1.5 var(--mono);color:#b9c3c8}.col li b{color:var(--bone)}
+.kit{max-width:1100px;margin:26px auto 0;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font:12px/1.5 var(--mono);color:#b9c3c8}
+.kit img{image-rendering:pixelated;background:#1d1a15;border:2px solid #3d352a;box-shadow:2px 2px 0 #000;padding:6px}
+.kit b{color:var(--bone)}
+.opts{max-width:1000px;margin:8px auto 14px;display:flex;gap:10px;font:700 11px var(--mono)}
+.opts label{display:flex;gap:5px;align-items:center;cursor:pointer;background:#16212a;border:2px solid #3a4851;padding:4px 9px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Guns · pump shotgun & M4</h1>
+  <p>Your painted frames, lined up and pixelated, played over the night street. Fire and reload with the buttons (or keys: <b>Space / R</b> for the shotgun, <b>F / T</b> for the M4; hold <b>F</b> for automatic). The kick, the screen shake, the flash of light and the Shambler's flinch are done in code; the gun pictures are yours.</p>
+</header>
+<div class="opts"><label><input type="checkbox" id="mute"> mute</label><label><input type="checkbox" id="slow"> slow motion (×4)</label></div>
+
+<div class="row">
+  <div class="col">
+    <h2>Pump shotgun</h2>
+    <div class="sub">Fire → kick → pump back (shell pops) → forward → ready. Reload pushes in one shell at a time.</div>
+    <div class="scr" id="sg-scr">
+      <iframe src="../../public/game/combat-bg-night/index.html?embed" title="" tabindex="-1"></iframe>
+      <canvas id="sg-cv" width="110" height="225"></canvas>
+      <div class="flashlight" id="sg-light"></div>
+      <div class="hud"><span>SHAMBLER · MID</span><span class="hp" id="sg-hp"></span></div>
+      <div class="log" id="sg-log"></div>
+      <div class="ammo" id="sg-ammo"></div>
+    </div>
+    <div class="btns"><button class="fire" id="sg-fire">FIRE</button><button id="sg-reload">RELOAD</button></div>
+    <ul>
+      <li><b>6 in the tube.</b> One blast (5 damage) drops a Shambler at MID.</li>
+      <li>Each shot costs time: the pump before the next one.</li>
+      <li>Reload is one shell at a time, so a half-empty tube is quick to top up.</li>
+    </ul>
+  </div>
+
+  <div class="col">
+    <h2>M4</h2>
+    <div class="sub">Tap to fire once, hold for automatic. Reload: magazine out → in → racked.</div>
+    <div class="scr" id="m4-scr">
+      <iframe src="../../public/game/combat-bg-night/index.html?embed" title="" tabindex="-1"></iframe>
+      <canvas id="m4-cv" width="110" height="225"></canvas>
+      <div class="flashlight" id="m4-light"></div>
+      <div class="hud"><span>SHAMBLER · MID</span><span class="hp" id="m4-hp"></span></div>
+      <div class="log" id="m4-log"></div>
+      <div class="ammo" id="m4-ammo"></div>
+    </div>
+    <div class="btns"><button class="fire" id="m4-fire">FIRE (hold)</button><button id="m4-reload">RELOAD</button></div>
+    <ul>
+      <li><b>30 in a magazine.</b> 2 damage a round: three rounds drop a Shambler.</li>
+      <li>Automatic eats ammo fast. Ammo will be the M4's real cost.</li>
+      <li>The reload is long (2.4 s): one Shambler turn, in the real fight.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="kit">
+  <span><img src="out/shotgun-icon.png" alt="" style="width:132px"><br>the bag icon</span>
+  <span><img src="out/stars-1.png" alt="" style="width:48px"> <img src="out/stars-2.png" alt="" style="width:48px"> <img src="out/stars-3.png" alt="" style="width:48px"><br>the upgrade stars</span>
+  <span style="max-width:420px"><b>Sounds:</b> the reloads are yours (<i>shotgun_reload</i>, <i>m4_reload</i>), the pump is <i>pistol_cock</i> and the empty click is the old one. The two gunshots are the pistol shot pitched down (shotgun) and up (M4) as stand-ins: real <b>shotgun-shot</b> and <b>m4-shot</b> sounds would sell it.</span>
+</div>
+
+<script>
+const S = 3;
+const $ = (id) => document.getElementById(id);
+const SFX_DIR = '../sfx/';
+let muted = false, slow = 1;
+$('mute').onchange = (e) => (muted = e.target.checked);
+$('slow').onchange = (e) => (slow = e.target.checked ? 4 : 1);
+function snd(name, vol = 1, rate = 1, stopAfter = 0) {
+  if (muted) return null;
+  const a = new Audio(SFX_DIR + name + '.mp3'); a.volume = vol; a.playbackRate = rate / slow; a.preservesPitch = false;
+  a.play().catch(() => {}); if (stopAfter) setTimeout(() => a.pause(), stopAfter * slow);
+  return a;
+}
+const img = (src) => { const i = new Image(); i.src = src; return i; };
+
+// ---------------- one gun on one screen ----------------
+function makeGun(cfg) {
+  const cv = $(cfg.id + '-cv'), g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+  const frames = Object.fromEntries(cfg.frames.map((f) => [f, img(`out/${cfg.id === 'sg' ? 'shotgun' : 'm4'}-${f}.png`)]));
+  const shm = { idle: img('../../public/game/enemies/shambler/shambler-h48-idle.png'), hit: img('../../public/game/enemies/shambler/shambler-h48-hit.png'), death: img('../../public/game/enemies/shambler/shambler-h48-death.png') };
+  const SH = { w: 109, h: 67, px: 39, py: 64 };
+  const st = { frame: 'rest', kx: 0, ky: 0, sway: 1, busy: false, mag: cfg.mag, spare: cfg.spare, hp: 5, hitT: 0, dead: 0, t: 0, hold: false, line: cfg.hello, queue: [] };
+  const say = (s) => { st.line = s; $(cfg.id + '-log').innerHTML = s; };
+  const hud = () => {
+    $(cfg.id + '-hp').textContent = st.dead ? 'DOWN' : '♥'.repeat(st.hp);
+    const a = $(cfg.id + '-ammo'); a.className = 'ammo' + (st.mag <= Math.ceil(cfg.mag / 5) ? ' low' : '');
+    a.innerHTML = `<b>${st.mag}</b>/${cfg.mag}<small>${st.spare} ${cfg.word} LEFT</small>`;
+  };
+  // a timeline: steps of [ms, fn]; the gun is busy until it ends
+  function play(steps, done) {
+    st.busy = true; let i = 0;
+    const next = () => { if (i >= steps.length) { st.busy = false; done && done(); return; } const [ms, fn] = steps[i++]; fn && fn(); setTimeout(next, ms * slow); };
+    next();
+  }
+  function shake() { const s = $(cfg.id + '-scr'), c = cfg.bigShake ? 'shake-big' : 'shake'; s.classList.remove(c); void s.offsetWidth; s.classList.add(c); }
+  function light() { const l = $(cfg.id + '-light'); l.style.opacity = 1; setTimeout(() => (l.style.opacity = 0), 70 * slow); }
+  function hit(dmg) {
+    if (st.dead) return;
+    st.hp = Math.max(0, st.hp - dmg); st.hitT = performance.now();
+    if (st.hp <= 0) { st.dead = performance.now(); snd('zombie-dead', .8); say(`It drops. <b style="color:#7ee0a0">Down.</b>`); setTimeout(() => { st.hp = 5; st.dead = 0; say('Another one shuffles out of the dark.'); hud(); }, 2200 * slow); }
+    else { snd('zombie-hurt', .7); }
+    hud();
+  }
+  function fire() {
+    if (st.busy && !(cfg.auto && st.frame !== 'fire')) return;
+    if (st.busy) return;
+    if (st.mag <= 0) { snd('pistol-shot-empty'); say(st.spare ? 'Click. Empty. Reload.' : 'Click. Nothing left.'); return; }
+    st.mag--; hud();
+    snd('pistol-shot', cfg.shotVol, cfg.shotRate);
+    shake(); light(); hit(cfg.dmg);
+    if (!st.dead) say(cfg.hitLine);
+    play(cfg.fireSteps(st, snd), () => { if (cfg.auto && st.hold && st.mag > 0) fire(); });
+  }
+  function reload() {
+    if (st.busy || st.mag >= cfg.mag) { if (st.mag >= cfg.mag) say('Already full.'); return; }
+    if (!st.spare) { say(`No ${cfg.word} left.`); return; }
+    play(cfg.reloadSteps(st, snd, say, hud), () => { hud(); });
+  }
+  function draw(T) {
+    g.clearRect(0, 0, 110, 225);
+    // the Shambler at MID (first frame of each strip), flinching red when hit
+    const flinch = T - st.hitT < 160 * slow, im = st.dead ? shm.death : flinch ? shm.hit : shm.idle;
+    if (im.complete && im.naturalWidth) {
+      const nframes = Math.max(1, Math.round(im.naturalWidth / SH.w));
+      const fi = st.dead ? Math.min(nframes - 1, Math.floor((T - st.dead) / (90 * slow))) : flinch ? 1 : Math.floor(T / 650) % nframes;
+      g.globalAlpha = st.dead && T - st.dead > 1600 * slow ? .4 : 1;
+      g.drawImage(im, fi * SH.w, 0, SH.w, SH.h, 55 - SH.px, 150 - SH.py, SH.w, SH.h);
+      g.globalAlpha = 1;
+    }
+    // the gun, kicked by (kx, ky), eased back every frame
+    // Juan carrying it: a slow figure-eight drift of about a pixel, heavier guns slower; it calms while he fires or reloads
+    const sw = cfg.sway, calm = (st.sway = st.sway + ((st.busy ? .25 : 1) - st.sway) * .05);
+    const t = T / slow, swx = Math.sin(t / sw.period + sw.phase) * sw.x * calm, swy = Math.sin(2 * t / sw.period + sw.phase) * sw.y * calm;
+    const f = frames[st.frame] ?? frames.rest;
+    if (f.complete && f.naturalWidth) g.drawImage(f, Math.round(cfg.at[0] + st.kx + swx), Math.round(225 - f.height + cfg.at[1] + st.ky + swy));
+    st.kx *= .78; st.ky *= .78;
+    if (Math.abs(st.kx) < .3) st.kx = 0; if (Math.abs(st.ky) < .3) st.ky = 0;
+  }
+  // input: hold-to-fire for the automatic
+  const fb = $(cfg.id + '-fire');
+  fb.addEventListener('pointerdown', (e) => { e.preventDefault(); fb.classList.add('press'); st.hold = true; fire(); });
+  const up = () => { fb.classList.remove('press'); st.hold = false; };
+  fb.addEventListener('pointerup', up); fb.addEventListener('pointerleave', up);
+  $(cfg.id + '-reload').onclick = reload;
+  say(cfg.hello); hud();
+  return { draw, fire, reload, st };
+}
+
+// ---------------- the two guns ----------------
+const shotgun = makeGun({
+  id: 'sg', bigShake: true, frames: ['rest', 'fire', 'fireup', 'restup5', 'restup2', 'pump1', 'pump2', 'load'], mag: 6, spare: 12, word: 'SHELLS', dmg: 5, auto: false,
+  at: [42, 16], sway: { x: 1.4, y: 1.1, period: 760, phase: 0 }, shotVol: 1, shotRate: .62, hello: 'Six in the tube. It\'s at MID.', hitLine: 'The blast throws it back a step.',
+  fireSteps: (st, snd) => [
+    [70, () => { st.frame = 'fireup'; st.kx = 7; st.ky = 7; }],         // the blast: the barrel thrown up 8°, the gun driven back into the shoulder
+    [90, () => { st.frame = 'restup5'; }],                              // the recoil eases off: 5°…
+    [100, () => { st.frame = 'restup2'; }],                             // …2°…
+    [140, () => { st.frame = 'rest'; }],                                // …and down on target again
+    [150, () => { st.frame = 'pump1'; snd('pistol-cock', .9, .85); }],   // pump back: the spent shell pops out
+    [130, () => { st.frame = 'pump2'; st.ky = 1; }],                    // pump forward: the shell flies off
+    [60, () => { st.frame = 'rest'; }],
+  ],
+  reloadSteps: (st, snd, say, hud) => {
+    const n = Math.min(6 - st.mag, st.spare), steps = [];
+    const a = { cur: null };
+    steps.push([120, () => { a.cur = snd('shotgun-reload', .9); say(`Loading ${n} shell${n > 1 ? 's' : ''}…`); }]);
+    for (let k = 0; k < n; k++) {
+      steps.push([300, () => { st.frame = 'load'; st.ky = 2; }]);
+      steps.push([200, () => { st.frame = 'rest'; st.mag++; st.spare--; hud(); }]);
+    }
+    steps.push([150, () => { st.frame = 'pump1'; }]);
+    steps.push([130, () => { st.frame = 'pump2'; }]);
+    steps.push([60, () => { st.frame = 'rest'; a.cur && a.cur.pause(); say(`${st.mag} in the tube.`); }]);
+    return steps;
+  },
+});
+const m4 = makeGun({
+  id: 'm4', frames: ['rest', 'fire', 'reload1', 'reload2', 'reload3'], mag: 30, spare: 60, word: 'ROUNDS', dmg: 2, auto: true,
+  at: [34, 20], sway: { x: 1.6, y: 1.2, period: 900, phase: 2.1 }, shotVol: .55, shotRate: 1.25, hello: 'Thirty in the magazine. Hold to spray.', hitLine: 'Rounds stitch across its chest.',
+  fireSteps: (st) => [
+    [55, () => { st.frame = 'fire'; st.kx = 1 + Math.random() * 2; st.ky = 2 + Math.random() * 2; }],
+    [55, () => { st.frame = 'rest'; }],
+  ],
+  reloadSteps: (st, snd, say, hud) => [
+    [10, () => { snd('m4-reload', .9); say('Magazine out…'); }],
+    [800, () => { st.frame = 'reload1'; st.ky = 3; }],
+    [800, () => { st.frame = 'reload2'; say('…fresh one in…'); }],
+    [520, () => { st.frame = 'reload3'; st.kx = 2; st.ky = -3; say('…racked.'); }],
+    [80, () => { st.frame = 'rest'; const take = Math.min(30 - st.mag, st.spare); st.mag += take; st.spare -= take; hud(); say(`${st.mag} in the magazine.`); }],
+  ],
+});
+
+// keys
+addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  if (e.key === ' ') { e.preventDefault(); shotgun.fire(); }
+  if (e.key === 'r' || e.key === 'R') shotgun.reload();
+  if (e.key === 'f' || e.key === 'F') { m4.st.hold = true; m4.fire(); }
+  if (e.key === 't' || e.key === 'T') m4.reload();
+});
+addEventListener('keyup', (e) => { if (e.key === 'f' || e.key === 'F') m4.st.hold = false; });
+(function loop(T) { shotgun.draw(T); m4.draw(T); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>

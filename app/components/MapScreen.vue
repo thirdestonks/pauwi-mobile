@@ -1,47 +1,66 @@
 <script setup lang="ts">
+// The map, full screen (.art/map-ui, concept B): no title, no legend, no tab bar. The pixel map fills it and Juan's kit on it is the
+// interface (PixelMap.vue): the bag opens the Bag, the shelter key asks before heading home, the phone opens the phone map.
+import { SHELTER_DOOR } from '~/utils/tondo'
+
 const board = useBoardStore()
 const ui = useUiStore()
-const player = usePlayerStore()
+const encounter = useEncounterScene()
+const map = ref<{ moving: boolean } | null>(null)
+const returning = ref(false)
+const asking = ref(false)
+
+/** Skip the route home; show the shelter door, then the outing summary. */
+async function headHome() {
+  if (returning.value || ui.shelterTransition || map.value?.moving) return
+  returning.value = true
+  try {
+    await encounter.passDoor(SHELTER_DOOR[board.home], false, () => {
+      ui.requestShelterReturn(board.moveBudget <= 0 ? 'moves' : 'voluntary')
+    })
+  } finally {
+    returning.value = false
+  }
+}
+
+/** The key: at home it just goes back inside; out there it asks first, since heading back ends the outing. */
+function home() {
+  if (map.value?.moving || encounter.busy.value || ui.shelterTransition || board.activeCard) return
+  if (!ui.outInField) { ui.setTab('shelter'); return }
+  asking.value = true
+}
+function bag() {
+  if (map.value?.moving || encounter.busy.value) return
+  ui.setTab(ui.outInField ? 'bag' : 'pack')
+}
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col overflow-hidden">
-    <div class="flex items-center justify-between px-4 py-3" style="background: linear-gradient(180deg, var(--night), rgba(14,18,20,.85)); border-bottom: 1px solid var(--line)">
-      <div class="text-xl uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px">TONDO <span style="color: var(--sodium)">IN FOG</span></div>
-      <div
-        class="flex items-center gap-1.5 text-[10px]"
-        style="font-family: var(--font-mono)"
-        :style="{ color: board.moveBudget <= 0 ? 'var(--sari-red)' : 'var(--sodium)' }"
-      >
-        <span class="w-1.5 h-1.5 rounded-full" :style="{ background: board.moveBudget <= 0 ? 'var(--sari-red)' : 'var(--sodium)' }" />
-        {{ board.moveBudget }}/{{ board.maxMoves }} MOVES
-        <span :style="{ color: player.energy < board.energyPerFreshMove ? 'var(--sari-red)' : 'var(--muted)' }">· {{ player.energy }} EN</span>
+  <div class="relative flex-1 flex items-center justify-center overflow-hidden" style="background: #000">
+    <PixelMap ref="map" style="height: 100%" @home="home" @bag="bag" />
+
+    <!-- the key's question, in the pixel style of the map -->
+    <div v-if="asking" class="ask-back" @click="asking = false" />
+    <div v-if="asking" class="ask" role="dialog" aria-label="Head back to shelter?">
+      <h3>Head back to shelter?</h3>
+      <p>{{ board.moveBudget <= 0 ? 'Out of moves. Straight back through the shelter door, free.' : `Straight back to ${board.shelterName}, free. ${board.phase === 'day' ? 'Dusk waits for no one.' : 'Dawn comes after.'}` }}</p>
+      <div class="acts">
+        <button class="go" @click="asking = false; headHome()">Go home</button>
+        <button @click="asking = false">Stay out</button>
       </div>
     </div>
 
-    <p class="mx-4 mt-3 text-[10px] leading-relaxed" style="font-family: var(--font-mono); color: var(--muted)">
-      You never see a map — just what's around you. <b style="color: var(--sodium); font-weight: normal">2–3 tiles ahead, then pure fog.</b> Fresh ground costs a move — retracing cleared ground never does.
-    </p>
-
-    <div class="flex-1 my-3 mx-4 rounded-md overflow-hidden" style="border: 1px solid var(--line)">
-      <HexBoard />
-    </div>
-
-    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 mx-4 mb-3 text-[10px]" style="font-family: var(--font-mono); color: var(--muted)">
-      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background: #f0a63c; border: 1px solid #0e1214" />Juan (you)</span>
-      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background: #1d2529; border: 1px solid #2a343a" />Visible — tap to act</span>
-      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background: #8a939a; border: 1px solid #6b747a" />Edge of sight</span>
-    </div>
-
-    <div
-      class="mx-4 mb-4 p-3.5 rounded flex flex-col gap-0.5"
-      style="background: var(--sodium); border-color: var(--sodium)"
-      @click="ui.requestShelterReturn(board.moveBudget <= 0 ? 'moves' : 'voluntary')"
-    >
-      <span class="uppercase" style="font-family: var(--font-display); font-weight: 700; letter-spacing: 1px; color: #0e1214; font-size: 19px">Head back to shelter →</span>
-      <span class="text-[11px]" style="color: #5a3d12">{{ board.moveBudget <= 0 ? 'out of moves — time to head back' : `retrace cleared ground, always free · ${board.phase === 'day' ? 'dusk waits for no one' : 'dawn comes after'}` }}</span>
-    </div>
-
+    <EncounterLayer />
     <TileCard />
   </div>
 </template>
+
+<style scoped>
+.ask-back { position: absolute; inset: 0; z-index: 40; background: #0006 }
+.ask { position: absolute; z-index: 41; left: 12px; right: 12px; bottom: 16px; max-width: 420px; margin: 0 auto; padding: 12px; background: #0c1418f4; border: 3px solid #526169; box-shadow: 4px 4px 0 #000; font-family: var(--font-mono) }
+.ask h3 { margin: 0 0 4px; font: 400 24px/1 var(--font-display); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--sodium) }
+.ask p { margin: 0 0 10px; font-size: 12px; line-height: 1.45; color: #c9c3b6 }
+.ask .acts { display: flex; gap: 8px }
+.ask button { flex: 1; padding: 10px; font: 700 12px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; background: #16212a; color: var(--bone); border: 2px solid #3a4851 }
+.ask button.go { background: var(--sodium); color: #0e1214; border-color: var(--sodium) }
+</style>

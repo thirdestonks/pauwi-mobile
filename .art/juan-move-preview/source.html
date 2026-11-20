@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAUWI · Juan movement preview</title>
+<style>
+:root{color-scheme:dark;--ink:#0e1214;--amber:#f0a63c;--bone:#ece4d5;--muted:#828b90}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--ink);color:var(--bone);font:13px/1.6 Consolas,monospace;display:flex;align-items:center;justify-content:center;gap:32px;padding:24px}.phone{position:relative;width:min(440px,calc(90vh * 110 / 225));flex-shrink:0;border:1px solid #353c3c}.phone canvas{width:100%;display:block;image-rendering:pixelated;touch-action:none;cursor:pointer}.hud{position:absolute;left:12px;right:12px;pointer-events:none;text-shadow:1px 1px #000}.top{top:12px;color:var(--amber);display:flex;justify-content:space-between;font-size:11px;letter-spacing:.08em}.bottom{bottom:12px;background:#0e1214db;text-align:center;padding:8px;font-size:11px}.panel{width:320px;max-width:100%}.kicker{color:var(--amber);font-size:10px;letter-spacing:.18em}h1{font:700 32px/1.1 Impact,'Arial Narrow',sans-serif;letter-spacing:.04em;margin:7px 0 14px}p{margin:10px 0;color:var(--muted)}button,input{font:inherit}button{cursor:pointer;background:#171d1d;border:1px solid #394342;color:var(--bone);padding:9px}button[aria-pressed=true]{color:var(--amber);border-color:var(--amber)}button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}.row{display:flex;gap:7px;margin:12px 0}.row button{flex:1}.detail{border:1px solid #303a36;background:#161c19;padding:12px;display:flex;align-items:center;gap:12px;margin:20px 0}.detail canvas{width:176px;height:176px;max-width:62%;background:repeating-conic-gradient(#1c241f 0% 25%,#222b24 0% 50%) 50%/16px 16px}.detail small{font-size:10px;color:var(--muted)}.directions{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:12px 0}.directions button{padding:6px}.directions span{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px}label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}input{accent-color:var(--amber);width:140px}.fine{font-size:11px}#error{color:#ff9d80}[hidden]{display:none!important}@media(max-width:740px){body{flex-direction:column;gap:24px;padding:16px}.phone{width:min(440px,92vw)}.panel{width:min(440px,92vw)}}
+</style>
+<style>
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.comparison figure{margin:0;border:1px solid #303a36;background:#161c19;padding:8px;text-align:center}.comparison canvas{display:block;width:100%;height:auto;background:repeating-conic-gradient(#1c241f 0% 25%,#222b24 0% 50%) 50%/16px 16px}.comparison figcaption{font-size:11px;margin-top:6px}.comparison small{font-size:9px;color:var(--muted)}#originalDetail{image-rendering:pixelated}
+</style>
+</head>
+<body>
+<main class="phone"><canvas id="map" width="110" height="225" aria-label="Click a neighbouring open hex to move Juan"></canvas><div class="hud top"><b>TONDO / JUAN</b><span id="coords">0, 0</span></div><div class="hud bottom" id="status">Loading idle and move frames…</div></main>
+<aside class="panel">
+<span class="kicker">PAUWI / MOVEMENT STUDY</span><h1>JUAN, ON THE MAP</h1>
+<p>Your idle and move animations, with the flashlight pointing where Juan walks.</p>
+<div class="comparison">
+<figure><canvas id="detail" width="256" height="256" aria-label="New Juan source animation"></canvas><figcaption>New Juan<br><small><b id="animation">IDLE</b> · <span id="frame">FRAME 1 / 20</span></small></figcaption></figure>
+<figure><canvas id="originalDetail" width="144" height="144" aria-label="Original Juan map sprite"></canvas><figcaption>Original map Juan<br><small>15 × 28 px · existing scale</small></figcaption></figure>
+</div>
+<div class="row" aria-label="Choose the sprite shown on the map"><button id="newJuan" aria-pressed="true">Map: New Juan</button><button id="originalJuan" aria-pressed="false">Map: Original</button></div>
+<div class="row"><button id="tour" aria-pressed="false">Auto walk</button><button id="reset">Reset</button></div>
+<div class="row"><button id="idle" aria-pressed="true">Idle preview</button><button id="move" aria-pressed="false">Move preview</button></div>
+<div class="directions" aria-label="Face a direction">
+<button data-angle="-135">↖ NW</button><button data-angle="-90">↑ N</button><button data-angle="-45">↗ NE</button>
+<button data-angle="180">← W</button><span>FACE</span><button data-angle="0">E →</button>
+<button data-angle="135">↙ SW</button><button data-angle="90">↓ S</button><button data-angle="45">↘ SE</button>
+</div>
+<label>Map size <span><output id="sizeValue">16</output> px</span><input id="size" type="range" min="10" max="24" value="16" aria-label="Character size on map"></label>
+<label>Animation <span><output id="fpsValue">20</output> fps</span><input id="fps" type="range" min="10" max="30" value="20" aria-label="Animation frames per second"></label>
+<div class="row"><button id="day" aria-pressed="true">Day</button><button id="night" aria-pressed="false">Night</button></div>
+<p class="fine">Tap a neighbouring open hex, use the arrow keys, or start Auto walk. Juan switches to idle after each step.</p>
+<p class="fine">Compare both sprites above, then switch the map between them. Original Juan keeps his existing size and left/right walk frames.</p>
+<p id="error" role="alert" hidden></p>
+</aside>
+<script>
+/* MAP_RENDERER */
+</script>
+<script>
+const frames = /* ANIMATION_FRAMES */;
+const $ = id => document.getElementById(id);
+const {createTondoRenderer,NB,tile,tkey,hexDist} = window.previewMap;
+const renderer = createTondoRenderer($('map'));
+const state = {jq:0,jr:0,home:'nida',night:false,rain:false,visited:new Set(['0,0'])};
+const images = {idle:[],move:[],original:[]};
+const avatar = document.createElement('canvas'); avatar.width = avatar.height = 64;
+const avatarCtx = avatar.getContext('2d',{willReadFrequently:true});
+const detailCtx = $('detail').getContext('2d');
+const originalDetailCtx = $('originalDetail').getContext('2d');
+const originalCanvas = document.createElement('canvas'); originalCanvas.width = originalCanvas.height = 64;
+const originalCtx = originalCanvas.getContext('2d',{willReadFrequently:true});
+let useOriginal = false, originalFacing = 1, originalFrame = 0;
+let ready = false, angle = Math.PI/2, mode = 'idle', preview = 'idle', frame = 0, animationTime = 0;
+let previousTime = 0, fps = 20, bodySize = 16, tour = false, nextTour = 0, previousHex = '', steps = 0;
+let cachedKey = '', cachedPixels;
+const pressed = (id,on) => $(id).setAttribute('aria-pressed',String(on));
+Promise.all(Object.entries(frames).flatMap(([kind,items]) => items.map((src,i) => new Promise((resolve,reject) => {
+  const image = new Image();
+  image.onload = () => {images[kind][i] = image; resolve();};
+  image.onerror = () => reject(new Error('Could not load '+kind+' frame '+i));
+  image.src = src;
+})))).then(() => {ready = true; $('status').textContent = 'TAP AN OPEN HEX TO WALK';}).catch(error => {
+  $('error').hidden = false; $('error').textContent = error.message;
+});
+function setMode(next) {if(next !== mode){mode = next; animationTime = 0;}}
+function setTour(value) {tour = value; pressed('tour',tour); nextTour = 0;}
+function canWalk(q,r) {const type = tile(q,r).type; return type !== 'house' && type !== 'landmark';}
+async function moveTo(q,r) {
+  if (!ready || renderer.walking() || hexDist(state.jq,state.jr,q,r) !== 1) return false;
+  if (!canWalk(q,r)) {$('status').textContent = 'BUILDING · CHOOSE AN OPEN HEX'; return false;}
+  const dq = q-state.jq, dr = r-state.jr;
+  angle = Math.atan2(Math.sqrt(3)*(dr+dq/2)*0.62,1.5*dq);
+  previousHex = tkey(state.jq,state.jr); setMode('move');
+  $('status').textContent = 'MOVING';
+  await renderer.walkTo(state.jq,state.jr,q,r);
+  state.jq = q; state.jr = r; state.visited.add(tkey(q,r)); steps++;
+  $('coords').textContent = q+', '+r;
+  setMode(preview); $('status').textContent = 'TAP AN OPEN HEX TO WALK'; nextTour = performance.now()+450;
+  return true;
+}
+$('map').onclick = event => {
+  if(renderer.walking()) return;
+  setTour(false); preview = 'idle'; pressed('idle',true); pressed('move',false);
+  const rect = $('map').getBoundingClientRect();
+  moveTo(...renderer.pixelHex((event.clientX-rect.left)*110/rect.width,(event.clientY-rect.top)*225/rect.height));
+};
+$('tour').onclick = () => {preview = 'idle'; pressed('idle',true); pressed('move',false); setTour(!tour);};
+$('reset').onclick = () => {
+  setTour(false); if(renderer.walking()) return;
+  state.jq = state.jr = 0; state.visited = new Set(['0,0']); previousHex = ''; steps = 0;
+  renderer.snap(0,0); $('coords').textContent = '0, 0'; $('status').textContent = 'TAP AN OPEN HEX TO WALK';
+};
+for(const kind of ['idle','move']) $(kind).onclick = () => {
+  setTour(false); preview = kind; if(!renderer.walking()) setMode(kind);
+  pressed('idle',kind === 'idle'); pressed('move',kind === 'move');
+};
+for(const button of document.querySelectorAll('[data-angle]')) button.onclick = () => {
+  if(renderer.walking()) return;
+  setTour(false); angle = Number(button.dataset.angle)*Math.PI/180;
+};
+for(const kind of ['day','night']) $(kind).onclick = () => {state.night = kind === 'night'; pressed('day',!state.night); pressed('night',state.night);};
+$('size').oninput = event => {bodySize = Number(event.target.value); $('sizeValue').textContent = bodySize;};
+$('fps').oninput = event => {fps = Number(event.target.value); $('fpsValue').textContent = fps;};
+for(const id of ['newJuan','originalJuan']) $(id).onclick = () => {
+  useOriginal = id === 'originalJuan'; pressed('newJuan',!useOriginal); pressed('originalJuan',useOriginal);
+};
+function drawOriginal(ctx,scale,center,bottom) {
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  ctx.imageSmoothingEnabled = false; ctx.translate(center,bottom); ctx.scale(scale*originalFacing,scale);
+  ctx.drawImage(images.original[0],originalFrame*15,0,15,28,-7,-28,15,28);
+}
+document.addEventListener('keydown',event => {
+  if(event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) return;
+  const keys = {ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],q:[-1,0],w:[0,-1],e:[1,-1],a:[-1,1],s:[0,1],d:[1,0]};
+  const delta = keys[event.key];
+  if(delta){event.preventDefault(); setTour(false); preview = 'idle'; pressed('idle',true); pressed('move',false); moveTo(state.jq+delta[0],state.jr+delta[1]);}
+});
+function render(time) {
+  const dt = previousTime ? Math.min(50,time-previousTime) : 0; previousTime = time;
+  renderer.tick(dt); animationTime += dt;
+  if(ready){
+    if(tour && !renderer.walking() && time >= nextTour){
+      const options = NB.map(([q,r]) => [state.jq+q,state.jr+r]).filter(([q,r]) => canWalk(q,r));
+      options.sort((a,b) => Number(tkey(...a) === previousHex)-Number(tkey(...b) === previousHex) || Number(state.visited.has(tkey(...a)))-Number(state.visited.has(tkey(...b))));
+      if(options.length) moveTo(...options[0]); else setTour(false);
+    }
+    frame = Math.floor(animationTime*fps/1000)%20;
+    originalFrame = mode === 'move' && Math.floor(animationTime/190)%2 === 0 ? 1 : 0;
+    if(Math.abs(Math.cos(angle)) > 0.01) originalFacing = Math.cos(angle) < 0 ? -1 : 1;
+    const key = [mode,frame,angle,bodySize,useOriginal,originalFrame,originalFacing].join(':');
+    if(key !== cachedKey){
+      cachedKey = key;
+      const image = images[mode][frame];
+      // Both sequences share a shoulder pivot; their source canvases differ by 8px in height.
+      const pivotX = 106, pivotY = mode === 'idle' ? 112 : 120;
+      avatarCtx.setTransform(1,0,0,1,0,0); avatarCtx.clearRect(0,0,64,64);
+      avatarCtx.translate(32,32); avatarCtx.rotate(angle); avatarCtx.scale(bodySize/174,bodySize/174);
+      avatarCtx.imageSmoothingEnabled = true; avatarCtx.imageSmoothingQuality = 'high';
+      avatarCtx.drawImage(image,-pivotX,-pivotY);
+      cachedPixels = avatarCtx.getImageData(0,0,64,64);
+      // Remove faint edge pixels because the map's sprite blitter uses binary alpha.
+      for(let i=3;i<cachedPixels.data.length;i+=4) cachedPixels.data[i] = cachedPixels.data[i] < 100 ? 0 : 255;
+      drawOriginal(originalDetailCtx,4,72,128);
+      if(useOriginal){
+        // Match the original renderer's feet anchor at hex centre + 4px.
+        drawOriginal(originalCtx,1,32,38);
+        renderer.setAvatar({d:originalCtx.getImageData(0,0,64,64).data,w:64,h:64});
+      } else renderer.setAvatar({d:cachedPixels.data,w:64,h:64});
+      detailCtx.setTransform(1,0,0,1,0,0); detailCtx.clearRect(0,0,256,256);
+      detailCtx.translate(100,128); detailCtx.rotate(angle); detailCtx.scale(0.58,0.58);
+      detailCtx.drawImage(image,-pivotX,-pivotY);
+    }
+    $('animation').textContent = mode.toUpperCase(); $('frame').textContent = 'FRAME '+(frame+1)+' / 20';
+  }
+  renderer.draw(time,state); requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+window.juanPreview = {state,renderer,moveTo,canWalk,get ready(){return ready;},get mode(){return mode;},get frame(){return frame;},get steps(){return steps;},get angle(){return angle;},get useOriginal(){return useOriginal;}};
+</script>
+</body>
+</html>

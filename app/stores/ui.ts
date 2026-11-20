@@ -2,8 +2,10 @@ import { defineStore } from 'pinia'
 import { saveRunNow } from '~/utils/save'
 import { useBoardStore } from './board'
 import { useCombatStore } from './combat'
+import { useHouseStore } from './house'
 import { useInventoryStore } from './inventory'
 import { usePlayerStore } from './player'
+import { useTraderStore } from './trader'
 
 export type ScreenTab = 'shelter' | 'map' | 'combat' | 'pack' | 'gear' | 'bag'
 
@@ -25,8 +27,17 @@ export const useUiStore = defineStore('ui', () => {
   const outInField = ref(false)
 
   /** Packing done, bag on shoulder — from here the tab bar offers Map and Bag, not Shelter. */
+  /** Where the outing started from, so the walk home can say what it came to. */
+  const outingStart = ref<{ health: number; dread: number; tiles: number; moves: number; bag: string[] } | null>(null)
+
   function headOut() {
     outInField.value = true
+    const player = usePlayerStore(), board = useBoardStore(), inventory = useInventoryStore()
+    inventory.rememberPack()
+    outingStart.value = {
+      health: player.health, dread: player.dread, tiles: board.tilesCleared, moves: board.moveBudget,
+      bag: [...inventory.units],
+    }
   }
 
   /** Back inside walls (returned, or claimed a new shelter mid-run). */
@@ -66,9 +77,12 @@ export const useUiStore = defineStore('ui', () => {
 
   // Called when the player taps Continue on that screen — this is what actually ends the phase.
   function confirmShelterReturn() {
-    useBoardStore().retreatToShelter()
-    // A bad fight follows you home: carried Dread comes out of Hope, then the night clears it.
-    usePlayerStore().settleDreadAtShelter()
+    const board = useBoardStore()
+    const nightOut = board.phase === 'night'
+    board.retreatToShelter()
+    // Back at dawn from a night out: the night still passed, and its Dread with it (8 drains,
+    // 1 Hope per 10 lost). From a day out Dread just comes home with Juan and waits for the night.
+    if (nightOut) usePlayerStore().passNight()
     shelterTransition.value = null
     endOuting()
     setTab('shelter')
@@ -87,6 +101,7 @@ export const useUiStore = defineStore('ui', () => {
     shelterTransition.value = null
     won.value = false
     outInField.value = false
+    useHouseStore().reset()
     activeTab.value = 'shelter'
   }
 
@@ -99,6 +114,7 @@ export const useUiStore = defineStore('ui', () => {
     usePlayerStore().resetRun()
     useInventoryStore().resetRun()
     useBoardStore().startRun()
+    useTraderStore().resetRun()
     resetUi()
     prologueDone.value = false
   }
@@ -140,6 +156,7 @@ export const useUiStore = defineStore('ui', () => {
     confirmShelterReturn,
     winDemo,
     headOut,
+    outingStart,
     endOuting,
     resetUi,
     restartRun,

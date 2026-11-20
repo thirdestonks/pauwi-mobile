@@ -1,0 +1,63 @@
+{
+ "kit-watch": {
+  "w": 32,
+  "h": 52,
+  "lcd": [
+   8,
+   20,
+   19,
+   12
+  ]
+ },
+ "kit-phone-0": {
+  "w": 40,
+  "h": 33
+ },
+ "kit-phone-1": {
+  "w": 40,
+  "h": 33
+ },
+ "kit-phone-2": {
+  "w": 40,
+  "h": 32
+ },
+ "kit-phone-3": {
+  "w": 40,
+  "h": 31
+ },
+ "kit-phone-4": {
+  "w": 40,
+  "h": 32
+ },
+ "kit-compass": {
+  "w": 24,
+  "h": 24,
+  "cx": 11.6,
+  "cy": 11.7,
+  "r": 8.5
+ },
+ "dialog-frame": {
+  "w": 101,
+  "h": 26
+ },
+ "portrait-juan": {
+  "w": 16,
+  "h": 17
+ },
+ "portrait-shambler": {
+  "w": 16,
+  "h": 17
+ },
+ "portrait-cora": {
+  "w": 16,
+  "h": 17
+ },
+ "portrait-cora-big": {
+  "w": 38,
+  "h": 40
+ },
+ "prop-stall": {
+  "w": 19,
+  "h": 21
+ }
+}
